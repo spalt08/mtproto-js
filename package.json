@@ -1,0 +1,30 @@
+{
+  "name": "mtproto-js",
+  "description": "JavaScript MTProto Implementation",
+  "version": "1.0.0",
+  "author": "Konstantin Darutkin",
+  "dependencies": {},
+  "devDependencies": {
+    "@babel/core": "^7.6.2",
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
+    "@babel/plugin-proposal-export-default-from": "^7.5.2",
+    "@babel/plugin-proposal-export-namespace-from": "^7.5.2",
+    "@babel/plugin-transform-classes": "^7.5.5",
+    "@babel/preset-env": "^7.6.2",
+    "@babel/preset-flow": "^7.0.0",
+    "babel-eslint": "^10.0.3",
+    "babel-loader": "^8.0.6",
+    "eslint": "^6.4.0",
+    "eslint-config-airbnb": "^18.0.1",
+    "eslint-plugin-flowtype": "^4.3.0",
+    "eslint-plugin-import": "^2.18.2",
+    "webpack": "^4.40.2",
+    "webpack-cli": "^3.3.9"
+  },
+  "license": "GNU",
+  "main": "dist/lib.js",
+  "scripts": {
+    "build": "webpack",
+    "lint": "eslint --ext js ./src"
+  }
+}
