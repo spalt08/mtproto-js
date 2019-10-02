@@ -1,37 +1,56 @@
-/* eslint-disable class-methods-use-this */
 // @flow
 
-import TLQuery from './query';
-import TLResponse from './response';
-import TLSchemaAdapter from './schema';
+import { SchemaProvider, TelegramBase } from '../schemas';
+import TLConstructor from './entites/constructor';
+import { TLMessage } from './serialization';
 
-export class TL {
-  /*
-   * @prop Tl-schema
-   * schema: TLSchemaAdapter
-   *
-   * https://core.telegram.org/schema
-   */
+export default class TL {
+  schema: SchemaProvider
 
-  constructor(schema: string | object) {
-    if (typeof schema === 'string') {
-      fetch(schema).then((r) => r.json()).then((s) => { this.schema = new TLSchemaAdapter(s); });
+  constructor(...schemas: Schema) {
+    if (schemas.length > 0) {
+      this.schema = new SchemaProvider(...schemas);
     } else {
-      this.schema = new TLSchemaAdapter(schema);
+      this.schema = new SchemaProvider(TelegramBase);
     }
   }
 
-  query(q: string): TLQuery {
-    return new TLQuery(q, this.schema);
+  query(query: string | number): TLConstructor {
+    return new TLConstructor(query, this.schema);
   }
 
-  response(buf: ArrayBuffer): TLResponse {
-    return new TLResponse(buf, this.schema);
+  response(buf: ArrayBuffer): TLConstructor {
+    const message = new TLMessage(buf);
+    console.log('Response: \n', message.dump());
+    return new TLConstructor(message, this.schema);
   }
 
-  define(q: string) {
-    this.schema.defineConstructor(q);
+  define(query: string) {
+    this.schema.define(query);
   }
 }
 
-export { TLQuery, TLResponse };
+/*
+MTProto.Scheme(schm);
+
+var req = MTProto.Request('req_pq')
+
+req.randomize('nonce')
+req.set('param', '1324')
+
+var socket = MTProto.Socket();
+var http = MTProto.http();
+
+var msg = req.compose()
+socket.send(msg)
+http.send(msg)
+
+---------
+
+var tl = new MTProto.TL(schm)
+
+var msg = tl.query('req_pg').randomize('nonce').compose()
+
+socket.send(msg)
+http.send(msg)
+*/

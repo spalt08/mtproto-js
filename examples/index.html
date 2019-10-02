@@ -5,10 +5,23 @@
   <body>
     <script type="text/javascript">
       require(['../dist/lib'], function(MTProto) {
-        window.m = MTProto;
-        window.tl = new MTProto.TL()
 
-        console.log(tl)
+        var tl = new MTProto.TL(MTProto.Schema.TelegramBase)
+        var server = new MTProto.Http('venus.web.telegram.org', tl);
+
+        var query = tl.query('req_pq nonce:int128 = ResPQ').randomize('nonce');
+
+        server.call(query, function(res) {
+          window.res = res;
+        });
+
+        window.tl = tl;
+        window.m = MTProto;
+
+        // // setTimeout(function() {
+        // //   socket.send(query.compose());
+        // // }, 1000);
+
       });
     </script>
   </body>

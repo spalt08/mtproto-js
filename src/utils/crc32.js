@@ -17,7 +17,7 @@ const premadeTable = (() => {
   return table;
 })();
 
-export function String(input: string): number {
+export function str(input: string): number {
   let output = 0 ^ (-1);
 
   for (let i = 0; i < input.length; i += 1) {
@@ -27,4 +27,4 @@ export function String(input: string): number {
   return (output ^ (-1)) >>> 0;
 }
 
-export function Bytes() {}
+export function byte() {}
