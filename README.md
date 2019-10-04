@@ -1,2 +1,2 @@
 # mtproto
-JavaScript MTProto Protocol
+JavaScript MTProto Implementation

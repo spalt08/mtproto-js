@@ -5,8 +5,14 @@ import { TLMessage, TLMessageView } from '../serialization';
 import TLVariable from './variable';
 import TLArray from './array';
 
+type Options = {
+  skipHeaders: boolean,
+};
+
 export default class TLConstructor {
   declaration: SchemaEntity;
+
+  opts: Options;
 
   properties: {};
 
@@ -18,7 +24,9 @@ export default class TLConstructor {
 
   view: TLMessageView;
 
-  constructor(source: string | number | TLMessage, schema: SchemaProvider) {
+  constructor(source: string | number | TLMessage, schema: SchemaProvider, opts: Options = {}) {
+    this.opts = opts;
+
     if (typeof source === 'number') {
       this.fromID(source, schema);
     } else if (typeof source === 'string') {
@@ -36,6 +44,8 @@ export default class TLConstructor {
 
     this.setProps(schema);
     this.createBuffer();
+
+    this.view.setNumber(this.declaration.id);
   }
 
   fromString(query: string, schema: SchemaProvider) {
@@ -43,6 +53,8 @@ export default class TLConstructor {
 
     this.setProps(schema);
     this.createBuffer();
+
+    this.view.setNumber(this.declaration.id);
   }
 
   fromBuffer(message: TLMessage, schema: SchemaProvider) {
@@ -93,7 +105,7 @@ export default class TLConstructor {
   }
 
   createBuffer() {
-    this.message = new TLMessage(this.allocBytes);
+    this.message = new TLMessage(this.allocBytes, this.opts.skipHeaders);
 
     this.view = new TLMessageView(this.message, 0, 4);
     this.view.setNumber(this.declaration.id);
@@ -111,11 +123,17 @@ export default class TLConstructor {
   }
 
   toString(): string {
-    return this.message.dump();
+    return this.message.toHexString();
   }
 
   set(propName: string, value: string | number): TLConstructor {
     this.properties[propName].set(value);
+
+    return this;
+  }
+
+  setHexString(propName: string, value: string, isBigEndian: boolean = false): TLConstructor {
+    this.properties[propName].setHexString(value, isBigEndian);
 
     return this;
   }
@@ -133,8 +151,16 @@ export default class TLConstructor {
     return this;
   }
 
-  getString(propName: string): string {
+  getString(propName: StringCallback): string {
     return this.properties[propName].getString();
+  }
+
+  getHexString(propName: string, isBigEndian: boolean = false): string {
+    return this.properties[propName].getHexString(isBigEndian);
+  }
+
+  getArray(propName: string): string {
+    return this.properties[propName].items;
   }
 
   serialize(): TLMessage {

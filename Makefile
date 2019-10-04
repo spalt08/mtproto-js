@@ -1,6 +1,6 @@
 # Development purposes
 
-serve:
+serve: restart
 	fswatch -or --event=Updated ./src | xargs -n1 -I {} make restart
 
 restart: 

@@ -9,11 +9,13 @@
         var tl = new MTProto.TL(MTProto.Schema.TelegramBase)
         var server = new MTProto.Http('venus.web.telegram.org', tl);
 
-        var query = tl.query('req_pq nonce:int128 = ResPQ').randomize('nonce');
+        MTProto.Authorize(server, tl);
 
-        server.call(query, function(res) {
-          window.res = res;
-        });
+        // var query = tl.query('req_pq nonce:int128 = ResPQ').randomize('nonce');
+
+        // server.call(query, function(res) {
+        //   window.res = res;
+        // });
 
         window.tl = tl;
         window.m = MTProto;

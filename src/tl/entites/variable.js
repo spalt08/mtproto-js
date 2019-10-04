@@ -23,8 +23,16 @@ export default class TLVariable {
     return this.view.getString();
   }
 
+  getHexString(isBigEndian: boolean = false): string {
+    return this.view.getHexString(undefined, undefined, isBigEndian);
+  }
+
   getNumber(): number {
     return this.view.getNumber();
+  }
+
+  getArrayBuffer(): ArrayBuffer {
+    return this.view.getArrayBuffer();
   }
 
   set(value: string | number) {
@@ -33,5 +41,9 @@ export default class TLVariable {
     } else {
       this.view.setNumber(value);
     }
+  }
+
+  setHexString(value: string, isBigEndian: boolean = false) {
+    this.view.setHexString(value, undefined, undefined, isBigEndian);
   }
 }

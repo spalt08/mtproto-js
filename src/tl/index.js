@@ -3,6 +3,7 @@
 import { SchemaProvider, TelegramBase } from '../schemas';
 import TLConstructor from './entites/constructor';
 import { TLMessage } from './serialization';
+import { log } from '../utils/log';
 
 export default class TL {
   schema: SchemaProvider
@@ -19,9 +20,15 @@ export default class TL {
     return new TLConstructor(query, this.schema);
   }
 
+  construct(query: string | number): TLConstructor {
+    return new TLConstructor(query, this.schema, { skipHeaders: true });
+  }
+
   response(buf: ArrayBuffer): TLConstructor {
     const message = new TLMessage(buf);
-    console.log('Response: \n', message.dump());
+
+    log('got response from server: \n', message.dump());
+
     return new TLConstructor(message, this.schema);
   }
 
@@ -29,28 +36,3 @@ export default class TL {
     this.schema.define(query);
   }
 }
-
-/*
-MTProto.Scheme(schm);
-
-var req = MTProto.Request('req_pq')
-
-req.randomize('nonce')
-req.set('param', '1324')
-
-var socket = MTProto.Socket();
-var http = MTProto.http();
-
-var msg = req.compose()
-socket.send(msg)
-http.send(msg)
-
----------
-
-var tl = new MTProto.TL(schm)
-
-var msg = tl.query('req_pg').randomize('nonce').compose()
-
-socket.send(msg)
-http.send(msg)
-*/

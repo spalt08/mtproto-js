@@ -8,14 +8,14 @@ import HexDump from '../utils/hexdump';
 export class TLMessage {
   hLen: number;
 
-  buff: ArrayBuffer
+  buf: ArrayBuffer
 
   constructor(source: number | ArrayBuffer, ignoreHeaderPadding?: boolean = false) {
     const hLen = 20;
 
     if (typeof source === 'number') {
       this.buf = new ArrayBuffer(ignoreHeaderPadding ? source : hLen + source);
-      this.hLen = hLen;
+      this.hLen = ignoreHeaderPadding ? 0 : hLen;
     } else {
       this.buf = source;
       this.hLen = hLen;
@@ -24,6 +24,18 @@ export class TLMessage {
 
   dump(): string {
     return HexDump(this.buf);
+  }
+
+  toHexString(): string {
+    const view = new TLMessageView(this.buf);
+
+    let hexStr = '';
+
+    for (let i = 0; i < view.byteLength; i += 1) {
+      hexStr += `0${view.getUint8(i).toString(16)}`.slice(-2);
+    }
+
+    return hexStr;
   }
 
   withHeaders(): TLMessage {
@@ -76,6 +88,26 @@ export class TLMessageView extends DataView {
     return str;
   }
 
+  getHexString(offset: number = 0, len: number = this.byteLength, isBigEndian: boolean = false): string {
+    let hex = '';
+
+    if (isBigEndian) {
+      for (let i = offset; i < offset + len; i += 1) {
+        hex += `0${this.getUint8(i).toString(16)}`.slice(-2);
+      }
+    } else {
+      for (let i = len + offset - 1; i >= offset; i -= 1) {
+        hex += `0${this.getUint8(i).toString(16)}`.slice(-2);
+      }
+    }
+
+    return hex;
+  }
+
+  getArrayBuffer(offset: number = 0, len: number = this.byteLength): string {
+    return this.buffer.slice(this.byteOffset + offset, this.byteOffset + offset + len);
+  }
+
   getNumber(offset: number = 0, len: number = this.byteLength): number {
     switch (len) {
       case 1:
@@ -98,6 +130,21 @@ export class TLMessageView extends DataView {
   setString(str: string, offset: number = 0, len: number = this.byteLength): string {
     for (let i = offset; i < Math.min(str.length, len); i += 1) {
       this.setUint8(i, str.charCodeAt(i));
+    }
+  }
+
+  setHexString(str: string, offset: number = 0, len: number = this.byteLength, isBigEndian: boolean = false): string {
+    // eslint-disable-next-line no-param-reassign
+    if (str.length % 2 === 1) str = `0${str}`;
+
+    if (isBigEndian) {
+      for (let i = 0; i < Math.min(str.length, (offset + len) * 2); i += 2) {
+        this.setUint8(i / 2, parseInt(str.slice(i, i + 2), 16));
+      }
+    } else {
+      for (let i = Math.min(str.length, (offset + len) * 2) - 1; i >= offset; i -= 2) {
+        this.setUint8((i - 1) / 2, parseInt(str.slice(i, i + 2), 16));
+      }
     }
   }
 

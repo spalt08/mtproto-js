@@ -33,11 +33,11 @@ export default class TLArray {
 
   map(message: TLMessage, offset: number): number {
     this.initView = new TLMessageView(message, offset, 4);
-    this.lengthView = new TLMessageView(message, offset + 4, 1);
+    this.lengthView = new TLMessageView(message, offset + 4, 4);
 
     this.length = this.lengthView.getNumber();
 
-    let ofst = offset + 4;
+    let ofst = offset + 8;
 
     for (let i = 0; i < this.length; i += 1) {
       const variable = new TLVariable(this.itemsDeclaration.id, this.schema);
