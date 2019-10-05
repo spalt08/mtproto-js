@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "author": "Konstantin Darutkin",
   "dependencies": {
+    "@goodmind/node-cryptojs-aes": "^0.5.0",
     "asn1js": "^2.0.26",
     "big-integer": "^1.6.46",
     "debug": "^4.1.1",

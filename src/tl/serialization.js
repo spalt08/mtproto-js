@@ -18,8 +18,22 @@ export class TLMessage {
       this.hLen = ignoreHeaderPadding ? 0 : hLen;
     } else {
       this.buf = source;
-      this.hLen = hLen;
+      this.hLen = ignoreHeaderPadding ? 0 : hLen;
     }
+  }
+
+  static FromHex(hexStr: string, ignoreHeaderPadding?: boolean = false): TLMessage {
+    // eslint-disable-next-line no-param-reassign
+    if (hexStr.length % 2 === 1) hexStr = `0${hexStr}`;
+
+    const buf = new ArrayBuffer(hexStr.length / 2);
+    const view = new DataView(buf);
+
+    for (let i = 0; i < hexStr.length; i += 2) {
+      view.setUint8(i / 2, parseInt(hexStr.slice(i, i + 2), 16));
+    } 
+
+    return new TLMessage(buf, ignoreHeaderPadding);
   }
 
   dump(): string {
@@ -45,6 +59,7 @@ export class TLMessage {
     offset = this.setMessageID(offset);
     offset = this.setLength(offset);
 
+    console.log(this.dump());
     return this.buf;
   }
 
@@ -116,6 +131,14 @@ export class TLMessageView extends DataView {
       case 2:
         return this.getUint16(offset, true);
 
+      case 3:
+        return parseInt(
+          `0${this.getUint8(offset + 2).toString(16)}`.slice(-2)
+          + `0${this.getUint8(offset + 1).toString(16)}`.slice(-2)
+          + `0${this.getUint8(offset + 0).toString(16)}`.slice(-2),
+          16,
+        );
+
       case 4:
         return this.getUint32(offset, true);
 
@@ -155,6 +178,10 @@ export class TLMessageView extends DataView {
         break;
 
       case 2:
+        this.setUint16(offset, data, true);
+        break;
+
+      case 3:
         this.setUint16(offset, data, true);
         break;
 

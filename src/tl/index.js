@@ -24,6 +24,12 @@ export default class TL {
     return new TLConstructor(query, this.schema, { skipHeaders: true });
   }
 
+  fromHex(hexStr: string, skipHeaders?: boolean = false): TLConstructor {
+    const message = TLMessage.FromHex(hexStr, skipHeaders);
+
+    return new TLConstructor(message, this.schema, { skipHeaders });
+  }
+
   response(buf: ArrayBuffer): TLConstructor {
     const message = new TLMessage(buf);
 

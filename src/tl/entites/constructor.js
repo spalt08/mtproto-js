@@ -4,6 +4,7 @@ import type { SchemaEntity, SchemaProvider } from '../../schemas';
 import { TLMessage, TLMessageView } from '../serialization';
 import TLVariable from './variable';
 import TLArray from './array';
+import TLString from './string';
 
 type Options = {
   skipHeaders: boolean,
@@ -74,31 +75,30 @@ export default class TLConstructor {
 
     for (let i = 0; i < this.declaration.properties.length; i += 1) {
       const prop = this.declaration.properties[i];
-      const propSchema = schema.find(prop.predicate);
+
+      const propSchema = schema.find(prop.predicate) || {};
 
       let entity;
 
-      if (prop.type === 'string' || prop.type === 'bytes') {
-        throw new Error('string and bytes types are currently unsupported; use more obvious types in tl declaration');
-      } else {
-        switch (propSchema.type) {
-          case 'system_type':
-            entity = new TLVariable(propSchema.id, schema);
-            allocBytes += entity.declaration.allocate;
-            break;
+      switch (propSchema.type) {
+        case 'system_type':
+          entity = new TLVariable(propSchema.id, schema);
+          allocBytes += entity.declaration.allocate;
+          break;
 
-          case 'list':
-            entity = new TLArray(propSchema.id, prop.template, schema);
-            allocBytes += entity.allocBytes;
-            break;
+        case 'list':
+          entity = new TLArray(propSchema.id, prop.template, schema);
+          allocBytes += entity.allocBytes;
+          break;
 
-          default:
-            break;
-        }
-
-        this.properties[prop.name] = entity;
-        this.propNames.push(prop.name);
+        default:
+          entity = new TLString(this.declaration.predicate, prop.name, schema);
+          allocBytes += entity.allocBytes;
+          break;
       }
+
+      this.properties[prop.name] = entity;
+      this.propNames.push(prop.name);
     }
 
     this.allocBytes = allocBytes;
@@ -122,7 +122,7 @@ export default class TLConstructor {
     }
   }
 
-  toString(): string {
+  toHexString(): string {
     return this.message.toHexString();
   }
 
@@ -153,6 +153,10 @@ export default class TLConstructor {
 
   getString(propName: StringCallback): string {
     return this.properties[propName].getString();
+  }
+
+  getNumber(propName: StringCallback): string {
+    return this.properties[propName].getNumber();
   }
 
   getHexString(propName: string, isBigEndian: boolean = false): string {

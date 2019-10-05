@@ -3,6 +3,7 @@
 // @flow
 
 import BigInt from 'big-integer';
+import { CryptoJS } from '@goodmind/node-cryptojs-aes'
 import HexDump from './utils/hexdump';
 
 // p-Pollard Algotitm; o(n^1/4)
@@ -33,7 +34,7 @@ export function pqPrimePollard(hex: string): Array<string> {
 
   const q = n.divide(gcd);
 
-  return gcd.greater(q) ? [gcd.toString(16), q.toString(16)] : [q.toString(16), gcd.toString(16)];
+  return gcd.greater(q) ? [q.toString(16), gcd.toString(16)] : [gcd.toString(16), q.toString(16)];
 }
 
 export function randomBytes(num: number): string {
@@ -53,7 +54,39 @@ export function rsa(data: string, modulus: string, exponent: string): string {
   const n = BigInt(modulus, 16);
   const e = BigInt(exponent, 16);
 
-  console.log(x, n, e);
-  console.log(x.modPow(e, n));
   return x.modPow(e, n).toString(16);
+}
+
+export function aes(encrypted: string, iv: string, key: string): string {
+  window.cjs = CryptoJS;
+
+  const decrypted = CryptoJS.AES.decrypt(
+    { ciphertext: CryptoJS.enc.Hex.parse(encrypted) },
+    CryptoJS.enc.Hex.parse(key),
+    {
+      iv: CryptoJS.enc.Hex.parse(iv),
+      padding: CryptoJS.pad.NoPadding,
+      mode: CryptoJS.mode.IGE,
+    },
+  );
+
+  return CryptoJS.enc.Hex.stringify(decrypted);
+}
+
+export function aesenc(text: string, iv: string, key: string): string {
+  const encrypted = CryptoJS.AES.encrypt(
+    CryptoJS.enc.Hex.parse(text),
+    CryptoJS.enc.Hex.parse(key), 
+    {
+      iv: CryptoJS.enc.Hex.parse(iv),
+      padding: CryptoJS.pad.NoPadding,
+      mode: CryptoJS.mode.IGE,
+    }
+  ).ciphertext;
+
+  return CryptoJS.enc.Hex.stringify(encrypted);
+}
+
+export function generateDH(g: number, dhPrime: string): string {
+  return BigInt(g).modPow(BigInt.randBetween('-1e256', '1e256'), BigInt(dhPrime, 16)).toString(16);
 }

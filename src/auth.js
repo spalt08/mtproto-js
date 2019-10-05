@@ -3,13 +3,14 @@
 import sha1 from 'rusha';
 import * as asn1js from 'asn1js';
 import { logs } from './utils/log';
-import { pqPrimePollard, randomBytes, rsa } from './works';
+import { pqPrimePollard, randomBytes, rsa, aes, aesenc, generateDH } from './works';
 import { TLMessage } from './tl/serialization';
+import HexDump from './utils/hexdump';
 
 export default async function Authorize(transport, tl): string {
   const reqPq = tl.query('req_pq').randomize('nonce'); // req_pq_multi#be7e8ef1 nonce:int128 = ResPQ
 
-  logs('auth', 'prepared req_pq \n', reqPq.message.dump());
+  logs('auth', 'prepared req_pq');
 
   const respq = await transport.call(reqPq);
   logs('auth', 'got respq', respq);
@@ -36,8 +37,6 @@ export default async function Authorize(transport, tl): string {
   const qlength = `0${(qstr.length / 2).toString(16)}`.slice(-2);
   const qwrapper = `${qlength}${qstr}${'00'.repeat(8 - qlength - 1)}`;
 
-  console.log(pwrapper, qwrapper);
-
   pqInnerData.setHexString('pq', pqwrapper, true);
   pqInnerData.setHexString('p', pwrapper, true);
   pqInnerData.setHexString('q', qwrapper, true);
@@ -45,14 +44,13 @@ export default async function Authorize(transport, tl): string {
   pqInnerData.set('server_nonce', serverNonce);
   pqInnerData.randomize('new_nonce');
 
-  logs('auth', 'p_q_innerData \n', pqInnerData.message.dump());
-
-  const pqhash = sha1.createHash().update(pqInnerData.message).digest('hex');
+  const pqhash = sha1.createHash().update(pqInnerData.message.buf).digest('hex');
 
   logs('auth', 'hash', pqhash);
 
-  const dataWithHash = pqhash + pqInnerData.toString() + randomBytes(255 - pqhash.length / 2 - pqInnerData.message.buf.byteLength);
-  const pkfingerprint = serverPublicKeys[0].getHexString();
+  const dataWithHash = pqhash + pqInnerData.toHexString() + randomBytes(255 - pqhash.length / 2 - pqInnerData.message.buf.byteLength);
+
+  const pkfingerprint = serverPublicKeys[0].getHexString(true);
 
   // key parse
   const pk = atob(`MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6
@@ -76,9 +74,90 @@ Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB`);
 
   const encryptedData = rsa(dataWithHash, modulus.toHexString(), exponent.toHexString());
 
-  console.log('rsa', encryptedData.length, encryptedData);
 
+  const reqDHParams = tl.query('req_DH_params');
+
+  reqDHParams.set('nonce', nonce);
+  reqDHParams.set('server_nonce', serverNonce);
+  reqDHParams.setHexString('p', pwrapper, true);
+  reqDHParams.setHexString('q', qwrapper, true);
+  reqDHParams.setHexString('public_key_fingerprint', pkfingerprint, true);
+  reqDHParams.setHexString('encrypted_data', encryptedData, true);
+
+  logs('auth', 'req_DH_params generated');
+
+  const DHres = await transport.call(reqDHParams);
+  logs('auth', 'got dh result', DHres);
+
+  const newNonce = pqInnerData.getHexString('new_nonce', true);
+  const srvNonce = reqDHParams.getHexString('server_nonce', true);
+
+  if (DHres.declaration.predicate === 'server_dh_params_ok') {
+    const tmpAesKey = (
+      sha1.createHash().update(
+        TLMessage.FromHex(newNonce + srvNonce, true).buf,
+      ).digest('hex')
+      + sha1.createHash().update(
+        TLMessage.FromHex(srvNonce + newNonce, true).buf,
+      ).digest('hex').slice(0, 24)
+    );
+
+    const tmpAesIv = (
+      sha1.createHash().update(
+        TLMessage.FromHex(srvNonce + newNonce).buf,
+      ).digest('hex').slice(24, 40)
+      + sha1.createHash().update(
+        TLMessage.FromHex(newNonce + newNonce).buf,
+      ).digest('hex')
+      + newNonce.slice(0, 8)
+    );
+
+    const encAnswer = DHres.getHexString('encrypted_answer', true);
+
+    logs('auth', 'aes_key', tmpAesKey);
+    logs('auth', 'aes_iv', tmpAesIv);
+
+    const decryptedAnswer = aes(encAnswer, tmpAesIv, tmpAesKey);
+    const answerWithPadding = decryptedAnswer.slice(40);
+
+    const DHinnerData = tl.fromHex(answerWithPadding, true);
+
+    window.did = DHinnerData;
+
+    const g = DHinnerData.getNumber('g');
+    const dhPrime = DHinnerData.getHexString('dh_prime', true);
+
+    // TO DO: check dhPrime
+    logs('auth', 'dhPrime checking');
+
+    const clientDHData = tl.construct('client_DH_inner_data');
+    const gb = generateDH(g, dhPrime);
+
+    logs('auth', 'gb generated');
+
+    clientDHData.set('nonce', nonce);
+    clientDHData.set('server_nonce', serverNonce);
+    clientDHData.setHexString('g_b', gb, true);
+
+    const cdhHash = sha1.createHash().update(clientDHData.message.buf).digest('hex');
+    const cdWithHash = cdhHash + clientDHData.toHexString() + randomBytes(16 - ((cdhHash.length / 2 + clientDHData.message.buf.byteLength) % 16));
+
+    const encryptedCDH = aesenc(cdWithHash, tmpAesIv, tmpAesKey);
+
+    logs('auth', 'encrypted_data', encryptedCDH.length, encryptedCDH);
+
+    const setDHq = tl.query('set_client_DH_params');
+
+    console.log(setDHq);
+
+    setDHq.set('nonce', nonce);
+    setDHq.set('server_nonce', serverNonce);
+    setDHq.setHexString('encrypted_data', encryptedCDH, true);
+
+    logs('auth', 'set_client_DH_params generated');
+
+    const dhGenStatus = await transport.call(setDHq);
+    logs('auth', 'got dh gen status', dhGenStatus);
+  }
   // rsa(sha1(pqInnerData.toString()), serverPublicKey);
-
-
 }
