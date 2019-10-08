@@ -66,7 +66,7 @@ export default function HexDump(data: string | number, offset: number = 0, lengt
 
     if (upperBound < 16) bytes += '   '.repeat(16 - upperBound);
 
-    const strNum = `${`00${(Math.floor(i / 16) - 1).toString(16)}`.slice(-3)}0`;
+    const strNum = `${`00${(Math.floor(rendered / 16)).toString(16)}`.slice(-3)}0`;
     output += `${strNum} | ${bytes} | ${chars} \n`;
 
     rendered += 16;

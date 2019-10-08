@@ -3,7 +3,7 @@
 import sha1 from 'rusha';
 import * as asn1js from 'asn1js';
 import { logs } from './utils/log';
-import { pqPrimePollard, randomBytes, rsa, aes, aesenc, generateDH } from './works';
+import { pqPrimePollard, randomBytes, rsa, aes, aesenc, generateDH, computeAuthKey } from './works';
 import { TLMessage } from './tl/serialization';
 import HexDump from './utils/hexdump';
 
@@ -125,13 +125,14 @@ Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB`);
     window.did = DHinnerData;
 
     const g = DHinnerData.getNumber('g');
+    const ga = DHinnerData.getHexString('g_a', true);
     const dhPrime = DHinnerData.getHexString('dh_prime', true);
 
     // TO DO: check dhPrime
     logs('auth', 'dhPrime checking');
 
     const clientDHData = tl.construct('client_DH_inner_data');
-    const gb = generateDH(g, dhPrime);
+    const [gb, b] = generateDH(g, dhPrime);
 
     logs('auth', 'gb generated');
 
@@ -158,6 +159,16 @@ Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB`);
 
     const dhGenStatus = await transport.call(setDHq);
     logs('auth', 'got dh gen status', dhGenStatus);
+
+    const authKey = computeAuthKey(ga, b, dhPrime);
+    const authKeyHash = sha1.createHash().update(TLMessage.FromHex(authKey).buf).digest('hex');
+    const authKeyAux = authKeyHash.slice(0, 16);
+    const authKeyID = authKeyHash.slice(-16);
+
+    console.log(authKey);
+    console.log(authKeyHash);
+    console.log(authKeyAux);
+    console.log(authKeyID);
   }
   // rsa(sha1(pqInnerData.toString()), serverPublicKey);
 }

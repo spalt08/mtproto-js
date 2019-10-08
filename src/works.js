@@ -76,17 +76,22 @@ export function aes(encrypted: string, iv: string, key: string): string {
 export function aesenc(text: string, iv: string, key: string): string {
   const encrypted = CryptoJS.AES.encrypt(
     CryptoJS.enc.Hex.parse(text),
-    CryptoJS.enc.Hex.parse(key), 
+    CryptoJS.enc.Hex.parse(key),
     {
       iv: CryptoJS.enc.Hex.parse(iv),
       padding: CryptoJS.pad.NoPadding,
       mode: CryptoJS.mode.IGE,
-    }
+    },
   ).ciphertext;
 
   return CryptoJS.enc.Hex.stringify(encrypted);
 }
 
 export function generateDH(g: number, dhPrime: string): string {
-  return BigInt(g).modPow(BigInt.randBetween('-1e256', '1e256'), BigInt(dhPrime, 16)).toString(16);
+  const b = BigInt.randBetween('-1e256', '1e256');
+  return [BigInt(g).modPow(b, BigInt(dhPrime, 16)).toString(16), b.toString(16)];
+}
+
+export function computeAuthKey(ga: string, b: string, dhPrime: string) {
+  return BigInt(ga, 16).modPow(BigInt(b, 16), BigInt(dhPrime, 16)).toString(16);
 }

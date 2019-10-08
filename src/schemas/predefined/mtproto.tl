@@ -3,15 +3,14 @@ long ? = Long;
 double ? = Double;
 string ? = String;
 
-Vector#1cb5c415 {t:Type} # [ t ] = Vector t;
+vector {t:Type} # [ t ] = Vector t;
 
-pq 3*[ int ] = PQ;
 int128 4*[ int ] = Int128;
 int256 8*[ int ] = Int256;
 
-resPQ#05162463 nonce:int128 server_nonce:int128 pq:pq server_public_key_fingerprints:Vector<long> = ResPQ;
+resPQ#05162463 nonce:int128 server_nonce:int128 pq:bytes server_public_key_fingerprints:Vector<long> = ResPQ;
 
-p_q_inner_data#83c95aec pq:pq p:long q:long nonce:int128 server_nonce:int128 new_nonce:int256 = P_Q_inner_data;
+p_q_inner_data#83c95aec pq:bytes p:bytes q:bytes nonce:int128 server_nonce:int128 new_nonce:int256 = P_Q_inner_data;
 
 
 server_DH_params_fail#79cb045d nonce:int128 server_nonce:int128 new_nonce_hash:int128 = Server_DH_Params;

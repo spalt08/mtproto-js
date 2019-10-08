@@ -1,24 +1,27 @@
 // @flow
 
+/** SchemaEntity is a single json element of constructor or method */
 export type SchemaEntity = {
-  id: number,
+  id: string,
   predicate: string,
-  result: string,
-  type: 'system_type' | 'list' | 'constructor',
+  type: string,
 
-  properties?: Array<{
-    name?: string,
-    type: string,
-    template?: string,
-  }>,
-
-  templates?: Array<{
+  params: Array<{
     name: string,
     type: string,
   }>,
-
-  listEntityType?: string,
-  allocate: number,
 };
 
-export type Schema = Array<TLSchemaEntity>;
+/**
+ * Type Language Schema
+ * Ref: https://core.telegram.org/schema/json
+ */
+export type Schema = {
+  constructors?: SchemaEntity[],
+  methods?: SchemaEntity[],
+};
+
+/**
+ * Flattened Schema
+ */
+export type FlattenedSchema = SchemaEntity[];
