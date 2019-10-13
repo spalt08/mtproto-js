@@ -11,17 +11,11 @@
           MTProto.Schema.Layer105
         );
 
-        var serverConfStr = localStorage.getItem('server_conf');
-        var serverConf = {}; // serverConfStr ? JSON.parse(serverConfStr) : {};
-
-        var server = new MTProto.Http('venus.web.telegram.org', tl, serverConf);
-        
-        server.onConfigurationChange(function(key, value) {
-          serverConf[key] = value;
-          localStorage.setItem('server_conf', JSON.stringify(serverConf));
+        var server = new MTProto.Http('venus.web.telegram.org', tl, {
+          APIID: '1037552',
+          APIHash: '98d59f55b7e29ced837ac0b549eb4b83',
+          APILayer: 105,
         });
-
-        if (!serverConf.authKeyTemp) server.authorize();
 
         // server.call(
         //   tl.query('help.getConfig'),

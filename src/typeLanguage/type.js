@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 // @flow
 
-import { GenericView, Hex } from '../serialization';
+import { GenericView, GenericBuffer, Hex } from '../serialization';
 
 /** Abstract class for any TL entity */
 export default class TLType {
@@ -9,7 +9,7 @@ export default class TLType {
   byteSize: number = 0;
 
   /* Adapter to buffer */
-  view: ?GenericView;
+  view: GenericView;
 
   /** Value to store, if no buffer */
   _value: any;
@@ -19,7 +19,7 @@ export default class TLType {
    * @param {GenericBuffer} buf Message Buffer
    * @param {number} bufOffset Buffer Byte Offset
    */
-  mapBuffer(buf: GenericBufffer, bufOffset?: number = 0) {
+  mapBuffer(buf: GenericBuffer, bufOffset?: number = 0) {
     this.view = new GenericView(buf, bufOffset, this.byteSize);
 
     if (this._value) {
@@ -45,7 +45,7 @@ export default class TLType {
    * Sets value to view
    * @param {string} data Hex
    */
-  setValue(data: string) {
+  setValue(data: any) {
     this._value = new Hex(data);
 
     if (this.view) this.view.setHex(this._value);

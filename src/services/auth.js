@@ -1,7 +1,9 @@
 // @flow
 
 import BigInt from 'big-integer';
-import type { Transport } from '../interfaces';
+
+import type { Transport, DataStorage } from '../interfaces';
+
 import TypeLanguage from '../typeLanguage';
 import { Hex, MessageData } from '../serialization';
 import pqPrimePollard from '../crypto/pq';
@@ -14,7 +16,9 @@ import SHA1 from '../crypto/sha1';
 import getTime from '../utils/timer';
 
 /**
- * Service class helper for generating auth_key and tmp_auth_key
+ * Service class helper for authorization stuff
+ * @param {object} tempKey Temporary authorization key
+ * @param {object} permKey Temporary authorization key
  */
 export default class AuthService {
   /** Type Language Handler */
@@ -23,15 +27,21 @@ export default class AuthService {
   /** Tranport handler */
   transport: Transport;
 
-  /** Authorization data */
+  /** Storage handler */
+  storage: DataStorage;
+
+  /**
+   * Authorization keys
+   * Ref: https://core.telegram.org/mtproto/auth_key 
+   */
   authKeys: {
     permanent: {
-      key: Hex,
-      id: Hex,
+      key: ?Hex,
+      id: ?Hex,
     },
     temporary: {
-      key: Hex,
-      id: Hex,
+      key: ?Hex,
+      id: ?Hex,
     },
   };
 
@@ -48,39 +58,44 @@ export default class AuthService {
    * @param {TypeLanguage} tl Type Language Handler
    * @constructs
    */
-  constructor(transport: Transport, tl: TypeLanguage) {
+  constructor(transport: Transport, tl: TypeLanguage, storage: DataStorage) {
     this.tl = tl;
     this.transport = transport;
+    this.storage = storage;
+
+    const tempKey = this.storage.load('auth', 'authKeyTemp');
+    const permKey = this.storage.load('auth', 'authKeyPerm');
 
     this.authKeys = {
-      permanent: {},
-      temporary: {},
+      temporary: tempKey ? {
+        key: new Hex(tempKey),
+        id: SHA1.Hex(new Hex(tempKey)).sliceBytes(-8),
+      } : { key: undefined, id: undefined },
+      permanent: permKey ? {
+        key: new Hex(permKey),
+        id: SHA1.Hex(new Hex(permKey)).sliceBytes(-8),
+      } : { key: undefined, id: undefined },
     };
 
     this.RSAKeys = [...PredefinedKeys];
   }
 
   /**
-   * Sets Permenant Auth Key
-   * @param {string} authKey Permanent auth key
-   * Ref: https://core.telegram.org/mtproto/auth_key
+   * Gets temporary authorization key object
+   * @returns {{ key: Hex, id: Hex }} Temporary authorization key and it's ID
    */
-  setAuthKeyPerm(authKey: string) {
-    const hexKey = new Hex(authKey);
-
-    this.authKeys.permanent = {
-      key: hexKey,
-      id: SHA1.Hex(hexKey).sliceBytes(-8),
-    };
+  get tempKey(): { key: Hex, id: Hex } {
+    return this.authKeys.temporary;
   }
 
   /**
-   * Sets Temporary Auth Key
-   * @param {string} authKey Temporary auth key
-   * Ref: https://core.telegram.org/mtproto/auth_key
+   * Sets temporary authorization key
+   * @param {string} key Temporary authorization key
    */
-  setAuthKeyTemp(authKey: string) {
-    const hexKey = new Hex(authKey);
+  set tempKey(key: string) {
+    const hexKey = new Hex(key);
+
+    this.storage.save('auth', 'authKeyTemp', hexKey.toString());
 
     this.authKeys.temporary = {
       key: hexKey,
@@ -89,28 +104,34 @@ export default class AuthService {
   }
 
   /**
-   * Gets Temporary Auth Key
-   * @returns {string} Temporary auth key
+   * Gets permanent authorization key object
+   * @returns {{ key: Hex, id: Hex }} Permanent authorization key and it's ID
    */
-  getAuthKeyTemp(): string {
-    if (!this.authKeys.temporary.id) throw new Error('Auth Service: Temporary auth key is undefined');
-    return this.authKeys.temporary;
-  }
-
-  /**
-   * Gets Permanent Auth Key
-   * @returns {string} Permanent auth key
-   */
-  getAuthKeyPerm(): string {
-    if (!this.authKeys.permanent.id) throw new Error('Auth Service: Permanent auth key is undefined');
+  get permKey(): { key: Hex, id: Hex } {
     return this.authKeys.permanent;
   }
 
   /**
-   * Creates temporary and permanent auth keys
-   * Ref: https://core.telegram.org/mtproto/auth_key
+   * Sets permanent authorization key
+   * @param {string} key Permanent authorization key
    */
-  async createAuthKeys(): { [string]: string } {
+  set permKey(key: string) {
+    const hexKey = new Hex(key);
+
+    this.storage.save('auth', 'authKeyPerm', hexKey.toString());
+
+    this.authKeys.permanent = {
+      key: hexKey,
+      id: SHA1.Hex(hexKey).sliceBytes(-8),
+    };
+  }
+
+  /**
+   * Creates temporary and permanent auth keys and binds it togher
+   * Ref: https://core.telegram.org/mtproto/auth_key
+   * @returns {{ [string]: { key: Hex, id: Hex }} Permanent and temporary auth keys
+   */
+  async createAuthKeys(): { [string]: { key: Hex, id: Hex } } {
     const expiresIn = 3600 * 24 * 7;
 
     return Promise.all([
@@ -131,7 +152,7 @@ export default class AuthService {
    * @param {number} expiresAfter Time to expire temporary key in seconds
    * @returns {string} Temporary or permanent auth key
    */
-  async createAuthKey(isTemporary?: boolean = false, expiresAfter?: number = 3600 * 24 * 7): string {
+  async createAuthKey(isTemporary?: boolean = false, expiresAfter?: number = 3600 * 24 * 7) {
     const nonce = Hex.random(16);
     const newNonce = Hex.random(32);
 
@@ -145,7 +166,7 @@ export default class AuthService {
     const pq = resPQ.params.pq.getHex();
     const [p, q] = pqPrimePollard(pq);
 
-    let publicKeyFingerprint;
+    let publicKeyFingerprint: number;
     let publicKey;
 
     for (let i = 0; i < resPQ.params.server_public_key_fingerprints.items.length; i += 1) {
@@ -158,7 +179,7 @@ export default class AuthService {
       }
     }
 
-    if (!publicKey) throw new Error(`RSA: Unknown public key fingerprint ${publicKeyFingerprint}`);
+    if (!publicKey && publicKeyFingerprint) throw new Error(`RSA: Unknown public key fingerprint ${publicKeyFingerprint}`);
 
     const pqInner = this.tl.construct(isTemporary ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
       pq,
@@ -231,12 +252,10 @@ export default class AuthService {
     const authKey = ga.modPow(b, dhPrime).toString(16);
 
     if (isTemporary) {
-      this.setAuthKeyTemp(authKey);
+      this.tempKey = authKey;
     } else {
-      this.setAuthKeyPerm(authKey);
+      this.permKey = authKey;
     }
-
-    this.transport.setServerSalt(Hex.xor(newNonce.sliceBytes(0, 8), serverNonce.sliceBytes(0, 8)));
 
     return authKey;
   }
@@ -249,54 +268,54 @@ export default class AuthService {
    * @param {number} expiresAfter Expires after in seconds
    */
   async bindTempAuthKey(expiresAfter?: number = 3600 * 24 * 7) {
-    const premAuthKeyID = this.authKeys.permanent.id;
-    const tempAuthKeyID = this.authKeys.temporary.id;
+    // const premAuthKeyID = this.authKeys.permanent.id;
+    // const tempAuthKeyID = this.authKeys.temporary.id;
 
-    const sessionID = Hex.random(8);
-    const salt = this.transport.getServerSalt();
-    const nonce = Hex.random(8);
-    const expiresAt = getTime().second + expiresAfter;
+    // const sessionID = Hex.random(8);
+    // const salt = this.transport.getServerSalt();
+    // const nonce = Hex.random(8);
+    // const expiresAt = getTime().second + expiresAfter;
 
-    this.transport.setSession(sessionID);
+    // this.transport.setSession(sessionID);
 
-    const bindInner = this.tl.construct('bind_auth_key_inner', {
-      nonce,
-      temp_auth_key_id: tempAuthKeyID,
-      perm_auth_key_id: premAuthKeyID,
-      temp_session_id: sessionID,
-      expires_at: expiresAt,
-    });
+    // const bindInner = this.tl.construct('bind_auth_key_inner', {
+    //   nonce,
+    //   temp_auth_key_id: tempAuthKeyID,
+    //   perm_auth_key_id: premAuthKeyID,
+    //   temp_session_id: sessionID,
+    //   expires_at: expiresAt,
+    // });
 
-    const bindMsg = new MessageData(bindInner.serialize());
+    // const bindMsg = new MessageData(bindInner.serialize());
 
-    bindMsg.setSalt(salt);
-    bindMsg.setSessionID(sessionID);
-    bindMsg.setMessageID();
-    bindMsg.setLength();
-    bindMsg.setPadding();
+    // bindMsg.setSalt(salt);
+    // bindMsg.setSessionID(sessionID);
+    // bindMsg.setMessageID();
+    // bindMsg.setLength();
+    // bindMsg.setPadding();
 
-    const msgID = bindMsg.getMessageID();
+    // const msgID = bindMsg.getMessageID();
 
-    const bindQuery = this.tl.query('auth.bindTempAuthKey', {
-      perm_auth_key_id: premAuthKeyID,
-      nonce,
-      expires_at: expiresAt,
-      encrypted_message: encryptDataMessage(this.authKeys.permanent, bindMsg).toHex(),
-    });
+    // const bindQuery = this.tl.query('auth.bindTempAuthKey', {
+    //   perm_auth_key_id: premAuthKeyID,
+    //   nonce,
+    //   expires_at: expiresAt,
+    //   encrypted_message: encryptDataMessage(this.authKeys.permanent, bindMsg).toHex(),
+    // });
 
-    const queryMsg = new MessageData(bindQuery.serialize());
+    // const queryMsg = new MessageData(bindQuery.serialize());
 
-    queryMsg.setSessionID(sessionID);
-    queryMsg.setSalt(salt);
-    queryMsg.setSequenceNum(1);
-    queryMsg.setMessageID(msgID);
-    queryMsg.setLength();
-    queryMsg.setPadding();
+    // queryMsg.setSessionID(sessionID);
+    // queryMsg.setSalt(salt);
+    // queryMsg.setSequenceNum(1);
+    // queryMsg.setMessageID(msgID);
+    // queryMsg.setLength();
+    // queryMsg.setPadding();
 
-    const res = await this.transport.send(encryptDataMessage(this.authKeys.temporary, queryMsg));
+    // const res = await this.transport.send(encryptDataMessage(this.authKeys.temporary, queryMsg));
 
-    console.log('bindKeyRes:', res);
+    // console.log('bindKeyRes:', res);
 
-    this.transport.initConnection();
+    // this.transport.initConnection();
   }
 }

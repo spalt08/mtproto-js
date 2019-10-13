@@ -18,7 +18,7 @@ export default class RPCService {
   messages: {
     [string]: {
       msg: Message,
-      cb: (TLConstructor) => any,
+      resolve: (TLConstructor) => any,
     }
   }
 
@@ -40,9 +40,12 @@ export default class RPCService {
    * @param {Message} msg Sent message
    * @param {func} cb Callback function
    */
-  subscribe(msg: Message, cb?: (TLConstructor) => any) {
+  subscribe(msg: Message): Promise<TLConstructor> {
     const msgID = msg.getMessageID().toString();
-    this.messages[msgID] = { msg, cb };
+
+    return new Promise((resolve: (TLConstructor) => any) => {
+      this.messages[msgID] = { msg, resolve };
+    });
   }
 
   /**

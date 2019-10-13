@@ -7,11 +7,15 @@ export default class Hex extends String {
   isHex: boolean = true;
 
   /**
-   * @constructs
-   * Hex can be made from string
+   * Creates hex
+   * @params
    */
-  constructor(str?: string) {
-    if (str) {
+  constructor(str?: string | Hex) {
+    if (typeof str === 'object' && str instanceof Hex) {
+      return str;
+    }
+
+    if (str && typeof str === 'string') {
       super(str.length % 2 === 1 ? `0${str}` : str);
     } else {
       super();

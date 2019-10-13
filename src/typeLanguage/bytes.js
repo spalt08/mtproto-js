@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 // @flow
 
-import { GenericView, Hex } from '../serialization';
+import { GenericView, Hex, GenericBuffer } from '../serialization';
 import TLType from './type';
 
 /** TLString is a param constructor view for message buffer */
@@ -40,7 +40,7 @@ export default class TLBytes extends TLType {
    * @param {GenericBuffer} buf Message Buffer
    * @param {number} bufOffset Buffer Byte Offset
    */
-  mapBuffer(buf: GenericBufffer, bufOffset?: number = 0) {
+  mapBuffer(buf: GenericBuffer, bufOffset?: number = 0) {
     if (this._value) {
       this.stringLength = this._value.length;
       this.byteDataOffset = this.stringLength > 253 ? 4 : 1;
@@ -97,7 +97,7 @@ export default class TLBytes extends TLType {
    * @param {boolean} littleEndian Is little endian
    * @returns {Hex} Hex string
    */
-  getHex(littleEndian? = false): Hex {
+  getHex(littleEndian?: boolean = false): Hex {
     return this.view.getHex(this.byteDataOffset, this.stringLength, littleEndian);
   }
 
@@ -132,7 +132,7 @@ export default class TLBytes extends TLType {
    * @param {string | Hex} String
    */
   setValue(data: string | Hex) {
-    this._value = data.isHex ? data.toRawString() : data;
+    this._value = typeof data === 'object' && data instanceof Hex ? data.toRawString() : data;
 
     this.stringLength = this._value.length;
     this.byteDataOffset = this.stringLength > 253 ? 4 : 1;

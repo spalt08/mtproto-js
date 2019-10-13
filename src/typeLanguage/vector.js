@@ -2,11 +2,13 @@
 /* eslint-disable no-underscore-dangle */
 // @flow
 
-import type { Schema, SchemaProvider } from '../schemas';
-import { GenericView } from '../serialization';
+import type { Schema } from '../schemas';
+import { SchemaProvider } from '../schemas';
+import { GenericView, GenericBuffer } from '../serialization';
 import TLType from './type';
 import TLNumber from './number';
 import TLBytes from './bytes';
+import TLBoolean from './boolean';
 import TLConstructor from './constructor';
 
 /** TLString is a param constructor view for message buffer */
@@ -24,7 +26,7 @@ export default class TLVector extends TLType {
   itemsLength: number = 0;
 
   /** Array of TL entities */
-  items: TLType[];
+  items: Array<TLType | TLNumber | TLBytes | TLVector | TLBoolean | TLConstructor>;
 
   /** Byte offset of items data */
   byteDataOffset: number = 5;
@@ -91,7 +93,7 @@ export default class TLVector extends TLType {
    * @param {GenericBuffer} buf Message Buffer
    * @param {number} bufOffset Buffer Byte Offset
    */
-  mapBuffer(buf: GenericBufffer, bufOffset?: number = 0) {
+  mapBuffer(buf: GenericBuffer, bufOffset?: number = 0) {
     let offset = bufOffset + this.byteDataOffset;
 
     if (this.itemsLength > 0) {
@@ -141,7 +143,7 @@ export default class TLVector extends TLType {
    * Method gets array from items
    * @returns {any[]} Stored Value
    */
-  getValue(): object {
+  getValue(): any[] {
     const output = [];
 
     for (let i = 0; i < this.itemsLength; i += 1) {

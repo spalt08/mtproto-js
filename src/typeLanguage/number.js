@@ -52,7 +52,7 @@ export default class TLNumber extends TLType {
    * @param {number | Hex} Number
    */
   setValue(data: number | Hex) {
-    this._value = data.isHex ? BigInt(data.reverseBytes().toString(), 16) : data;
+    this._value = typeof data === 'object' && data instanceof Hex ? BigInt(data.reverseBytes().toString(), 16) : data;
     if (this.view) this.view.setNumber(data);
   }
 
@@ -64,15 +64,5 @@ export default class TLNumber extends TLType {
     if (this.view) return this.view.getHex();
 
     return null;
-  }
-
-  /**
-   * Sets random value
-   */
-  setRandom() {
-    const randomHex = Hex.random(this.byteSize);
-    this._value = BigInt(randomHex, 16);
-
-    if (this.view) this.view.setHex(randomHex);
   }
 }

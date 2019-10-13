@@ -1,8 +1,9 @@
+/* eslint-disable import/no-cycle */
 /* eslint-disable no-param-reassign */
 // @flow
 
 import BigInt from 'big-integer';
-import type GenericBuffer from './genericBuffer';
+import GenericBuffer from './genericBuffer';
 import Hex from './hex';
 
 /** GenericView is a wrapper for native DataView */
@@ -12,7 +13,7 @@ export default class GenericView extends DataView {
    * GenericView can be made from GenericBuffer or ArrayBuffer
    */
   constructor(source: GenericBuffer | ArrayBuffer, offset: number = 0, len: number) {
-    if (source.bytePaddingBefore !== undefined) {
+    if (source instanceof GenericBuffer) {
       super(source.buf, source.bytePaddingBefore + offset, len);
     } else {
       super(source, offset, len);
@@ -38,13 +39,13 @@ export default class GenericView extends DataView {
 
   /**
    * The method sets hex-string data to array buffer slice
-   * @param {Hex} hex Byte offset
+   * @param {Hex | string} hex Data to set
    * @param {number} offset Byte offset
    * @param {number} len Byte length
    * @param {boolean} littleEndian Flag for little endianess
    */
-  setHex(hex: Hex | string, offset: number = 0, len: number = this.byteLength, littleEndian: boolean = false) {
-    if (!hex.isHex) hex = new Hex(hex);
+  setHex(hexStr: Hex | string, offset: number = 0, len: number = this.byteLength, littleEndian: boolean = false) {
+    const hex = new Hex(hexStr);
 
     const bound = Math.min(len, hex.byteLength);
 
@@ -64,7 +65,6 @@ export default class GenericView extends DataView {
       case 1: return this.getUint8(offset);
       case 2: return this.getInt16(offset, littleEndian);
       case 4: return this.getInt32(offset, littleEndian);
-      case 8: return this.getBigInt64(offset, littleEndian);
 
       case 3: return parseInt(
         `0${this.getUint8(offset + 2).toString(16)}`.slice(-2)

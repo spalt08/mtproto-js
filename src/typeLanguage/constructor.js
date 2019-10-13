@@ -17,10 +17,10 @@ export default class TLConstructor extends TLType {
   declaration: SchemaEntity;
 
   /** Schema provider */
-  schema: SchemaProvider
+  schema: SchemaProvider;
 
   /* Params TL objects */
-  params: { [string]: TLType };
+  params: { [string]: any }; // TLNumber | TLBytes | TLVector | TLBoolean | TLConstructor };
 
   /* Flag is bare type */
   isBare: boolean = false;
@@ -38,12 +38,12 @@ export default class TLConstructor extends TLType {
    * @param {boolean} isBare True if it is a bare constructor
    * @constructs
    */
-  constructor(query?: string | number, schema?: SchemaProvider, isBare: boolean = false, data?: object = {}) {
+  constructor(query?: string | number, schema?: SchemaProvider, isBare: boolean = false, data?: Object = {}) {
     super();
 
     this.schema = schema;
 
-    if (query[0] === '%') {
+    if (typeof query === 'string' && query[0] === '%') {
       query = query.slice(1);
       isBare = true;
     }
@@ -127,29 +127,18 @@ export default class TLConstructor extends TLType {
   }
 
   /**
-   * Method sets random value to param
-   * @param {string} paramName Name of param
-   * @returns {TLConstructor} Self
-   */
-  randomize(paramName: string): TLConstructor {
-    this.params[paramName].setRandom();
-
-    return this;
-  }
-
-  /**
    * Method maps views for constructor and all params
    * @param {GenericBuffer} buf Message Buffer
    * @param {number} bufOffset Buffer Byte Offset
    * @returns {number} Byte offset
    */
-  mapBuffer(buf?: GenericBufffer, bufOffset?: number = 0): number {
+  mapBuffer(buf?: GenericBuffer, bufOffset?: number = 0): number {
     this.view = new GenericView(buf, bufOffset, this.byteSize);
     this.byteSize = this.byteParamsOffset;
 
     if (!this.isBare) {
       const viewConstructorID = this.view.getNumber(0, 4);
-      if (viewConstructorID === 0) {
+      if (viewConstructorID === 0 && this.view) {
         this.view.setNumber(this.declaration.id, 0, 4);
       }
     }
@@ -193,7 +182,7 @@ export default class TLConstructor extends TLType {
    * Method gets object from params
    * @returns {object} Stored Value
    */
-  getValue(): object {
+  getValue(): Object {
     const output = {};
 
     for (let i = 0; i < this.declaration.params.length; i += 1) {
@@ -208,7 +197,7 @@ export default class TLConstructor extends TLType {
    * Shortcut for getValue
    * @returns {object} Json Object
    */
-  json(): object {
+  json(): Object {
     return this.getValue();
   }
 }

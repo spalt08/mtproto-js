@@ -1,98 +1,115 @@
 // @flow
 
 import type { Transport, Message } from '../interfaces';
-import type { TLConstructor } from '../typeLanguage/constructor';
-import type { TransportConfig } from './configuration';
-import TypeLanguage from '../typeLanguage';
+import type TypeLanguage from '../typeLanguage';
+import type { GenericTranportConfig } from './abstract';
+import type { Hex } from '../serialization';
+
 import AbstractTransport from './abstract';
+import TLConstructor from '../typeLanguage/constructor';
 import { MessagePlain, MessageData, MessageEncrypted } from '../serialization';
 import { encryptDataMessage, decryptDataMessage } from '../crypto/aes/message';
 import AuthService from '../services/auth';
 
-type Callback = (TLConstructor) => any;
-type ResponseWrapper = (ArrayBuffer) => TLConstructor;
+/** Function wraps response into type language constructor */
+type ResponseWrapper = (ArrayBuffer, TypeLanguage, ?{ auth: AuthService }) => TLConstructor;
+
+/** Configuration object for HTTP transport */
+type HTTPConfig = GenericTranportConfig & {
+  ssl?: boolean,
+};
+
+/** Default configuration for HTTP transport */
+const defaultConfig = {
+  ssl: true,
+};
+
+/** Message headers object type */
+type MsgHeaders = {
+  sessionID?: Hex | string,
+  serverSalt?: Hex | string,
+  msgID?: Hex | string,
+  seqNum?: number,
+};
 
 /**
- * Http is a wrapper for XMLHttpRequest for sending type language queries and serialized messages.
+ * Http is a wrapper for XMLHttpRequest for sending serialized type language messages to HTTP MTProto server.
+ * @extends {AbstractTransport}
  */
 export default class Http extends AbstractTransport implements Transport {
-  /** Full server address */
+  /**
+   * @param {string} addr Full server address
+   */
   addr: string;
 
   /**
-   * Creates http handler.
+   * Creates HTTP handler for MTProto server.
    * @param {string} addr Server address or IP
-   * @param {TypeLanguage} tlHandler Type language handler
-   * @param {boolean} ssl Flag for ssl encryption
-   * @param {TransportConfig} cfg Transport Configuration
-   * @constructs
+   * @param {TypeLanguage} tl Type language handler
+   * @param {object} cfg Transport Configuration
    */
-  constructor(addr: string, tlHandler: TypeLanguage, cfg?: TransportConfig = {}, ssl: boolean = true) {
-    super(tlHandler, cfg);
+  constructor(addr: string, tl: TypeLanguage, extCfg?: HTTPConfig = {}) {
+    super(tl, extCfg);
 
-    this.addr = `http${ssl ? 's' : ''}://${addr}/apiw1`;
-    this.tl = tlHandler;
+    const cfg = { ...defaultConfig, ...extCfg };
+
+    this.addr = `http${cfg.ssl ? 's' : ''}://${addr}/apiw1`;
   }
 
   /**
-   * Method sends encrypted message
-   * @param {TLConstructor | Message} query Data to send
-   * @param {func} callback Optional callback function
-   * @returns {Promise} If callback wasn't set
+   * Method ecnrypts serialized message and sends it to the server
+   * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
+   * @returns {Promise<TLConstructor>} Promise response wrapped by type language constructor
    */
-  call(query: TLConstructor | Message, cb?: Callback): ?Promise {
-    let msg;
+  call(query: TLConstructor | MessageData, headers: MsgHeaders = {}): Promise<TLConstructor> {
+    let msg: MessageData;
 
-    if (query.serialize) {
+    if (query instanceof TLConstructor) {
       msg = new MessageData(query.serialize());
-      msg.setSessionID(this.services.session.getSessionID());
-      msg.setSalt(this.services.session.getServerSalt());
-      msg.setMessageID();
-      msg.setSequenceNum(1);
+
+      msg.setSessionID(headers.sessionID || this.services.session.id);
+      msg.setSalt(headers.serverSalt || this.services.session.serverSalt);
+      msg.setMessageID(headers.msgID);
+      msg.setSequenceNum(headers.seqNum);
       msg.setLength();
       msg.setPadding();
-    } else if (query.getBuffer) {
+    } else if (query instanceof MessageData) {
       msg = query;
     }
 
-    console.log('session id:', this.services.session.getSessionID());
-    this.send(encryptDataMessage(this.services.auth.getAuthKeyTemp(), msg), Http.WrapEncryptedResponse);
+    this.send(encryptDataMessage(this.services.auth.tempKey, msg), Http.WrapEncryptedResponse).then(
+      (res: TLConstructor) => this.services.rpc.processMessage(res),
+    );
 
-    if (cb) {
-      this.services.rpc.subscribe(msg, cb);
-    } else {
-      return new Promise((resolve: () => any) => {
-        this.services.rpc.subscribe(msg, resolve);
-      });
-    }
-
-    return undefined;
+    return this.services.rpc.subscribe(msg);
   }
 
   /**
-   * Method sends plain (unencrypted) message
-   * @param {TLConstructor | MessagePlain} query Data to send
-   * @param {func} callback Optional callback function
-   * @returns {Promise} If callback wasn't set
+   * Method sends plain message to the server
+   * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
+   * @returns {Promise<TLConstructor>} Promise response wrapped by type language constructor
    */
-  callPlain(query: TLConstructor | MessagePlain, cb?: Callback): ?Promise {
-    if (query.getBuffer) return this.send(query.getBuffer, Http.WrapPlainResponse);
+  callPlain(query: TLConstructor | MessagePlain, headers: MsgHeaders = {}): Promise<TLConstructor> {
+    if (query instanceof MessagePlain) {
+      return this.send(query, Http.WrapPlainResponse);
+    }
 
     const msg = new MessagePlain(query.serialize());
 
-    msg.setMessageID();
+    msg.setMessageID(headers.msgID);
     msg.setLength();
 
-    return this.send(msg, Http.WrapPlainResponse, true, cb);
+    return this.send(msg, Http.WrapPlainResponse);
   }
 
   /**
    * Method sends bytes to server via http.
-   * @param {ArrayBuffer} message Byte array
-   * @param {func} callback Optional callback function
+   * @param {Message} msg Message interface
+   * @param {ResponseWrapper} rw Response wrapper function
+   * @param {boolean} isPlain is plain message
    * @returns {Promise} If callback wasn't set
    */
-  send(msg: Message, rw?: ResponseWrapper = Http.WrapEncryptedResponse, isPlain?: boolean = false, cb?: Callback): ?Promise {
+  send(msg: Message, rw?: ResponseWrapper = Http.WrapEncryptedResponse): Promise<TLConstructor> {
     const req = new XMLHttpRequest();
 
     req.open('POST', this.addr);
@@ -100,49 +117,45 @@ export default class Http extends AbstractTransport implements Transport {
     req.addEventListener('error', this.handleError);
     req.send(msg.getBuffer());
 
-    // Encrypted Messages goes through rpc servce
-    if (!isPlain) {
+    return new Promise((resolve: (TLConstructor) => any, reject) => {
       req.onreadystatechange = () => {
         if (req.readyState !== 4) return;
         if (req.status >= 200 && req.status < 300) {
-          this.services.rpc.processMessage(rw(req.response, this.tl, this.services));
+          resolve(rw(req.response, this.tl, this.services));
         } else {
-          throw new Error(`HTTP Error: Unexpected status ${req.status}`);
+          const err = new Error(`HTTP Error: Unexpected status ${req.status}`);
+          reject(err);
+          throw err;
         }
       };
-
-    // Plain Messages requires direct callback
-    } else if (cb) {
-      req.onload = () => cb(rw(req.response, this.tl, this.services));
-    } else {
-      return new Promise((resolve) => {
-        req.onload = () => resolve(rw(req.response, this.tl, this.services));
-      });
-    }
-
-    return undefined;
+    });
   }
 
   /**
-   * @static
-   * Method wraps encrypted response messae into tl construtor
+   * Method decrypts response message and wraps it into tl construtor
    * @param {ArrayBuffer} buf Response bytes
+   * @static
    */
-  static WrapEncryptedResponse(buf: ArrayBuffer, tl: TypeLanguage, services: { auth: AuthService }) {
+  static WrapEncryptedResponse(buf: ArrayBuffer, tl: TypeLanguage, services: { auth: AuthService }): TLConstructor {
     const msg = new MessageEncrypted(buf);
-    const decryptedMsg = decryptDataMessage(services.auth.getAuthKeyTemp(), msg);
+    const decryptedMsg = decryptDataMessage(services.auth.tempKey, msg);
 
     return tl.parse(decryptedMsg);
   }
 
   /**
-   * @static
    * Method wraps response bytes into tl construtor
    * @param {ArrayBuffer} buf Response bytes
+   * @static
    */
-  static WrapPlainResponse(buf: ArrayBuffer, tl: TypeLanguage) {
+  static WrapPlainResponse(buf: ArrayBuffer, tl: TypeLanguage): TLConstructor {
     const msg = new MessagePlain(buf);
 
     return tl.parse(msg);
   }
+
+  /**
+   * Method handles XMLHttpRequest erros
+   */
+  handleError = () => { throw new Error('HTTP Error'); };
 }
