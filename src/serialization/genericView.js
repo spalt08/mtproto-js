@@ -89,7 +89,8 @@ export default class GenericView extends DataView {
       case 1: this.setUint8(offset, data); break;
       case 2: this.setUint16(offset, data, littleEndian); break;
       case 4: this.setUint32(offset, data, littleEndian); break;
-      case 8: this.setBigUint64(offset, data, littleEndian); break;
+      // To Do: Fix setting big int
+      // case 8: this.setBigInt64(offset, data, littleEndian); break;
 
       default:
         this.setHex(data.toString(16), offset, len, littleEndian);

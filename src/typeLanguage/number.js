@@ -49,12 +49,21 @@ export default class TLNumber extends TLType {
 
   /**
    * Sets value to view
-   * @param {number} Number
+   * @param {number | Hex} Number
    */
-  setValue(data: number) {
-    this._value = data;
-
+  setValue(data: number | Hex) {
+    this._value = data.isHex ? BigInt(data.reverseBytes().toString(), 16) : data;
     if (this.view) this.view.setNumber(data);
+  }
+
+  /**
+   * Gets hex from view
+   * @returns {?Hex} Hex string
+   */
+  getHex(): ?Hex {
+    if (this.view) return this.view.getHex();
+
+    return null;
   }
 
   /**

@@ -19,6 +19,8 @@
         "flowtype"
     ],
     "rules": {
-        "max-len": [2, 150, 4]
+        "max-len": [2, 150, 4],
+        "no-continue": 0,
+        "no-bitwise": 0
     }
 }

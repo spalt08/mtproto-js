@@ -1,3 +1,4 @@
+/* eslint-disable no-bitwise */
 // @flow
 
 /** Hex is a string with byte hex codes */
@@ -41,7 +42,23 @@ export default class Hex extends String {
    * @returns {Hex} Hex string
    */
   sliceBytes(start: number, end: number): Hex {
-    return new Hex(super.slice(start * 2, end * 2));
+    if (end) {
+      return new Hex(super.slice(start * 2, end * 2));
+    }
+
+    return new Hex(super.slice(start * 2));
+  }
+
+  /**
+   * Returns reversed by bites hex string
+   * @returns {Hex} Hex string
+   */
+  reverseBytes(): Hex {
+    let revStr = '';
+
+    for (let i = this.byteLength - 1; i >= 0; i -= 1) revStr += this.sliceBytes(i, i + 1);
+
+    return new Hex(revStr);
   }
 
   /**
@@ -72,7 +89,6 @@ export default class Hex extends String {
     return String.fromCharCode(...bytes);
   }
 
-
   /**
    * @static
    * Returns hex string by byte codes
@@ -89,6 +105,22 @@ export default class Hex extends String {
 
   /**
    * @static
+   * Converts raw string bytes to Hex
+   * @param {string} str Input string
+   * @returns {Hex} hex-string
+   */
+  static fromRawString(str: string): Hex {
+    const bytes = [];
+
+    for (let i = 0; i < str.length; i += 1) {
+      bytes.push(str.charCodeAt(i));
+    }
+
+    return Hex.fromCharCode(...bytes);
+  }
+
+  /**
+   * @static
    * Returns random hex string
    * @param {number} byteLength Length of random string
    * @returns {Hex} Random hex string
@@ -99,5 +131,33 @@ export default class Hex extends String {
     for (let i = 0; i < byteLength; i += 1) str += `0${Math.floor(Math.random() * 255).toString(16)}`.slice(-2);
 
     return new Hex(str);
+  }
+
+  /**
+   * @static
+   * Returns xor of two hex strings
+   * @param {Hex} left Left string
+   * @param {Hex} right Right string
+   * @returns {Hex} Result of xor
+   */
+  static xor(left: Hex, right: Hex): Hex {
+    const bytes = [];
+
+    for (let i = 0; i < left.byteLength; i += 1) {
+      bytes.push(left.byteAt(i) ^ right.byteAt(i));
+    }
+
+    return Hex.fromCharCode(...bytes);
+  }
+
+  /**
+   * @static
+   * Returns concatenante of two hex strings
+   * @param {Hex} left Left string
+   * @param {Hex} right Right string
+   * @returns {Hex} Result of concat
+   */
+  static concat(left: Hex, right: Hex): Hex {
+    return new Hex(left + right);
   }
 }

@@ -22,7 +22,7 @@ module.exports = {
           keep_classnames: true,
           keep_fnames: true,
           mangle: {
-            keep_fnames: true,
+            // keep_fnames: true,
             keep_classnames: true,
           },
         },

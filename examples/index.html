@@ -11,11 +11,36 @@
           MTProto.Schema.Layer105
         );
 
-        var server = new MTProto.Http('venus.web.telegram.org', tl);
+        var serverConfStr = localStorage.getItem('server_conf');
+        var serverConf = {}; // serverConfStr ? JSON.parse(serverConfStr) : {};
 
-        MTProto.Test(server, tl);
+        var server = new MTProto.Http('venus.web.telegram.org', tl, serverConf);
+        
+        server.onConfigurationChange(function(key, value) {
+          serverConf[key] = value;
+          localStorage.setItem('server_conf', JSON.stringify(serverConf));
+        });
+
+        if (!serverConf.authKeyTemp) server.authorize();
+
+        // server.call(
+        //   tl.query('help.getConfig'),
+        // ).then(
+        //   (res) => {
+        //     console.log(res); 
+        //   }
+        // );
 
         window.m = MTProto;
+        window.s = server;
+
+        // authKey, tmpAuthKey = await server.authorize();
+
+        // authService = new Services.Auth(transport, tl);
+        // authService.getAuthKey();
+        // authService.getTmpAuthKey();
+        // authService.linkAuthKeys(tmp, auth);
+
         //MTProto.Authorize(server, tl);
 
         // var query = tl.query('req_pq nonce:int128 = ResPQ').randomize('nonce');

@@ -45,7 +45,7 @@ export default class TLBytes extends TLType {
       this.stringLength = this._value.length;
       this.byteDataOffset = this.stringLength > 253 ? 4 : 1;
       this.byteSize = this.byteDataOffset + this.stringLength;
-      this.byteSize += 4 - (this.byteSize % 4);
+      if (this.byteSize % 4) this.byteSize += 4 - (this.byteSize % 4);
 
       this.view = new GenericView(buf, bufOffset, this.byteSize);
 
@@ -94,10 +94,21 @@ export default class TLBytes extends TLType {
 
   /**
    * Gets hex from view
+   * @param {boolean} littleEndian Is little endian
    * @returns {Hex} Hex string
    */
-  getHex(): Hex {
-    return this.view.getHex(this.byteDataOffset, this.stringLength);
+  getHex(littleEndian? = false): Hex {
+    return this.view.getHex(this.byteDataOffset, this.stringLength, littleEndian);
+  }
+
+  /**
+   * Sets hex to view
+   * @param {string} hex Data to set
+   */
+  setHex(data: string) {
+    const hex = new Hex(data);
+
+    this.setValue(hex.toRawString());
   }
 
   /**
@@ -118,10 +129,15 @@ export default class TLBytes extends TLType {
 
   /**
    * Sets value to view
-   * @param {string} String
+   * @param {string | Hex} String
    */
-  setValue(data: string) {
-    this._value = data;
+  setValue(data: string | Hex) {
+    this._value = data.isHex ? data.toRawString() : data;
+
+    this.stringLength = this._value.length;
+    this.byteDataOffset = this.stringLength > 253 ? 4 : 1;
+    this.byteSize = this.byteDataOffset + this.stringLength;
+    if (this.byteSize % 4) this.byteSize += 4 - (this.byteSize % 4);
 
     if (this.view) this.view.setString(data, this.byteDataOffset, this.stringLength);
   }

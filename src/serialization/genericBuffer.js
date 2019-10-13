@@ -64,6 +64,14 @@ export default class GenericBuffer {
   }
 
   /**
+   * Method returns ArrayBuffer.
+   * @returns {ArrayBuffer} Buffer
+   */
+  getBuffer(): ArrayBuffer {
+    return this.buf;
+  }
+
+  /**
    * Method converts arrayBuffer to human-readable text.
    * @returns {string} Human-readable multiline hex dump
    */

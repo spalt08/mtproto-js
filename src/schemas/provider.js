@@ -39,6 +39,7 @@ export default class SchemaProvider {
     ));
 
     if (!result) {
+      if (typeof query === 'number') throw new Error(`TL: Unknown constructor number ${query}`);
       const parsed = parse(query);
 
       if (parsed.type) this.define(query);

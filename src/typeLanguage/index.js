@@ -26,18 +26,20 @@ export default class TypeLanguage {
   /**
    * Method returns TLConstructor by query
    * @param {string | number} query TL Query or constructor number
+   * @param {object} data Data to set
    * @returns {TLConstructor} Type Language Constructor
    */
-  construct(query: string | number): TLConstructor {
-    return new TLConstructor(query, this.schema);
+  construct(query: string | number, data?: object): TLConstructor {
+    return new TLConstructor(query, this.schema, false, data);
   }
 
   /**
    * Method returns TLConstructor with message by query and data
    * @param {string} query TL Query Expression
+   * @param {object} data Data to set
    * @returns {TLConstructor} Type Language Constructor with mapped buffer
    */
-  query(query: string, data: object): TLConstructor {
+  query(query: string, data?: object): TLConstructor {
     const c = new TLConstructor(query, this.schema, false, data);
     const buf = new GenericBuffer(c.byteSize);
 

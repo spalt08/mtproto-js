@@ -28,6 +28,9 @@ export default class TLConstructor extends TLType {
   /* Byte ofsset of constructor params */
   byteParamsOffset: number = 0;
 
+  /* Flags predicate for optional fields */
+  flags: ?TLFlags = undefined;
+
   /**
    * TLConstructor can be made from TL expression
    * @param {string | number} query TL expression or constructor number
@@ -62,6 +65,11 @@ export default class TLConstructor extends TLType {
         const vectorExpr = /vector<(.+?)>|vector (.+?)/i;
         let tlEntity;
 
+        if (param.name === 'flags' && param.type === '#') {
+          this.flags = new TLFlags();
+          this.byteSize += this.flags.byteSize;
+        }
+
         if (TLNumber.ValidTypes.indexOf(param.type) !== -1) {
           tlEntity = new TLNumber(param.type, data[param.name]);
         }
@@ -72,10 +80,6 @@ export default class TLConstructor extends TLType {
 
         if (param.type.toLowerCase() === 'bool') {
           tlEntity = new TLBoolean(data[param.name]);
-        }
-
-        if (param.name === 'flags' && param.type === '#') {
-          tlEntity = new TLFlags();
         }
 
         if (vectorExpr.test(param.type)) {
@@ -109,6 +113,7 @@ export default class TLConstructor extends TLType {
     } else {
       const dView = new GenericView(buf, bufOffset);
       const cID = dView.getNumber(0, 4);
+
       const decl = schema.find(cID);
 
       if (!decl.id) throw new Error(`Type Language: Unknown constructor #${dView.getHex(0, 4, true)}`);
@@ -154,6 +159,8 @@ export default class TLConstructor extends TLType {
     for (let i = 0; i < this.declaration.params.length; i += 1) {
       const param = this.declaration.params[i];
 
+      if (this.flags) offset = this.flags.mapBuffer(buf, offset);
+
       if (this.params[param.name]) offset = this.params[param.name].mapBuffer(buf, offset);
 
       if (param.type === 'Object') {
@@ -164,7 +171,7 @@ export default class TLConstructor extends TLType {
         offset += tlEntity.byteSize;
       }
 
-      this.byteSize += this.params[param.name].byteSize;
+      if (this.params[param.name]) this.byteSize += this.params[param.name].byteSize;
     }
 
     return offset;

@@ -1,6 +1,7 @@
 /* eslint-disable no-mixed-operators */
 // @flow
 
+import type { Message } from '../interfaces';
 import GenericBuffer from './genericBuffer';
 import Hex from './hex';
 import getTime from '../utils/timer';
@@ -9,7 +10,7 @@ import getTime from '../utils/timer';
  * MessageData is a generic buffer with 28 byte padding, which should be encrypted.
  * Ref: https://core.telegram.org/mtproto/description#encrypted-message-encrypted-data
  */
-export default class MessageData extends GenericBuffer {
+export default class MessageData extends GenericBuffer implements Message {
   constructor(source: any) {
     const bytePaddingBefore = 32;
     let bytePaddingAfter = 0;
@@ -19,7 +20,9 @@ export default class MessageData extends GenericBuffer {
     if (source.payloadLength) payloadLength = source.payloadLength;
     if (typeof source === 'number') payloadLength = source;
 
-    if (payloadLength && !source.byteOffset) bytePaddingAfter = 16 - (payloadLength % 16) + Math.floor(Math.random() * 20) * 16;
+    if (payloadLength && !source.byteOffset) {
+      bytePaddingAfter = ((payloadLength % 16) > 4 ? 32 : 16) - (payloadLength % 16); // + Math.floor(Math.random() * 20) * 16;
+    }
 
     if (typeof source === 'object' && source.payloadLength) {
       super(source.toHex(), bytePaddingBefore, bytePaddingAfter);
@@ -46,15 +49,28 @@ export default class MessageData extends GenericBuffer {
 
   /**
    * Method generates messageID and set it to the 16-24 bytes
+   * @param {Hex} msgID For skipping generating and setting manualy
    */
-  setMessageID() {
-    const time = getTime();
-    const random = Math.floor(Math.random() * 0xFFFF);
+  setMessageID(msgID?: Hex) {
+    if (msgID) {
+      this.view.setHex(msgID, 16, 8);
+    } else {
+      const time = getTime();
+      const random = Math.floor(Math.random() * 0xFFFF);
 
-    // eslint-disable-next-line no-bitwise
-    const messageID = time.second.toString(16) + `00000000${(time.nanosecond << 21 | random << 3 | 4).toString(16)}`.slice(-8);
+      // eslint-disable-next-line no-bitwise
+      const messageID = time.second.toString(16) + `00000000${(time.nanosecond << 21 | random << 3 | 4).toString(16)}`.slice(-8);
 
-    this.view.setHex(new Hex(messageID), 16, 8, true);
+      this.view.setHex(new Hex(messageID), 16, 8, true);
+    }
+  }
+
+  /**
+   * Method gets messageID from the 16-24 bytes
+   * @returns {Hex} Message ID
+   */
+  getMessageID(): Hex {
+    return this.view.getHex(16, 8);
   }
 
   /**

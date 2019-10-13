@@ -1,6 +1,7 @@
 // @flow
 
 import Rusha from 'rusha';
+import { Hex } from '../serialization';
 
 /**
  * Class SHA1 is an abstract adapter for third-party sha1 implementation.
@@ -12,11 +13,11 @@ export default class SHA1 {
    * @static
    * Base function for calculating sha1(hex-string)
    *
-   * @param {string} str A hex string for hashing
-   * @returns {string} Result sha1 hash
+   * @param {Hex} str A hex string for hashing
+   * @returns {Hex} Result sha1 hash
    */
-  static Hex(hex: string): string {
-    return Rusha.createHash().update(hex, 'hex').digest('hex');
+  static Hex(hex: Hex): Hex {
+    return new Hex(Rusha.createHash().update(hex.toRawString()).digest('hex'));
   }
 
   /**

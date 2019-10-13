@@ -1,7 +1,6 @@
 // @flow
 
 import aesjs from 'aes-js';
-import xor from './xor';
 import { Hex } from '../../serialization';
 
 // Default options for encryption
@@ -26,11 +25,11 @@ export default function decrypt(text: Hex, key: Hex, iv: Hex, options? = default
 
   for (let i = 0; i < text.byteLength; i += options.blockSize) {
     const x = text.sliceBytes(i, i + options.blockSize);
-    const yXOR = xor(x, prevY);
+    const yXOR = Hex.xor(x, prevY);
 
     const bytesY = cipher.decrypt(new Uint8Array(yXOR.toBuffer()));
     const cipheredY = Hex.fromCharCode(...bytesY);
-    const y = xor(cipheredY, prevX);
+    const y = Hex.xor(cipheredY, prevX);
 
     prevX = x;
     prevY = y;
