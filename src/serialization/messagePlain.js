@@ -23,43 +23,58 @@ export default class MessagePlain extends GenericBuffer implements Message {
 
 
   /**
-   * Method generates messageID and set it to the 8-16 bytes
+   * Method generates message identificator and set it to the 8-16 bytes
    * @param {Hex} msgID For skipping generating and setting manualy
+   * @returns {MessagePlain} Message itself
    */
-  setMessageID(msgID?: Hex) {
+  setMessageID(msgID?: Hex): MessagePlain {
     if (msgID) {
-      this.view.setHex(msgID, 8, 8);
+      this.view.setHex(msgID, 8, 8, true);
     } else {
-      const time = getTime();
-      const random = Math.floor(Math.random() * 0xFFFF);
-
-      // eslint-disable-next-line no-bitwise
-      const messageID = time.second.toString(16) + `00000000${(time.nanosecond << 21 | random << 3 | 4).toString(16)}`.slice(-8);
-
-      this.view.setHex(new Hex(messageID), 8, 8, true);
+      this.view.setHex(MessagePlain.GenerateID(), 8, 8, true);
     }
-  }
 
-  /**
-   * Method gets messageID from the 16-24 bytes
-   * @returns {Hex} Message ID
-   */
-  getMessageID(): Hex {
-    return this.view.getHex(16, 8);
+    return this;
   }
 
   /**
    * Method sets 16-20 bytes with message_data_length
+   * @returns {MessagePlain} Message itself
    */
-  setLength() {
+  setLength(): MessagePlain {
     this.view.setNumber(this.payloadLength, 16, 4);
+
+    return this;
   }
 
   /**
-   * Method sets authKey to the first 8 bytes
+   * Method sets authorization key to the first 8 bytes
    * @param {Hex} authKeyID Auth Key ID
+   * @returns {MessagePlain} Message itself
    */
   setAuthKey(authKeyID: Hex) {
     this.view.setHex(authKeyID, 0, 8);
+
+    return this;
+  }
+
+  /**
+   * Method gets message identificatorfrom the 16-24 bytes
+   * @returns {Hex} Message ID
+   */
+  getMessageID(): Hex {
+    return this.view.getHex(8, 8, true);
+  }
+
+  /**
+   * Generates unique message identificator depending on current time
+   * @returns {Hex} Message identificator
+   * @static
+   */
+  static GenerateID(): Hex {
+    const time = getTime();
+
+    return new Hex(time.second.toString(16) + `0000${(time.nanosecond << 20 | time.nanosecond << 8 | 4).toString(16)}`.slice(-8));
+    // return new Hex(`${(time.second + time.nanosecond / 1000).toString(16).replace('.', '')}04`);
   }
 }

@@ -17,6 +17,13 @@
           APILayer: 105,
         });
 
+        server.connect().then(() => {
+          server.call(tl.query('help.getConfig')).then((res) => {
+            var response = res[0];
+            console.log(response);
+          });
+        });
+
         // server.call(
         //   tl.query('help.getConfig'),
         // ).then(

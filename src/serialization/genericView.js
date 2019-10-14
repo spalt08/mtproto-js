@@ -12,12 +12,23 @@ export default class GenericView extends DataView {
    * @constructs
    * GenericView can be made from GenericBuffer or ArrayBuffer
    */
-  constructor(source: GenericBuffer | ArrayBuffer, offset: number = 0, len: number) {
+  constructor(source: GenericBuffer | ArrayBuffer, offset?: number = 0, len?: number) {
     if (source instanceof GenericBuffer) {
       super(source.buf, source.bytePaddingBefore + offset, len);
     } else {
       super(source, offset, len);
     }
+  }
+
+  /** Debug stuff */
+  get hex(): string {
+    const bytes = [];
+
+    for (let i = 0; i < this.byteLength; i += 1) {
+      bytes.push(this.getUint8(i));
+    }
+
+    return Hex.fromCharCode(...bytes).toString();
   }
 
   /**

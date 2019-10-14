@@ -21,6 +21,7 @@ export default class DefaultStorage {
    * @param {any} value Value itself of any type
    */
   save(namespace: string, key: string, value: any) {
+    // console.log('storage updated', namespace, key, value);
     localStorage.setItem(this.getLocalStorageKey(namespace, key), JSON.stringify(value));
   }
 

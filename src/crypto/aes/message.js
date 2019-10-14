@@ -1,5 +1,7 @@
 // @flow
 
+import type { Message } from '../../interfaces';
+
 import { MessageData, MessageEncrypted, Hex } from '../../serialization';
 import SHA256 from '../sha256';
 import encrypt from './encrypt';
@@ -13,7 +15,7 @@ import decrypt from './decrypt';
  * @param {MessageData} msg Unencrypted Message
  * @returns {MessageEncrypted} Encrypted Message
  */
-export function encryptDataMessage(authKey: {key: Hex, id: Hex}, msg: MessageData): MessageEncrypted {
+export function encryptDataMessage(authKey: {key: Hex, id: Hex}, msg: Message): MessageEncrypted {
   const data = msg.toHex();
   const dataToHash = new Hex(authKey.key.sliceBytes(88, 120) + data);
   const msgKeyLarge = SHA256.Hex(dataToHash);

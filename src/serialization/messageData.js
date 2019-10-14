@@ -2,16 +2,16 @@
 // @flow
 
 import type { Message } from '../interfaces';
-import GenericBuffer from './genericBuffer';
 import Hex from './hex';
-import getTime from '../utils/timer';
+import GenericBuffer from './genericBuffer';
+import MessagePlain from './messagePlain';
 
 /**
  * MessageData is a generic buffer with 28 byte padding, which should be encrypted.
  * Ref: https://core.telegram.org/mtproto/description#encrypted-message-encrypted-data
  */
 export default class MessageData extends GenericBuffer implements Message {
-  constructor(source: any) {
+  constructor(source: any = {}, isV1?: boolean = false) {
     const bytePaddingBefore = 32;
     let bytePaddingAfter = 0;
     let payloadLength = 0;
@@ -21,7 +21,7 @@ export default class MessageData extends GenericBuffer implements Message {
     if (typeof source === 'number') payloadLength = source;
 
     if (payloadLength && !source.byteOffset) {
-      bytePaddingAfter = ((payloadLength % 16) > 4 ? 32 : 16) - (payloadLength % 16); // + Math.floor(Math.random() * 20) * 16;
+      bytePaddingAfter = ((payloadLength % 16) > 4 && !isV1 ? 32 : 16) - (payloadLength % 16); // + Math.floor(Math.random() * 20) * 16;
     }
 
     if (typeof source === 'object' && source.payloadLength) {
@@ -34,35 +34,69 @@ export default class MessageData extends GenericBuffer implements Message {
   /**
    * Method sets first 8 bytes with salt header
    * @param {string} salt Salt
+   * @returns {MessageData} Message itself
    */
-  setSalt(salt: string) {
-    this.view.setHex(new Hex(salt), 0, 8);
+  setSalt(salt: Hex): MessageData {
+    this.view.setHex(salt, 0, 8);
+
+    return this;
   }
 
   /**
    * Method sets second 8 bytes with session_id header
    * @param {string} sessionID Session ID
+   * @returns {MessageData} Message itself
    */
-  setSessionID(sessionID: string) {
-    this.view.setHex(new Hex(sessionID), 8, 8);
+  setSessionID(sessionID: Hex): MessageData {
+    this.view.setHex(sessionID, 8, 8);
+
+    return this;
   }
 
   /**
    * Method generates messageID and set it to the 16-24 bytes
    * @param {Hex} msgID For skipping generating and setting manualy
+   * @returns {MessageData} Message itself
    */
-  setMessageID(msgID?: Hex) {
+  setMessageID(msgID?: Hex): MessageData {
     if (msgID) {
-      this.view.setHex(msgID, 16, 8);
+      this.view.setHex(msgID, 16, 8, true);
     } else {
-      const time = getTime();
-      const random = Math.floor(Math.random() * 0xFFFF);
-
-      // eslint-disable-next-line no-bitwise
-      const messageID = time.second.toString(16) + `00000000${(time.nanosecond << 21 | random << 3 | 4).toString(16)}`.slice(-8);
-
-      this.view.setHex(new Hex(messageID), 16, 8, true);
+      this.view.setHex(MessageData.GenerateID(), 16, 8, true);
     }
+
+    return this;
+  }
+
+  /**
+   * Method sets 24-28 bytes with seq_no header
+   * @param {number} seqNum Sequence Number
+   * @returns {MessageData} Message itself
+   */
+  setSequenceNum(seqNum: number): MessageData {
+    this.view.setNumber(seqNum, 24, 4);
+
+    return this;
+  }
+
+  /**
+   * Method sets 28-32 bytes with message_data_length
+   * @returns {MessageData} Message itself
+   */
+  setLength(): MessageData {
+    this.view.setNumber(this.payloadLength, 28, 4);
+
+    return this;
+  }
+
+  /**
+   * Method sets padding bytes with random data
+   * @returns {MessageData} Message itself
+   */
+  setPadding(): MessageData {
+    this.view.setHex(Hex.random(this.bytePaddingAfter), this.bytePaddingBefore + this.payloadLength, this.bytePaddingAfter);
+
+    return this;
   }
 
   /**
@@ -70,28 +104,23 @@ export default class MessageData extends GenericBuffer implements Message {
    * @returns {Hex} Message ID
    */
   getMessageID(): Hex {
-    return this.view.getHex(16, 8);
+    return this.view.getHex(16, 8, true);
   }
 
   /**
-   * Method sets 24-28 bytes with seq_no header
-   * @param {string} seqNum Sequence Number
+   * Method gets number from 24-28 bytes
+   * @returns {number} Sequence Number
    */
-  setSequenceNum(seqNum: number) {
-    this.view.setNumber(seqNum, 24, 4);
+  getSequenceNum(): number {
+    return this.view.getNumber(24, 4);
   }
 
   /**
-   * Method sets 28-32 bytes with message_data_length
+   * Generates unique message identificator depending on current time
+   * @returns {Hex} Message identificator
+   * @static
    */
-  setLength() {
-    this.view.setNumber(this.payloadLength, 28, 4);
-  }
-
-  /**
-   * Method sets padding bytes with random data
-   */
-  setPadding() {
-    this.view.setHex(Hex.random(this.bytePaddingAfter), this.bytePaddingBefore + this.payloadLength, this.bytePaddingAfter);
+  static GenerateID(): Hex {
+    return MessagePlain.GenerateID();
   }
 }

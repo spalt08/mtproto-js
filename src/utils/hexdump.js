@@ -31,14 +31,14 @@ const numberToBytes = (data: number): ArrayBuffer => {
   return buffer;
 };
 
-export default function HexDump(data: string | number, offset: number = 0, length: number): string {
+export default function HexDump(data: string | number | ArrayBuffer, offset?: number = 0, length?: number): string {
   let buffer: ArrayBuffer;
 
   if (typeof data === 'string') {
     buffer = stringToBytes(data);
   } else if (typeof data === 'number') {
     buffer = numberToBytes(data);
-  } else if (typeof data === 'object' && data.byteLength > 0) {
+  } else if (typeof data === 'object' && data instanceof ArrayBuffer) {
     buffer = data;
   } else {
     return '';

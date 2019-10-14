@@ -60,8 +60,8 @@ export default class TLNumber extends TLType {
    * Gets hex from view
    * @returns {?Hex} Hex string
    */
-  getHex(): ?Hex {
-    if (this.view) return this.view.getHex();
+  getHex(littleEndian?: boolean = false): ?Hex {
+    if (this.view) return this.view.getHex(undefined, undefined, littleEndian);
 
     return null;
   }

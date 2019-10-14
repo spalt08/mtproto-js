@@ -1,29 +1,33 @@
 // @flow
 
-import type { DataStorage, Transport } from '../interfaces';
-import type TypeLanguage from '../typeLanguage';
+import type { DataStorage, Transport, Message } from '../interfaces';
+import type { MessageHeaders } from '../serialization';
 
+import TypeLanguage from '../typeLanguage';
+import TLConstructor from '../typeLanguage/constructor';
 import { ParseKey } from '../crypto/rsa/keys';
-import AuthService from '../services/auth';
-import SessionService from '../services/session';
-import RPCService from '../services/rpc';
+import { AuthService, SessionService, RPCService } from '../services';
 import DefaultStorage from '../storage';
 
-/**
- * Generic config for mtproto transport classes
- */
+/** Generic config for mtproto transport classes */
 export type GenericTranportConfig = {
   APIID?: string,
   APIHash?: string,
-  APILayer?: number,
+  APILayer: number,
   RSAKeys?: string[],
-  storage?: DataStorage,
+  storage: DataStorage,
+};
+
+/** Default generic config */
+const defaultConfig = {
+  APILayer: 105,
+  storage: new DefaultStorage(),
 };
 
 /** Abstract class for all mtproto transport classes
  * @param {TypeLanguage} tl Type Language handler
- * @param {DataStorage} storage Storage handler
  * @param {object} services Attached services
+ * @param {number} APILayer API Layer
 */
 export default class AbstractTransport implements Transport {
   /** Type Language handler */
@@ -36,35 +40,39 @@ export default class AbstractTransport implements Transport {
     rpc: RPCService;
   };
 
+  /** API Layer */
+  APILayer: number
+
   /**
    * Creates abstract transport object
    * @param {GenericTranportConfig} cfg Generic transport config
    */
-  constructor(tl: TypeLanguage, cfg?: GenericTranportConfig = {}) {
+  constructor(tl: TypeLanguage, extCfg?: GenericTranportConfig) {
     this.tl = tl;
 
-    const storage = cfg.storage || new DefaultStorage();
+    const cfg: GenericTranportConfig = { ...defaultConfig, ...extCfg };
+    const { storage, APILayer } = cfg;
+
+    this.APILayer = APILayer;
 
     this.services = {
       auth: new AuthService(this, tl, storage),
-      session: new SessionService(this, tl),
+      session: new SessionService(this, tl, storage),
       rpc: new RPCService(this, tl),
     };
 
     if (cfg.RSAKeys) {
       for (let i = 0; i <= cfg.RSAKeys.length; i += 1) this.services.auth.RSAKeys.push(ParseKey(cfg.RSAKeys[i]));
     }
-
-    if (!this.services.auth.tempKey.id || !this.services.auth.permKey.id) this.services.auth.createAuthKeys();
   }
 
   // eslint-disable-next-line class-methods-use-this
-  call() {
-    throw new Error('Abstract Transport does not implements call method');
+  call(query: TLConstructor | Message, headers?: MessageHeaders = {}): Promise<[TLConstructor, MessageHeaders]> {
+    throw new Error(`Abstract Transport does not implements call method, args: ${query.toString()}, ${headers.toString()}`);
   }
 
   // eslint-disable-next-line class-methods-use-this
-  callPlain() {
-    throw new Error('Abstract Transport does not implements callPlain method');
+  callPlain(query: TLConstructor | Message, headers?: MessageHeaders = {}): Promise<[TLConstructor, MessageHeaders]> {
+    throw new Error(`Abstract Transport does not implements callPlain method, args: ${query.toString()}, ${headers.toString()}`);
   }
 }

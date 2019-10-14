@@ -10,7 +10,7 @@ export default class Hex extends String {
    * Creates hex
    * @params
    */
-  constructor(str?: string | Hex) {
+  constructor(str?: any | string | Hex) {
     if (typeof str === 'object' && str instanceof Hex) {
       return str;
     }
@@ -45,7 +45,7 @@ export default class Hex extends String {
    * @param {number} start Byte position at end
    * @returns {Hex} Hex string
    */
-  sliceBytes(start: number, end: number): Hex {
+  sliceBytes(start: number, end?: number): Hex {
     if (end) {
       return new Hex(super.slice(start * 2, end * 2));
     }
@@ -60,7 +60,7 @@ export default class Hex extends String {
   reverseBytes(): Hex {
     let revStr = '';
 
-    for (let i = this.byteLength - 1; i >= 0; i -= 1) revStr += this.sliceBytes(i, i + 1);
+    for (let i = this.byteLength - 1; i >= 0; i -= 1) revStr += this.sliceBytes(i, i + 1).toString();
 
     return new Hex(revStr);
   }
@@ -157,11 +157,14 @@ export default class Hex extends String {
   /**
    * @static
    * Returns concatenante of two hex strings
-   * @param {Hex} left Left string
-   * @param {Hex} right Right string
+   * @param {Hex[]} hexes Hex trings
    * @returns {Hex} Result of concat
    */
-  static concat(left: Hex, right: Hex): Hex {
-    return new Hex(left + right);
+  static concat(...hexes: Hex[]): Hex {
+    let str = '';
+
+    for (let i = 0; i < hexes.length; i += 1) str += hexes[i].toString();
+
+    return new Hex(str);
   }
 }

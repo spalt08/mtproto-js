@@ -82,6 +82,10 @@ export default class TLConstructor extends TLType {
           tlEntity = new TLBoolean(data[param.name]);
         }
 
+        if (param.type === '!X') {
+          tlEntity = data[param.name];
+        }
+
         if (vectorExpr.test(param.type)) {
           const match = param.type.match(vectorExpr);
           const predicate = match[1] || match[2];
@@ -132,7 +136,7 @@ export default class TLConstructor extends TLType {
    * @param {number} bufOffset Buffer Byte Offset
    * @returns {number} Byte offset
    */
-  mapBuffer(buf?: GenericBuffer, bufOffset?: number = 0): number {
+  mapBuffer(buf: GenericBuffer, bufOffset?: number = 0): number {
     this.view = new GenericView(buf, bufOffset, this.byteSize);
     this.byteSize = this.byteParamsOffset;
 
@@ -145,10 +149,13 @@ export default class TLConstructor extends TLType {
 
     let offset = bufOffset + this.byteParamsOffset;
 
+    if (this.flags) {
+      offset = this.flags.mapBuffer(buf, offset);
+      this.byteSize += this.flags.byteSize;
+    }
+
     for (let i = 0; i < this.declaration.params.length; i += 1) {
       const param = this.declaration.params[i];
-
-      if (this.flags) offset = this.flags.mapBuffer(buf, offset);
 
       if (this.params[param.name]) offset = this.params[param.name].mapBuffer(buf, offset);
 
@@ -195,9 +202,12 @@ export default class TLConstructor extends TLType {
 
   /**
    * Shortcut for getValue
-   * @returns {object} Json Object
+   * @returns {any} Json Object
    */
-  json(): Object {
+  json(): any {
+    if (this.declaration.predicate === 'boolTrue') return true;
+    if (this.declaration.predicate === 'boolFalse') return false;
+
     return this.getValue();
   }
 }

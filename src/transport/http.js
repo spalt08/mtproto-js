@@ -1,18 +1,21 @@
 // @flow
 
 import type { Transport, Message } from '../interfaces';
-import type TypeLanguage from '../typeLanguage';
 import type { GenericTranportConfig } from './abstract';
-import type { Hex } from '../serialization';
+import type { MessageHeaders } from '../serialization';
 
+import TypeLanguage from '../typeLanguage';
 import AbstractTransport from './abstract';
 import TLConstructor from '../typeLanguage/constructor';
 import { MessagePlain, MessageData, MessageEncrypted } from '../serialization';
 import { encryptDataMessage, decryptDataMessage } from '../crypto/aes/message';
-import AuthService from '../services/auth';
+import { AuthService } from '../services';
+import { logs } from '../utils/log';
+
+const log = logs('http');
 
 /** Function wraps response into type language constructor */
-type ResponseWrapper = (ArrayBuffer, TypeLanguage, ?{ auth: AuthService }) => TLConstructor;
+type ResponseWrapper = (ArrayBuffer, TypeLanguage, { auth: AuthService }) => [TLConstructor, MessageHeaders];
 
 /** Configuration object for HTTP transport */
 type HTTPConfig = GenericTranportConfig & {
@@ -22,14 +25,6 @@ type HTTPConfig = GenericTranportConfig & {
 /** Default configuration for HTTP transport */
 const defaultConfig = {
   ssl: true,
-};
-
-/** Message headers object type */
-type MsgHeaders = {
-  sessionID?: Hex | string,
-  serverSalt?: Hex | string,
-  msgID?: Hex | string,
-  seqNum?: number,
 };
 
 /**
@@ -48,37 +43,45 @@ export default class Http extends AbstractTransport implements Transport {
    * @param {TypeLanguage} tl Type language handler
    * @param {object} cfg Transport Configuration
    */
-  constructor(addr: string, tl: TypeLanguage, extCfg?: HTTPConfig = {}) {
+  constructor(addr: string, tl: TypeLanguage, extCfg?: HTTPConfig) {
     super(tl, extCfg);
 
-    const cfg = { ...defaultConfig, ...extCfg };
+    const cfg: HTTPConfig = { ...defaultConfig, ...extCfg };
 
     this.addr = `http${cfg.ssl ? 's' : ''}://${addr}/apiw1`;
+  }
+
+  async connect() {
+    await this.services.auth.prepare();
+    await this.services.session.prepare();
+    log('ready');
   }
 
   /**
    * Method ecnrypts serialized message and sends it to the server
    * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
-   * @returns {Promise<TLConstructor>} Promise response wrapped by type language constructor
+   * @param {MessageHeaders} headers Optional message headers
+   * @returns {Promise<[TLConstructor, MessageHeaders]>} Promise response wrapped by type language constructor
    */
-  call(query: TLConstructor | MessageData, headers: MsgHeaders = {}): Promise<TLConstructor> {
-    let msg: MessageData;
+  call(query: TLConstructor | Message, headers?: MessageHeaders = {}): Promise<[TLConstructor, MessageHeaders]> {
+    let msg = new MessageData();
 
-    if (query instanceof TLConstructor) {
-      msg = new MessageData(query.serialize());
-
-      msg.setSessionID(headers.sessionID || this.services.session.id);
-      msg.setSalt(headers.serverSalt || this.services.session.serverSalt);
-      msg.setMessageID(headers.msgID);
-      msg.setSequenceNum(headers.seqNum);
-      msg.setLength();
-      msg.setPadding();
-    } else if (query instanceof MessageData) {
+    if (query instanceof MessageData) {
       msg = query;
+    } else if (query instanceof TLConstructor) {
+      const isContentRelated = query.declaration.predicate !== 'msgs_ack';
+
+      msg = new MessageData(query.serialize())
+        .setSessionID(headers.sessionID || this.services.session.sessionID)
+        .setSalt(headers.serverSalt || this.services.session.serverSalt)
+        .setMessageID(headers.msgID)
+        .setSequenceNum(headers.seqNum || this.services.session.nextSeqNum(isContentRelated))
+        .setLength()
+        .setPadding();
     }
 
     this.send(encryptDataMessage(this.services.auth.tempKey, msg), Http.WrapEncryptedResponse).then(
-      (res: TLConstructor) => this.services.rpc.processMessage(res),
+      (res: [TLConstructor, MessageHeaders]) => this.services.rpc.processMessage(res),
     );
 
     return this.services.rpc.subscribe(msg);
@@ -87,17 +90,17 @@ export default class Http extends AbstractTransport implements Transport {
   /**
    * Method sends plain message to the server
    * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
+   * @param {MsgHeaders} headers Optional message headers
    * @returns {Promise<TLConstructor>} Promise response wrapped by type language constructor
    */
-  callPlain(query: TLConstructor | MessagePlain, headers: MsgHeaders = {}): Promise<TLConstructor> {
+  callPlain(query: TLConstructor | Message, headers?: MessageHeaders = {}): Promise<[TLConstructor, MessageHeaders]> {
     if (query instanceof MessagePlain) {
       return this.send(query, Http.WrapPlainResponse);
     }
 
-    const msg = new MessagePlain(query.serialize());
-
-    msg.setMessageID(headers.msgID);
-    msg.setLength();
+    const msg = new MessagePlain(query instanceof TLConstructor ? query.serialize() : undefined)
+      .setMessageID(headers.msgID)
+      .setLength();
 
     return this.send(msg, Http.WrapPlainResponse);
   }
@@ -109,7 +112,7 @@ export default class Http extends AbstractTransport implements Transport {
    * @param {boolean} isPlain is plain message
    * @returns {Promise} If callback wasn't set
    */
-  send(msg: Message, rw?: ResponseWrapper = Http.WrapEncryptedResponse): Promise<TLConstructor> {
+  send(msg: MessagePlain | MessageEncrypted, rw?: ResponseWrapper = Http.WrapEncryptedResponse): Promise<[TLConstructor, MessageHeaders]> {
     const req = new XMLHttpRequest();
 
     req.open('POST', this.addr);
@@ -117,7 +120,7 @@ export default class Http extends AbstractTransport implements Transport {
     req.addEventListener('error', this.handleError);
     req.send(msg.getBuffer());
 
-    return new Promise((resolve: (TLConstructor) => any, reject) => {
+    return new Promise((resolve: ([TLConstructor, MessageHeaders]) => any, reject) => {
       req.onreadystatechange = () => {
         if (req.readyState !== 4) return;
         if (req.status >= 200 && req.status < 300) {
@@ -125,7 +128,6 @@ export default class Http extends AbstractTransport implements Transport {
         } else {
           const err = new Error(`HTTP Error: Unexpected status ${req.status}`);
           reject(err);
-          throw err;
         }
       };
     });
@@ -136,11 +138,11 @@ export default class Http extends AbstractTransport implements Transport {
    * @param {ArrayBuffer} buf Response bytes
    * @static
    */
-  static WrapEncryptedResponse(buf: ArrayBuffer, tl: TypeLanguage, services: { auth: AuthService }): TLConstructor {
+  static WrapEncryptedResponse(buf: ArrayBuffer, tl: TypeLanguage, services: { auth: AuthService }): [TLConstructor, MessageHeaders] {
     const msg = new MessageEncrypted(buf);
     const decryptedMsg = decryptDataMessage(services.auth.tempKey, msg);
 
-    return tl.parse(decryptedMsg);
+    return [tl.parse(decryptedMsg), { msgID: decryptedMsg.getMessageID() }];
   }
 
   /**
@@ -148,10 +150,10 @@ export default class Http extends AbstractTransport implements Transport {
    * @param {ArrayBuffer} buf Response bytes
    * @static
    */
-  static WrapPlainResponse(buf: ArrayBuffer, tl: TypeLanguage): TLConstructor {
+  static WrapPlainResponse(buf: ArrayBuffer, tl: TypeLanguage): [TLConstructor, MessageHeaders] {
     const msg = new MessagePlain(buf);
 
-    return tl.parse(msg);
+    return [tl.parse(msg), { msgID: msg.getMessageID() }];
   }
 
   /**

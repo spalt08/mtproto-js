@@ -11,9 +11,19 @@ import { PredefinedKeys } from '../crypto/rsa/keys';
 import RSAEncrypt from '../crypto/rsa/encrypt';
 import AESDecrypt from '../crypto/aes/decrypt';
 import AESEncrypt from '../crypto/aes/encrypt';
-import { encryptDataMessage } from '../crypto/aes/message';
+import { encryptDataMessage } from '../crypto/aes/message_v1';
 import SHA1 from '../crypto/sha1';
 import getTime from '../utils/timer';
+import { logs } from '../utils/log';
+
+const log = logs('auth');
+
+/** RSA Key */
+type RSAKey = {
+  fingerprint: string,
+  n: string,
+  e: string,
+};
 
 /**
  * Service class helper for authorization stuff
@@ -32,25 +42,23 @@ export default class AuthService {
 
   /**
    * Authorization keys
-   * Ref: https://core.telegram.org/mtproto/auth_key 
+   * Ref: https://core.telegram.org/mtproto/auth_key
    */
-  authKeys: {
+  keys: {
     permanent: {
-      key: ?Hex,
-      id: ?Hex,
+      key: Hex,
+      id: Hex,
     },
     temporary: {
-      key: ?Hex,
-      id: ?Hex,
+      key: Hex,
+      id: Hex,
+      expires: number,
+      binded: boolean,
     },
   };
 
   /** RSA Keys */
-  RSAKeys: Array<{
-    fingerprint: string,
-    n: string,
-    e: string,
-  }>
+  RSAKeys: Array<RSAKey>
 
   /**
    * Creates auth service object
@@ -63,18 +71,22 @@ export default class AuthService {
     this.transport = transport;
     this.storage = storage;
 
-    const tempKey = this.storage.load('auth', 'authKeyTemp');
-    const permKey = this.storage.load('auth', 'authKeyPerm');
+    const tempKey = new Hex(this.storage.load('auth', 'authKeyTemp'));
+    const permKey = new Hex(this.storage.load('auth', 'authKeyPerm'));
+    const expireAt = this.storage.load('auth', 'tempKeyExpire');
+    const isBinded = this.storage.load('auth', 'tempKeyBinded');
 
-    this.authKeys = {
-      temporary: tempKey ? {
-        key: new Hex(tempKey),
-        id: SHA1.Hex(new Hex(tempKey)).sliceBytes(-8),
-      } : { key: undefined, id: undefined },
-      permanent: permKey ? {
-        key: new Hex(permKey),
-        id: SHA1.Hex(new Hex(permKey)).sliceBytes(-8),
-      } : { key: undefined, id: undefined },
+    this.keys = {
+      temporary: {
+        key: tempKey,
+        id: tempKey ? SHA1.Hex(tempKey).sliceBytes(-8) : new Hex(),
+        expires: expireAt || 0,
+        binded: isBinded || false,
+      },
+      permanent: {
+        key: permKey,
+        id: tempKey ? SHA1.Hex(permKey).sliceBytes(-8) : new Hex(),
+      },
     };
 
     this.RSAKeys = [...PredefinedKeys];
@@ -82,10 +94,10 @@ export default class AuthService {
 
   /**
    * Gets temporary authorization key object
-   * @returns {{ key: Hex, id: Hex }} Temporary authorization key and it's ID
+   * @returns {{ key: Hex, id: Hex, expires: number, binded: boolean }} Temporary authorization key and it's ID, expire time and binding info
    */
-  get tempKey(): { key: Hex, id: Hex } {
-    return this.authKeys.temporary;
+  get tempKey(): { key: Hex, id: Hex, expires: number, binded: boolean } {
+    return this.keys.temporary;
   }
 
   /**
@@ -97,10 +109,30 @@ export default class AuthService {
 
     this.storage.save('auth', 'authKeyTemp', hexKey.toString());
 
-    this.authKeys.temporary = {
+    this.keys.temporary = {
       key: hexKey,
       id: SHA1.Hex(hexKey).sliceBytes(-8),
+      expires: 0,
+      binded: false,
     };
+  }
+
+  /**
+   * Sets temporary authorization key expire time
+   * @param {number} expire Temporary authorization key expire time
+   */
+  set tempKeyExpire(expireAt: number) {
+    this.storage.save('auth', 'tempKeyExpire', expireAt);
+    this.keys.temporary.expires = expireAt;
+  }
+
+  /**
+   * Sets temporary authorization key binding flag
+   * @param {boolean} isBinded Binding flag
+   */
+  set tempKeyBinding(isBinded: boolean) {
+    this.storage.save('auth', 'tempKeyBinded', isBinded);
+    this.keys.temporary.binded = isBinded;
   }
 
   /**
@@ -108,7 +140,7 @@ export default class AuthService {
    * @returns {{ key: Hex, id: Hex }} Permanent authorization key and it's ID
    */
   get permKey(): { key: Hex, id: Hex } {
-    return this.authKeys.permanent;
+    return this.keys.permanent;
   }
 
   /**
@@ -120,10 +152,33 @@ export default class AuthService {
 
     this.storage.save('auth', 'authKeyPerm', hexKey.toString());
 
-    this.authKeys.permanent = {
+    this.keys.permanent = {
       key: hexKey,
       id: SHA1.Hex(hexKey).sliceBytes(-8),
     };
+  }
+
+  /**
+   * Manages auth keys and performs authorization is necessary
+   */
+  async prepare() {
+    // Permanent auth key wasn't loaded from storage
+    if (this.keys.permanent.key.length === 0) {
+      await this.createAuthKeys();
+
+    // Temporary auth key wasn't loaded from storage or it is expired
+    } else if (this.keys.temporary.expires < getTime().second || this.keys.temporary.key.length === 0) {
+      await this.createAuthKey(true);
+      await this.bindTempAuthKey();
+
+    // Temporary auth key wasn't binded
+    } else if (this.keys.temporary.binded === false) {
+      await this.bindTempAuthKey();
+
+    // All keys successfuly loadedd
+    } else {
+      log('auth keys loaded from storage');
+    }
   }
 
   /**
@@ -131,18 +186,15 @@ export default class AuthService {
    * Ref: https://core.telegram.org/mtproto/auth_key
    * @returns {{ [string]: { key: Hex, id: Hex }} Permanent and temporary auth keys
    */
-  async createAuthKeys(): { [string]: { key: Hex, id: Hex } } {
+  async createAuthKeys() {
     const expiresIn = 3600 * 24 * 7;
 
-    return Promise.all([
+    await Promise.all([
       this.createAuthKey(),
       this.createAuthKey(true, expiresIn),
-    ]).then(
-      ([permanent, temporary]) => {
-        this.bindTempAuthKey(expiresIn);
-        return { permanent, temporary };
-      },
-    );
+    ]);
+
+    await this.bindTempAuthKey();
   }
 
   /**
@@ -153,11 +205,13 @@ export default class AuthService {
    * @returns {string} Temporary or permanent auth key
    */
   async createAuthKey(isTemporary?: boolean = false, expiresAfter?: number = 3600 * 24 * 7) {
+    log(`creating ${isTemporary ? 'temporary' : 'permanent'} key async`);
+
     const nonce = Hex.random(16);
     const newNonce = Hex.random(32);
 
     const reqPQ = this.tl.query('req_pq_multi#be7e8ef1 nonce:int128 = ResPQ', { nonce });
-    const resPQ = await this.transport.callPlain(reqPQ);
+    const [resPQ] = await this.transport.callPlain(reqPQ);
 
     if (resPQ.declaration.predicate !== 'resPQ') throw new Error(`Auth: Unexpected resPQ response. Got ${resPQ.declaration.predicate}`);
 
@@ -167,7 +221,7 @@ export default class AuthService {
     const [p, q] = pqPrimePollard(pq);
 
     let publicKeyFingerprint: number;
-    let publicKey;
+    let publicKey: ?RSAKey;
 
     for (let i = 0; i < resPQ.params.server_public_key_fingerprints.items.length; i += 1) {
       const publicKeyFingerprintHex = resPQ.params.server_public_key_fingerprints.items[i].getHex().toString();
@@ -179,7 +233,9 @@ export default class AuthService {
       }
     }
 
-    if (!publicKey && publicKeyFingerprint) throw new Error(`RSA: Unknown public key fingerprint ${publicKeyFingerprint}`);
+    if ((!publicKey) && publicKeyFingerprint) {
+      throw new Error(`RSA: Unknown public key fingerprint ${publicKeyFingerprint}`);
+    }
 
     const pqInner = this.tl.construct(isTemporary ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
       pq,
@@ -202,22 +258,31 @@ export default class AuthService {
       p: new Hex(p),
       q: new Hex(q),
       public_key_fingerprint: publicKeyFingerprint,
-      encrypted_data: new Hex(RSAEncrypt(dataWithHash, publicKey.n, publicKey.e)),
+      encrypted_data: new Hex(publicKey && RSAEncrypt(dataWithHash, publicKey.n, publicKey.e)),
     });
 
-    const resDH = await this.transport.callPlain(reqDH);
+    const [resDH] = await this.transport.callPlain(reqDH);
 
     if (resDH.declaration.predicate !== 'server_DH_params_ok') {
       throw new Error(`Auth: Unexpected req_DH_params response. Got ${resDH.declaration.predicate}`);
     }
 
-    const tmpAesKey = new Hex(SHA1.Hex(Hex.concat(newNonce, serverNonce)) + SHA1.Hex(Hex.concat(serverNonce, newNonce)).sliceBytes(0, 12));
-    const tmpAesIv = new Hex(SHA1.Hex(Hex.concat(serverNonce, newNonce)).sliceBytes(12, 20)
-                   + SHA1.Hex(Hex.concat(newNonce, newNonce)) + newNonce.sliceBytes(0, 4));
+    const tmpAesKey = Hex.concat(
+      SHA1.Hex(Hex.concat(newNonce, serverNonce)),
+      SHA1.Hex(Hex.concat(serverNonce, newNonce)).sliceBytes(0, 12),
+    );
+
+    const tmpAesIv = Hex.concat(
+      SHA1.Hex(Hex.concat(serverNonce, newNonce)).sliceBytes(12, 20),
+      SHA1.Hex(Hex.concat(newNonce, newNonce)),
+      newNonce.sliceBytes(0, 4),
+    );
 
     const decryptedAnswer = AESDecrypt(resDH.params.encrypted_answer.getHex(), tmpAesKey, tmpAesIv);
 
     const serverDH = this.tl.parse(decryptedAnswer.sliceBytes(20).toBuffer());
+
+    // To Do: server time sync
 
     const g = BigInt(serverDH.params.g.getValue());
     const ga = BigInt(serverDH.params.g_a.getHex(), 16);
@@ -243,7 +308,7 @@ export default class AuthService {
       encrypted_data: AESEncrypt(dataDHwithHash, tmpAesKey, tmpAesIv),
     });
 
-    const statusDH = await this.transport.callPlain(reqSetDH);
+    const [statusDH] = await this.transport.callPlain(reqSetDH);
 
     if (statusDH.declaration.predicate !== 'dh_gen_ok') {
       throw new Error(`Auth: Unexpected set_client_DH_params response. Got ${statusDH.declaration.predicate}`);
@@ -251,11 +316,16 @@ export default class AuthService {
 
     const authKey = ga.modPow(b, dhPrime).toString(16);
 
+    if (isTemporary) this.transport.services.session.serverSalt = Hex.xor(newNonce.sliceBytes(0, 8), serverNonce.sliceBytes(0, 8));
+
     if (isTemporary) {
       this.tempKey = authKey;
+      this.tempKeyExpire = getTime().second + expiresAfter;
     } else {
       this.permKey = authKey;
     }
+
+    log(`${isTemporary ? 'temporary' : 'permanent'} key created`);
 
     return authKey;
   }
@@ -267,55 +337,49 @@ export default class AuthService {
    * @param {string} temporary Temporary Auth key
    * @param {number} expiresAfter Expires after in seconds
    */
-  async bindTempAuthKey(expiresAfter?: number = 3600 * 24 * 7) {
-    // const premAuthKeyID = this.authKeys.permanent.id;
-    // const tempAuthKeyID = this.authKeys.temporary.id;
+  async bindTempAuthKey() {
+    log('binding temporary key');
 
-    // const sessionID = Hex.random(8);
-    // const salt = this.transport.getServerSalt();
-    // const nonce = Hex.random(8);
-    // const expiresAt = getTime().second + expiresAfter;
+    const permAuthKeyID = this.keys.permanent.id;
+    const tempAuthKeyID = this.keys.temporary.id;
 
-    // this.transport.setSession(sessionID);
+    const sessionID = Hex.random(8);
+    const nonce = Hex.random(8);
+    const expiresAt = this.keys.temporary.expires;
 
-    // const bindInner = this.tl.construct('bind_auth_key_inner', {
-    //   nonce,
-    //   temp_auth_key_id: tempAuthKeyID,
-    //   perm_auth_key_id: premAuthKeyID,
-    //   temp_session_id: sessionID,
-    //   expires_at: expiresAt,
-    // });
+    this.transport.services.session.sessionID = sessionID;
+    this.transport.services.session.expires = expiresAt;
 
-    // const bindMsg = new MessageData(bindInner.serialize());
+    const msgID = MessageData.GenerateID();
 
-    // bindMsg.setSalt(salt);
-    // bindMsg.setSessionID(sessionID);
-    // bindMsg.setMessageID();
-    // bindMsg.setLength();
-    // bindMsg.setPadding();
+    const bindMsg = new MessageData(this.tl.query('bind_auth_key_inner', {
+      nonce,
+      temp_auth_key_id: tempAuthKeyID,
+      perm_auth_key_id: permAuthKeyID,
+      temp_session_id: sessionID,
+      expires_at: expiresAt,
+    }).serialize(), true)
+      .setSalt(Hex.random(8))
+      .setSessionID(Hex.random(8))
+      .setMessageID(msgID)
+      .setLength()
+      .setPadding();
 
-    // const msgID = bindMsg.getMessageID();
+    const query = this.tl.query('auth.bindTempAuthKey', {
+      perm_auth_key_id: permAuthKeyID,
+      nonce,
+      expires_at: expiresAt,
+      encrypted_message: encryptDataMessage(this.permKey, bindMsg).toHex(),
+    });
 
-    // const bindQuery = this.tl.query('auth.bindTempAuthKey', {
-    //   perm_auth_key_id: premAuthKeyID,
-    //   nonce,
-    //   expires_at: expiresAt,
-    //   encrypted_message: encryptDataMessage(this.authKeys.permanent, bindMsg).toHex(),
-    // });
+    const [res] = await this.transport.call(query, { msgID });
 
-    // const queryMsg = new MessageData(bindQuery.serialize());
+    if (res.json() !== true) {
+      throw new Error('Auth: Binding temp auth key failed');
+    }
 
-    // queryMsg.setSessionID(sessionID);
-    // queryMsg.setSalt(salt);
-    // queryMsg.setSequenceNum(1);
-    // queryMsg.setMessageID(msgID);
-    // queryMsg.setLength();
-    // queryMsg.setPadding();
+    this.tempKeyBinding = true;
 
-    // const res = await this.transport.send(encryptDataMessage(this.authKeys.temporary, queryMsg));
-
-    // console.log('bindKeyRes:', res);
-
-    // this.transport.initConnection();
+    log('temporary key successfuly binded');
   }
 }

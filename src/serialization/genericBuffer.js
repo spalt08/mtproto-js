@@ -30,7 +30,7 @@ export default class GenericBuffer {
     this.bytePaddingBefore = bytePaddingBefore;
     this.bytePaddingAfter = bytePaddingAfter;
 
-    if (typeof source === 'object' && source.constructor.name === 'ArrayBuffer') {
+    if (typeof source === 'object' && source instanceof ArrayBuffer) {
       this.payloadLength = source.byteLength - this.bytePaddingBefore - this.bytePaddingAfter;
 
       this.buf = source;
@@ -49,7 +49,7 @@ export default class GenericBuffer {
       this.buf = new ArrayBuffer(totalLength);
       this.view = new GenericView(this.buf);
 
-      for (let i = 0; i < source.byteLength; i += 1) {
+      for (let i = 0; i < hexstr.byteLength; i += 1) {
         this.view.setUint8(this.bytePaddingBefore + i, hexstr.byteAt(i));
       }
     }

@@ -19,4 +19,16 @@ export interface DataStorage {
    * @returns {any} Value itself of any type
    */
   load(namespace: string, key: string): any;
+
+  /**
+   * Values that can be stored {namespace.key: valueType}
+   *
+   * auth.AuthKeyTemp: stirng
+   * auth.AuthKeyTempExpire: number
+   * auth.AuthKeyPerm: stirng
+   * session.SessionID: string
+   * session.Expire: number
+   * session.ServerSalt: string
+   * session.NextServerSalt: string
+   */
 }
