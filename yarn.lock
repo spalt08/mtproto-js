@@ -645,10 +645,6 @@
     lodash "^4.17.13"
     to-fast-properties "^2.0.0"
 
-"@goodmind/node-cryptojs-aes@^0.5.0":
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/@goodmind/node-cryptojs-aes/-/node-cryptojs-aes-0.5.0.tgz#84d27d2ec75abf0daed392181d1c2052ce046cf2"
-
 "@webassemblyjs/ast@1.8.5":
   version "1.8.5"
   resolved "https://registry.yarnpkg.com/@webassemblyjs/ast/-/ast-1.8.5.tgz#51b1c5fe6576a34953bf4b253df9f0d490d9e359"
@@ -3093,7 +3089,7 @@ p-try@^2.0.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/p-try/-/p-try-2.2.0.tgz#cb2868540e313d61de58fafbe35ce9004d5540e6"
 
-pako@~1.0.5:
+pako@^1.0.10, pako@~1.0.5:
   version "1.0.10"
   resolved "https://registry.yarnpkg.com/pako/-/pako-1.0.10.tgz#4328badb5086a426aa90f541977d4955da5c9732"
 

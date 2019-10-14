@@ -139,6 +139,6 @@ export default class TLBytes extends TLType {
     this.byteSize = this.byteDataOffset + this.stringLength;
     if (this.byteSize % 4) this.byteSize += 4 - (this.byteSize % 4);
 
-    if (this.view) this.view.setString(data, this.byteDataOffset, this.stringLength);
+    if (this.view) this.view.setString(this._value, this.byteDataOffset, this.stringLength);
   }
 }

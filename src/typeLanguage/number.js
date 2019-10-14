@@ -53,7 +53,7 @@ export default class TLNumber extends TLType {
    */
   setValue(data: number | Hex) {
     this._value = typeof data === 'object' && data instanceof Hex ? BigInt(data.reverseBytes().toString(), 16) : data;
-    if (this.view) this.view.setNumber(data);
+    if (this.view) this.view.setNumber(this._value);
   }
 
   /**

@@ -11,12 +11,13 @@ export default class TLBoolean extends TLType {
   /**
    * Creates view to Message Buffer to set and get values
    * @param {any} data Data to set
+   * @param {boolean} isOptional Is flag boolean
    * @constructs
    */
-  constructor(data: any) {
+  constructor(data: any, isOptional?: boolean = false) {
     super();
 
-    this.byteSize = 4;
+    this.byteSize = isOptional ? 0 : 4;
 
     if (data) this.setValue(data);
   }

@@ -63,37 +63,50 @@ export default class TLConstructor extends TLType {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
         const param = this.declaration.params[i];
         const vectorExpr = /vector<(.+?)>|vector (.+?)/i;
+        const flagExpr = /^flags.(\d+)\?(\w+)$/i;
+
+        let paramType = param.type;
+        let isOptional = false;
+        let flagIndex = 0;
         let tlEntity;
 
-        if (param.name === 'flags' && param.type === '#') {
+        if (flagExpr.test(paramType)) {
+          [, flagIndex, paramType] = paramType.match(flagExpr);
+          isOptional = true;
+        }
+
+        if (param.name === 'flags' && paramType === '#') {
           this.flags = new TLFlags();
           this.byteSize += this.flags.byteSize;
         }
 
-        if (TLNumber.ValidTypes.indexOf(param.type) !== -1) {
-          tlEntity = new TLNumber(param.type, data[param.name]);
+        if (TLNumber.ValidTypes.indexOf(paramType) !== -1) {
+          tlEntity = new TLNumber(paramType, data[param.name]);
         }
 
-        if (TLBytes.ValidTypes.indexOf(param.type) !== -1) {
+        if (TLBytes.ValidTypes.indexOf(paramType) !== -1) {
           tlEntity = new TLBytes(data[param.name]);
         }
 
-        if (param.type.toLowerCase() === 'bool') {
-          tlEntity = new TLBoolean(data[param.name]);
+        if (paramType.toLowerCase() === 'bool' || paramType.toLowerCase() === 'true') {
+          tlEntity = new TLBoolean(data[param.name], isOptional);
         }
 
-        if (param.type === '!X') {
+        if (paramType === '!X') {
           tlEntity = data[param.name];
         }
 
-        if (vectorExpr.test(param.type)) {
-          const match = param.type.match(vectorExpr);
+        if (vectorExpr.test(paramType)) {
+          const match = paramType.match(vectorExpr);
           const predicate = match[1] || match[2];
 
           tlEntity = new TLVector(predicate, schema, data[param.name]);
         }
 
         if (tlEntity) {
+          tlEntity.isOptional = isOptional;
+          tlEntity.flagIndex = flagIndex;
+
           this.byteSize += tlEntity.byteSize;
           this.params[param.name] = tlEntity;
         }
@@ -117,7 +130,6 @@ export default class TLConstructor extends TLType {
     } else {
       const dView = new GenericView(buf, bufOffset);
       const cID = dView.getNumber(0, 4);
-
       const decl = schema.find(cID);
 
       if (!decl.id) throw new Error(`Type Language: Unknown constructor #${dView.getHex(0, 4, true)}`);
@@ -149,15 +161,28 @@ export default class TLConstructor extends TLType {
 
     let offset = bufOffset + this.byteParamsOffset;
 
-    if (this.flags) {
-      offset = this.flags.mapBuffer(buf, offset);
+    if (this.flags && this.flags instanceof TLFlags) {
       this.byteSize += this.flags.byteSize;
+      offset = this.flags.mapBuffer(buf, offset);
     }
 
     for (let i = 0; i < this.declaration.params.length; i += 1) {
       const param = this.declaration.params[i];
+      const paramHandler = this.params[param.name];
 
-      if (this.params[param.name]) offset = this.params[param.name].mapBuffer(buf, offset);
+      if (paramHandler) {
+        if (paramHandler.isOptional && this.flags && paramHandler.getValue()) {
+          this.flags.set(paramHandler.flagIndex);
+        }
+
+        if (!paramHandler.isOptional || (this.flags && this.flags.has(paramHandler.flagIndex))) {
+          if (paramHandler instanceof TLBoolean && paramHandler.isOptional) {
+            paramHandler.setValue(true);
+          } else {
+            offset = paramHandler.mapBuffer(buf, offset);
+          }
+        }
+      }
 
       if (param.type === 'Object') {
         const tlEntity = TLConstructor.FromBuffer(buf, offset, this.schema);

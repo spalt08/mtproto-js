@@ -1,11 +1,13 @@
 // @flow
 
+import pako from 'pako';
+
 import type { Transport } from '../interfaces';
 import type { MessageHeaders } from '../serialization';
 
 import TypeLanguage from '../typeLanguage';
 import TLConstructor from '../typeLanguage/constructor';
-import { Hex, MessageData } from '../serialization';
+import { Hex, GenericBuffer, MessageData } from '../serialization';
 import { logs } from '../utils/log';
 
 const log = logs('rpc');
@@ -74,11 +76,23 @@ export default class RPCService {
    * @param {[TLConstructor, MessageHeaders]} responseMsg Response Message
    */
   emitResponse(msgID: string | string, response?: [TLConstructor, MessageHeaders], error?: RPCError) {
-    if (response) log('-> %s #%s', response[0].declaration.predicate, msgID);
-
     if (this.messages[msgID]) {
-      if (response) this.messages[msgID].resolve(response);
       if (error) this.messages[msgID].reject(error);
+      if (response) {
+        const [result, headers] = response;
+
+        if (result.declaration.predicate === 'gzip_packed') {
+          const gzData = result.params.packed_data.getHex().toBuffer();
+          const buf = new GenericBuffer(pako.inflate(gzData).buffer);
+          const res = this.tl.parse(buf);
+
+          log('-> %s #%s', res.declaration.predicate, msgID);
+          this.messages[msgID].resolve([res, headers]);
+        } else {
+          log('-> %s #%s', result.declaration.predicate, msgID);
+          this.messages[msgID].resolve(response);
+        }
+      }
 
       delete this.messages[msgID];
     }

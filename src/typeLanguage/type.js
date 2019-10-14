@@ -5,6 +5,12 @@ import { GenericView, GenericBuffer, Hex } from '../serialization';
 
 /** Abstract class for any TL entity */
 export default class TLType {
+  /** Is optional param */
+  isOptional: boolean = false;
+
+  /** Flag index */
+  flagIndex: number = 0;
+
   /* Size of entity in bytes */
   byteSize: number = 0;
 
@@ -33,9 +39,9 @@ export default class TLType {
 
   /**
    * Gets value from view
-   * @returns {Hex} Hex string
+   * @returns {any} Hex string
    */
-  getValue(): Hex {
+  getValue(): any {
     if (this.view) this._value = this.view.getHex();
 
     return this._value;
@@ -43,7 +49,7 @@ export default class TLType {
 
   /**
    * Sets value to view
-   * @param {string} data Hex
+   * @param {any} data Data to set
    */
   setValue(data: any) {
     this._value = new Hex(data);
