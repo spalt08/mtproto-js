@@ -172,6 +172,7 @@ export default class SessionService {
 
   async initConnection() {
     const query = this.tl.construct('help.getNearestDc');
+    console.log(query);
     const connectionWrapper = this.tl.construct('initConnection', {
       api_id: 1037552,
       device_model: 'Macbook Pro 2016',
@@ -182,10 +183,12 @@ export default class SessionService {
       lang_code: 'ru',
       query,
     });
+    console.log(connectionWrapper);
     const invokeWrapper = this.tl.query('invokeWithLayer', {
       layer: this.transport.APILayer,
       query: connectionWrapper,
     });
+    console.log(invokeWrapper);
 
     const [res] = await this.transport.call(invokeWrapper);
 

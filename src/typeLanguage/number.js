@@ -19,9 +19,10 @@ export default class TLNumber extends TLType {
    * TLNumber can be made from TLConstructor param data with our without allocated buffer
    * @param {string} predicate Number type
    * @param {any} data Data to set
+   * @param {boolean} isOptional If param is optional
    * @constructs
    */
-  constructor(predicate: string, data: any) {
+  constructor(predicate: string, data?: any) {
     super();
 
     switch (predicate) {

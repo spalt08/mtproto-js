@@ -9,6 +9,14 @@ const TL_FALSE = 'bc799737';
 /** TLBoolean is a param constructor view for message buffer */
 export default class TLBoolean extends TLType {
   /**
+   * Acceptable types
+   * @static
+   */
+  static ValidTypes = [
+    'Bool', 'true',
+  ];
+
+  /**
    * Creates view to Message Buffer to set and get values
    * @param {any} data Data to set
    * @param {boolean} isOptional Is flag boolean

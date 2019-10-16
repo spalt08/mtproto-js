@@ -172,12 +172,14 @@ export default class RPCService {
   processBadServerSalt(msg: [TLConstructor, MessageHeaders]) {
     log('-> bad_server_salt');
 
-    const [res] = msg;
+    const [res, headers] = msg;
     const msgID = res.params.bad_msg_id.getHex(true);
     const newSalt = res.params.new_server_salt.getHex();
 
     this.transport.services.session.serverSalt = newSalt;
     this.resend(msgID);
+
+    if (headers.msgID) this.ackMsg(headers.msgID);
   }
 
   /**
@@ -223,7 +225,6 @@ export default class RPCService {
     const { result } = res.params;
     const reqMsgID = res.params.req_msg_id.getHex(true).toString();
     const resMsgHeaders = headers;
-
 
     log('<- rpc_result #%s', reqMsgID);
 

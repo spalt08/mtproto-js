@@ -1,10 +1,9 @@
-/* eslint-disable no-underscore-dangle */
 // @flow
 
 import { GenericView, GenericBuffer, Hex } from '../serialization';
 
 /** Abstract class for any TL entity */
-export default class TLType {
+export default class AbstractConstructor {
   /** Is optional param */
   isOptional: boolean = false;
 

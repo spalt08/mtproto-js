@@ -10,6 +10,7 @@ import TLNumber from './number';
 import TLBytes from './bytes';
 import TLBoolean from './boolean';
 import TLConstructor from './constructor';
+import TLEnum from './enum';
 
 /** TLString is a param constructor view for message buffer */
 export default class TLVector extends TLType {
@@ -82,7 +83,13 @@ export default class TLVector extends TLType {
     } else if (TLBytes.ValidTypes.indexOf(this.itemDeclaration.predicate) !== -1) {
       tlEntity = new TLBytes(data);
     } else {
-      tlEntity = new TLConstructor(this.itemDeclaration.predicate, this.schema);
+      const resultTypes = this.schema.findAll(this.itemDeclaration.predicate);
+
+      if (resultTypes.length > 0) {
+        tlEntity = new TLEnum(resultTypes, this.schema);
+      } else {
+        tlEntity = new TLConstructor(this.itemDeclaration.predicate, this.schema);
+      }
     }
 
     return tlEntity;
@@ -123,7 +130,7 @@ export default class TLVector extends TLType {
       offset = bufOffset + this.byteDataOffset;
 
       this.itemsLength = this.isBare ? lengthView.getNumber(0, 4) : lengthView.getNumber(4, 4);
-
+  
       for (let i = 0; i < this.itemsLength; i += 1) {
         const tlEntity = this.createItem();
 

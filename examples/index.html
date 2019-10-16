@@ -18,10 +18,34 @@
         });
 
         server.connect().then(() => {
-          server.call(tl.query('help.getConfig')).then((res) => {
-            var response = res[0];
-            console.log(response);
+          // var q = tl.query('auth.sendCode', { 
+          //   phone_number: '79296649893', 
+          //   api_id: 1037552, 
+          //   api_hash: ('98d59f55b7e29ced837ac0b549eb4b83'), 
+          //   settings: {},
+          // });
+
+          // var q = tl.query('auth.signIn', { 
+          //   phone_number: '79296649893', 
+          //   phone_code_hash: '8ed7654795ba59f4a1',
+          //   phone_code: '56797',
+          // });
+
+          // var q = tl.query('http_wait', {
+          //   max_delay: 1000,
+          //   wait_after: 5000,
+          //   max_wait: 10000,
+          // });
+
+          var q = tl.query('langpack.getLanguages', {
+            lang_pack: 'macos',
           });
+
+          // server.call(q).then((res) => {
+          //   var response = res[0];
+          //   console.log('res', response);
+          //   console.log('res', response.json());
+          // });
         });
 
         // server.call(

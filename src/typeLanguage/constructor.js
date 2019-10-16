@@ -10,6 +10,8 @@ import TLBytes from './bytes';
 import TLVector from './vector';
 import TLBoolean from './boolean';
 import TLFlags from './flags';
+import TLEnum from './enum';
+import resolve from './resolve';
 
 /** GenericView is a wrapper for native DataView */
 export default class TLConstructor extends TLType {
@@ -59,11 +61,13 @@ export default class TLConstructor extends TLType {
       this.params = {};
     }
 
+    console.log(this);
+
     if (this.declaration.id) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
         const param = this.declaration.params[i];
         const vectorExpr = /vector<(.+?)>|vector (.+?)/i;
-        const flagExpr = /^flags.(\d+)\?(\w+)$/i;
+        const flagExpr = /^flags.(\d+)\?([\w.]+)$/i;
 
         let paramType = param.type;
         let isOptional = false;
@@ -78,36 +82,43 @@ export default class TLConstructor extends TLType {
         if (param.name === 'flags' && paramType === '#') {
           this.flags = new TLFlags();
           this.byteSize += this.flags.byteSize;
-        }
-
-        if (TLNumber.ValidTypes.indexOf(paramType) !== -1) {
+        } else if (TLNumber.ValidTypes.indexOf(paramType) !== -1) {
           tlEntity = new TLNumber(paramType, data[param.name]);
-        }
-
-        if (TLBytes.ValidTypes.indexOf(paramType) !== -1) {
+        } else if (TLBytes.ValidTypes.indexOf(paramType) !== -1) {
           tlEntity = new TLBytes(data[param.name]);
-        }
-
-        if (paramType.toLowerCase() === 'bool' || paramType.toLowerCase() === 'true') {
+        } else if (paramType.toLowerCase() === 'bool' || paramType.toLowerCase() === 'true') {
           tlEntity = new TLBoolean(data[param.name], isOptional);
-        }
-
-        if (paramType === '!X') {
+        } else if (paramType === '!X') {
           tlEntity = data[param.name];
-        }
-
-        if (vectorExpr.test(paramType)) {
+        } else if (vectorExpr.test(paramType)) {
           const match = paramType.match(vectorExpr);
           const predicate = match[1] || match[2];
 
           tlEntity = new TLVector(predicate, schema, data[param.name]);
+        } else if (paramType !== 'Object') {
+          const declaration = this.schema.find(paramType);
+          const resultTypes = this.schema.findAll(paramType);
+
+          if (declaration && declaration.type) {
+            tlEntity = new TLConstructor(paramType, this.schema, false, data[param.name]);
+          }
+
+          if (resultTypes && resultTypes.length === 1) {
+            tlEntity = new TLConstructor(resultTypes[0].predicate || resultTypes[0].method, this.schema, false, data[param.name]);
+          }
+
+          if (resultTypes.length > 1) {
+            tlEntity = new TLEnum(resultTypes, this.schema);
+          }
         }
 
         if (tlEntity) {
           tlEntity.isOptional = isOptional;
           tlEntity.flagIndex = flagIndex;
 
-          this.byteSize += tlEntity.byteSize;
+          if (!isOptional || data[param.name]) {
+            this.byteSize += tlEntity.byteSize;
+          }
           this.params[param.name] = tlEntity;
         }
       }
@@ -130,6 +141,7 @@ export default class TLConstructor extends TLType {
     } else {
       const dView = new GenericView(buf, bufOffset);
       const cID = dView.getNumber(0, 4);
+
       const decl = schema.find(cID);
 
       if (!decl.id) throw new Error(`Type Language: Unknown constructor #${dView.getHex(0, 4, true)}`);
@@ -154,6 +166,7 @@ export default class TLConstructor extends TLType {
 
     if (!this.isBare) {
       const viewConstructorID = this.view.getNumber(0, 4);
+
       if (viewConstructorID === 0 && this.view) {
         this.view.setNumber(this.declaration.id, 0, 4);
       }
@@ -171,8 +184,14 @@ export default class TLConstructor extends TLType {
       const paramHandler = this.params[param.name];
 
       if (paramHandler) {
-        if (paramHandler.isOptional && this.flags && paramHandler.getValue()) {
-          this.flags.set(paramHandler.flagIndex);
+        if (paramHandler.isOptional && this.flags) {
+          if (paramHandler instanceof TLConstructor) {
+            if (paramHandler.hasValue()) {
+              this.flags.set(paramHandler.flagIndex);
+            }
+          } else if (paramHandler.getValue() && this.flags) {
+            this.flags.set(paramHandler.flagIndex);
+          }
         }
 
         if (!paramHandler.isOptional || (this.flags && this.flags.has(paramHandler.flagIndex))) {
@@ -180,7 +199,12 @@ export default class TLConstructor extends TLType {
             paramHandler.setValue(true);
           } else {
             offset = paramHandler.mapBuffer(buf, offset);
+            this.byteSize += this.params[param.name].byteSize;
           }
+        }
+
+        if (paramHandler instanceof TLBoolean && paramHandler.isOptional && (this.flags && !this.flags.has(paramHandler.flagIndex))) {
+          paramHandler.setValue(false);
         }
       }
 
@@ -190,9 +214,8 @@ export default class TLConstructor extends TLType {
         this.params[param.name] = tlEntity;
 
         offset += tlEntity.byteSize;
+        this.byteSize += this.params[param.name].byteSize;
       }
-
-      if (this.params[param.name]) this.byteSize += this.params[param.name].byteSize;
     }
 
     return offset;
@@ -219,10 +242,33 @@ export default class TLConstructor extends TLType {
 
     for (let i = 0; i < this.declaration.params.length; i += 1) {
       const param = this.declaration.params[i];
-      output[param.name] = this.params[param.name].getValue();
+
+      if (param.type !== '#') {
+        const paramHandler = this.params[param.name];
+        const value = paramHandler.getValue();
+
+        if (!paramHandler.isOptional || value) {
+          output[param.name] = value;
+        }
+      }
     }
 
     return output;
+  }
+
+  /**
+   * Method checks nested params for a values
+   * @returns {boolean} If constructor has any param with value
+   */
+  hasValue(): boolean {
+    for (let i = 0; i < this.declaration.params.length; i += 1) {
+      if (this.params[this.declaration.params[i].name]) {
+        const paramValue = this.params[this.declaration.params[i].name].getValue();
+        if (paramValue) return true;
+      }
+    }
+
+    return false;
   }
 
   /**

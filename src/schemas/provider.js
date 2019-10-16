@@ -51,6 +51,15 @@ export default class SchemaProvider {
   }
 
   /**
+   * Method finds schema entities by result type
+   * @param {string} type Constructor predicate or ID
+   * @returns {SchemaEntity[]} Schema entity Array
+   */
+  findAll(type: string): SchemaEntity[] {
+    return this.schema.filter((s) => type.toLowerCase() === s.type.toLowerCase());
+  }
+
+  /**
    * Method adds parsed query to flattened schema.
    * @param {string} query Constructor query
    */
