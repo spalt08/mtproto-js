@@ -2,7 +2,6 @@
 // @flow
 
 import type { TLAny } from '../interfaces';
-import type { SchemaEntity } from '../schemas';
 
 import { SchemaProvider } from '../schemas';
 import { GenericView, GenericBuffer } from '../serialization';
@@ -18,7 +17,7 @@ export default class TLVector extends TLAbstract implements TLAny {
   schema: SchemaProvider
 
   /** Schema of array item */
-  itemDeclaration: ?SchemaEntity;
+  itemDeclaration: string;
 
   /** Count of array items */
   itemsLength: number = 0;
@@ -39,9 +38,13 @@ export default class TLVector extends TLAbstract implements TLAny {
 
     this.schema = schema;
 
-    this.itemDeclaration = schema.find(itemPredicate);
+    this.itemDeclaration = itemPredicate;
     this.items = [];
     this.itemsLength = 0;
+
+    if (this.itemDeclaration) {
+      this._ = `Vector<${this.itemDeclaration}>`;
+    }
 
     if (isBare) {
       this.byteDataOffset = 4;
@@ -58,7 +61,7 @@ export default class TLVector extends TLAbstract implements TLAny {
    * @returns {any[]} Stored array
    */
   set value(data: any[]) {
-    if (this.itemDeclaration && (this.itemDeclaration.predicate || this.itemDeclaration.method)) {
+    if (this.itemDeclaration) {
       this.byteSize = this.byteDataOffset;
       this.items = [];
       this.itemsLength = 0;
@@ -96,7 +99,7 @@ export default class TLVector extends TLAbstract implements TLAny {
    */
   createItem(data?: any): TLAny {
     if (this.itemDeclaration) {
-      const itemHandler = resolve(this.itemDeclaration.predicate || this.itemDeclaration.method || '', this.schema);
+      const itemHandler = resolve(this.itemDeclaration, this.schema);
 
       if (itemHandler) {
         if (data) itemHandler.value = data;

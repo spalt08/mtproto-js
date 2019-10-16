@@ -5,6 +5,9 @@ import TLAbstract from './abstract';
 
 /** Represents flags handler for constructor */
 export default class TLFlags extends TLAbstract implements TLAny {
+  /** Type language notation name */
+  _: string = 'flags';
+
   /**
    * Creates flags handler
    */

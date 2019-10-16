@@ -25,7 +25,7 @@ export default function getTime(): UniqueTime {
   return {
     second: Math.floor(time / 1000),
     nanosecond: Math.floor(time % 1000),
-    offset: ((time - startTime) / 1000).toFixed(2),
+    offset: (time - startTime) / 1000,
     repeated: lastRepeated,
   };
 }

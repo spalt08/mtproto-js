@@ -2,9 +2,12 @@
 
 import type { Message } from './message';
 import type { MessageHeaders } from '../serialization';
+import type { TLAny } from './tl';
 
-import TLConstructor from '../typeLanguage/constructor';
 import { AuthService, SessionService, RPCService } from '../services';
+
+/** RPC Result generic type */
+export type RPCResult = { result: TLAny, headers: MessageHeaders };
 
 /**
  * Transport interface is used to transmit type language serialized message to server with specific protocol, such as http or websocket
@@ -15,16 +18,16 @@ export interface Transport {
   /**
    * Method ecnrypts serialized message and sends it to the server
    * @param {TLConstructor | GenericBuffer} query Data to send, wrapped at tl constructor or generic buffer
-   * @returns {Promise<TLConstructor>} Promise response wrapped by type language constructor
+   * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
    */
-  call(query: TLConstructor | Message, headers?: { [string]: any }): Promise<[TLConstructor, MessageHeaders]>;
+  call(query: TLAny | Message, headers?: { [string]: any }): Promise<RPCResult>;
 
   /**
    * Method sends plain message to the server
    * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
-   * @returns {Promise<TLConstructor>} Promise response wrapped by type language constructor
+   * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
    */
-  callPlain(query: TLConstructor | Message, headers?: { [string]: any }): Promise<[TLConstructor, MessageHeaders]>;
+  callPlain(query: TLAny | Message, headers?: { [string]: any }): Promise<RPCResult>;
 
   /** API Layer */
   APILayer: number;

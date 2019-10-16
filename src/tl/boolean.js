@@ -20,6 +20,9 @@ export default class TLBoolean extends TLAbstract implements TLAny {
    */
   static ValidHex = [TL_TRUE, TL_FALSE];
 
+  /** Type language notation name */
+  _: string = 'Bool';
+
   /** Value to store, if no buffer mapped */
   _value: boolean = false;
 

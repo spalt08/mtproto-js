@@ -13,6 +13,9 @@ import { GenericView, GenericBuffer, Hex } from '../serialization';
  * @param {any} value Value of constructor
  */
 export interface TLAny {
+  /** Type language notation name */
+  _: string;
+
   /** Represents bare types */
   isBare: boolean;
 
@@ -33,6 +36,9 @@ export interface TLAny {
 
   /** Byte size for allocation */
   byteSize: number;
+
+  /** Constructor params */
+  params: { [string]: TLAny };
 
   /**
    * Method maps part of buffer

@@ -13,6 +13,9 @@ import resolve from './resolve';
 
 /** GenericView is a wrapper for native DataView */
 export default class TLConstructor extends TLAbstract implements TLAny {
+  /** Schortcut for this.declaration.predicate || this.declaration.method */
+  _: string = '';
+
   /* Schema Entity for mapping props */
   declaration: ?SchemaEntity = null;
 
@@ -62,6 +65,7 @@ export default class TLConstructor extends TLAbstract implements TLAny {
    */
   fetch(declaration: SchemaEntity) {
     this.declaration = declaration;
+    this._ = declaration.predicate || declaration.method || '';
     this.params = {};
     this.byteSize = this.byteParamsOffset;
 
@@ -71,6 +75,7 @@ export default class TLConstructor extends TLAbstract implements TLAny {
 
         if (param.name === 'flags' && param.type === '#') {
           this.flags = new TLFlags();
+          this.byteSize += this.flags.byteSize;
         } else {
           const paramHandler = resolve(param.type, this.schema);
 
@@ -91,13 +96,22 @@ export default class TLConstructor extends TLAbstract implements TLAny {
       if (declaration && declaration.id) this.fetch(declaration);
     }
 
+    this.byteSize = this.byteParamsOffset;
+
+    if (this.flags) this.byteSize += this.flags.byteSize;
+
     if (this.declaration && this.declaration.params) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
         const param = this.declaration.params[i];
-        const paramHandler = this.params[param.name];
+        let paramHandler = this.params[param.name];
 
         if (paramHandler) {
-          paramHandler.value = data[param.name];
+          if (paramHandler instanceof TLConstructor && data[param.name] instanceof TLConstructor) {
+            this.params[param.name] = data[param.name];
+            paramHandler = data[param.name];
+          } else {
+            paramHandler.value = data[param.name];
+          }
 
           if (paramHandler.isOptional && this.flags && paramHandler.hasValue()) {
             this.flags.set(paramHandler.flagIndex);
@@ -145,11 +159,18 @@ export default class TLConstructor extends TLAbstract implements TLAny {
         const declaration = this.schema.find(cID);
         if (declaration && declaration.id) this.fetch(declaration);
       }
+    } else {
+      this.byteParamsOffset = 0;
     }
 
     this.byteSize = this.byteParamsOffset;
 
     let nextOffset = offset + this.byteParamsOffset;
+
+    if (this.flags) {
+      this.byteSize += this.flags.byteSize;
+      nextOffset = this.flags.map(buf, nextOffset);
+    }
 
     if (this.declaration && this.declaration.params) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
@@ -170,9 +191,10 @@ export default class TLConstructor extends TLAbstract implements TLAny {
           if (paramHandler.hasValue() && this.flags && !this.flags.has(paramHandler.flagIndex)) {
             this.flags.set(paramHandler.flagIndex);
           }
-        }
 
-        this.byteSize += paramHandler.byteSize;
+          this.byteSize += paramHandler.byteSize;
+        }
+        // else console.log('missing param handler', param.name, this);
       }
     }
 

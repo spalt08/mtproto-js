@@ -1,10 +1,11 @@
 // @flow
 
-import type { DataStorage, Transport, Message } from '../interfaces';
+import type {
+  DataStorage, Transport, Message, TLAny, RPCResult,
+} from '../interfaces';
 import type { MessageHeaders } from '../serialization';
 
 import TypeLanguage from '../tl';
-import TLConstructor from '../tl/constructor';
 import { ParseKey } from '../crypto/rsa/keys';
 import { AuthService, SessionService, RPCService } from '../services';
 import DefaultStorage from '../storage';
@@ -67,12 +68,12 @@ export default class AbstractTransport implements Transport {
   }
 
   // eslint-disable-next-line class-methods-use-this
-  call(query: TLConstructor | Message, headers?: MessageHeaders = {}): Promise<[TLConstructor, MessageHeaders]> {
+  call(query: TLAny | Message, headers?: MessageHeaders = {}): Promise<RPCResult> {
     throw new Error(`Abstract Transport does not implements call method, args: ${query.toString()}, ${headers.toString()}`);
   }
 
   // eslint-disable-next-line class-methods-use-this
-  callPlain(query: TLConstructor | Message, headers?: MessageHeaders = {}): Promise<[TLConstructor, MessageHeaders]> {
+  callPlain(query: TLAny | Message, headers?: MessageHeaders = {}): Promise<RPCResult> {
     throw new Error(`Abstract Transport does not implements callPlain method, args: ${query.toString()}, ${headers.toString()}`);
   }
 }

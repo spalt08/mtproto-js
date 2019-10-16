@@ -5,6 +5,9 @@ import { GenericView, GenericBuffer, Hex } from '../serialization';
 
 /** Abstract class for any type language constructor */
 export default class TLAbstract implements TLAny {
+  /** Type language notation name */
+  _: string = 'void';
+
   /** Represents bare types */
   isBare: boolean;
 
@@ -19,6 +22,9 @@ export default class TLAbstract implements TLAny {
 
   /** Byte size for allocation */
   byteSize: number = 0;
+
+  /** Constructor params */
+  params: { [string]: TLAny } = {};
 
   /** Value to store, if no buffer mapped */
   _value: any = null;

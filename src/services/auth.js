@@ -210,89 +210,94 @@ export default class AuthService {
     const nonce = Hex.random(16);
     const newNonce = Hex.random(32);
 
-    const reqPQ = this.tl.query('req_pq_multi#be7e8ef1 nonce:int128 = ResPQ', { nonce });
-    const [resPQ] = await this.transport.callPlain(reqPQ);
+    const reqPQ = this.tl.create('req_pq', { nonce });
+    // $FlowFixMe
+    const { result: resPQ } = await this.transport.callPlain(reqPQ);
 
-    if (resPQ.declaration.predicate !== 'resPQ') throw new Error(`Auth: Unexpected resPQ response. Got ${resPQ.declaration.predicate}`);
+    if (resPQ._ !== 'resPQ') throw new Error(`Auth: Unexpected resPQ response. Got ${resPQ._}`);
 
-    const serverNonce = resPQ.params.server_nonce.getHex();
+    const serverNonce = resPQ.params.server_nonce.hex;
 
-    const pq = resPQ.params.pq.getHex();
+    const pq = resPQ.params.pq.number;
     const [p, q] = pqPrimePollard(pq);
 
     let publicKeyFingerprint: number;
     let publicKey: ?RSAKey;
 
     for (let i = 0; i < resPQ.params.server_public_key_fingerprints.items.length; i += 1) {
-      const publicKeyFingerprintHex = resPQ.params.server_public_key_fingerprints.items[i].getHex().toString();
+      const publicKeyFingerprintHex = resPQ.params.server_public_key_fingerprints.items[i].hex.reverseBytes().toString();
       publicKey = this.RSAKeys.find((k) => k.fingerprint === publicKeyFingerprintHex);
 
       if (publicKey) {
-        publicKeyFingerprint = resPQ.params.server_public_key_fingerprints.items[i].getValue();
+        publicKeyFingerprint = resPQ.params.server_public_key_fingerprints.items[i].value;
         break;
       }
     }
 
-    if ((!publicKey) && publicKeyFingerprint) {
-      throw new Error(`RSA: Unknown public key fingerprint ${publicKeyFingerprint}`);
+    if (!publicKey || !publicKeyFingerprint) {
+      throw new Error('Auth Service: Unknown RSA public key fingerprint');
     }
 
-    const pqInner = this.tl.construct(isTemporary ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
-      pq,
-      p: new Hex(p),
-      q: new Hex(q),
+    const pqInner = this.tl.create(isTemporary ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
+      pq: new Hex(pq.toString(16)),
+      p: new Hex(p.toString(16)),
+      q: new Hex(q.toString(16)),
       nonce,
       server_nonce: serverNonce,
       new_nonce: newNonce,
     });
 
-    if (isTemporary) pqInner.params.expires_in.setValue(expiresAfter);
+    if (isTemporary) pqInner.params.expires_in.value = expiresAfter;
 
     const data = pqInner.serialize().toHex();
     const dataHash = SHA1.Hex(data);
-    const dataWithHash = dataHash + data + Hex.random(255 - ((data.byteLength + dataHash.byteLength) % 255));
+    const dataWithHash = Hex.concat(dataHash, data, Hex.random(255 - ((data.byteLength + dataHash.byteLength) % 255)));
 
-    const reqDH = this.tl.query('req_DH_params', {
+    const reqDH = this.tl.create('req_DH_params', {
       nonce,
       server_nonce: serverNonce,
-      p: new Hex(p),
-      q: new Hex(q),
+      p: new Hex(p.toString(16)),
+      q: new Hex(q.toString(16)),
       public_key_fingerprint: publicKeyFingerprint,
-      encrypted_data: new Hex(publicKey && RSAEncrypt(dataWithHash, publicKey.n, publicKey.e)),
+      encrypted_data: new Hex(publicKey && RSAEncrypt(dataWithHash.toString(), publicKey.n, publicKey.e)),
     });
 
-    const [resDH] = await this.transport.callPlain(reqDH);
+    // $FlowFixMe
+    const { result: resDH } = await this.transport.callPlain(reqDH);
 
-    if (resDH.declaration.predicate !== 'server_DH_params_ok') {
-      throw new Error(`Auth: Unexpected req_DH_params response. Got ${resDH.declaration.predicate}`);
+    if (resDH._ !== 'server_DH_params_ok') {
+      throw new Error(`Auth: Unexpected req_DH_params response. Got ${resDH._}`);
     }
 
+    const nnr = newNonce.reverseBytes();
+    const snr = serverNonce.reverseBytes();
+
     const tmpAesKey = Hex.concat(
-      SHA1.Hex(Hex.concat(newNonce, serverNonce)),
-      SHA1.Hex(Hex.concat(serverNonce, newNonce)).sliceBytes(0, 12),
+      SHA1.Hex(Hex.concat(nnr, snr)),
+      SHA1.Hex(Hex.concat(snr, nnr)).sliceBytes(0, 12),
     );
 
     const tmpAesIv = Hex.concat(
-      SHA1.Hex(Hex.concat(serverNonce, newNonce)).sliceBytes(12, 20),
-      SHA1.Hex(Hex.concat(newNonce, newNonce)),
-      newNonce.sliceBytes(0, 4),
+      SHA1.Hex(Hex.concat(snr, nnr)).sliceBytes(12, 20),
+      SHA1.Hex(Hex.concat(nnr, nnr)),
+      nnr.sliceBytes(0, 4),
     );
 
-    const decryptedAnswer = AESDecrypt(resDH.params.encrypted_answer.getHex(), tmpAesKey, tmpAesIv);
+    const decryptedAnswer = AESDecrypt(resDH.params.encrypted_answer.hex, tmpAesKey, tmpAesIv);
 
-    const serverDH = this.tl.parse(decryptedAnswer.sliceBytes(20).toBuffer());
+    const serverDH = this.tl.parse(decryptedAnswer.sliceBytes(20));
 
     // To Do: server time sync
 
-    const g = BigInt(serverDH.params.g.getValue());
-    const ga = BigInt(serverDH.params.g_a.getHex(), 16);
-    const dhPrime = BigInt(serverDH.params.dh_prime.getHex(), 16);
+    const g = BigInt(serverDH.params.g.value);
+    const ga = BigInt(serverDH.params.g_a.hex, 16);
+    const dhPrime = BigInt(serverDH.params.dh_prime.hex, 16);
     const b = BigInt.randBetween('-1e256', '1e256'); // BigInt(Hex.random(256), 16);
     const gb = g.modPow(b, dhPrime);
 
     // TO DO: check dh prime, ga, gb
 
-    const clientDH = this.tl.construct('client_DH_inner_data', {
+    const clientDH = this.tl.create('client_DH_inner_data', {
       nonce,
       server_nonce: serverNonce,
       g_b: new Hex(gb.toString(16)),
@@ -300,23 +305,24 @@ export default class AuthService {
 
     const dataDH = clientDH.serialize().toHex();
     const dataDHhash = SHA1.Hex(dataDH);
-    const dataDHwithHash = new Hex(dataDHhash + dataDH + Hex.random(16 - ((dataDH.byteLength + dataDHhash.byteLength) % 16)));
+    const dataDHwithHash = Hex.concat(dataDHhash, dataDH, Hex.random(16 - ((dataDH.byteLength + dataDHhash.byteLength) % 16)));
 
-    const reqSetDH = this.tl.query('set_client_DH_params', {
+    const reqSetDH = this.tl.create('set_client_DH_params', {
       nonce,
       server_nonce: serverNonce,
       encrypted_data: AESEncrypt(dataDHwithHash, tmpAesKey, tmpAesIv),
     });
 
-    const [statusDH] = await this.transport.callPlain(reqSetDH);
+    // $FlowFixMe
+    const { result: statusDH } = await this.transport.callPlain(reqSetDH);
 
-    if (statusDH.declaration.predicate !== 'dh_gen_ok') {
-      throw new Error(`Auth: Unexpected set_client_DH_params response. Got ${statusDH.declaration.predicate}`);
+    if (statusDH._ !== 'dh_gen_ok') {
+      throw new Error(`Auth: Unexpected set_client_DH_params response. Got ${statusDH._}`);
     }
 
     const authKey = ga.modPow(b, dhPrime).toString(16);
 
-    if (isTemporary) this.transport.services.session.serverSalt = Hex.xor(newNonce.sliceBytes(0, 8), serverNonce.sliceBytes(0, 8));
+    if (isTemporary) this.transport.services.session.serverSalt = Hex.xor(nnr.sliceBytes(0, 8), snr.sliceBytes(0, 8));
 
     if (isTemporary) {
       this.tempKey = authKey;
@@ -340,8 +346,8 @@ export default class AuthService {
   async bindTempAuthKey() {
     log('binding temporary key');
 
-    const permAuthKeyID = this.keys.permanent.id;
-    const tempAuthKeyID = this.keys.temporary.id;
+    const permAuthKeyID = this.keys.permanent.id.reverseBytes();
+    const tempAuthKeyID = this.keys.temporary.id.reverseBytes();
 
     const sessionID = Hex.random(8);
     const nonce = Hex.random(8);
@@ -352,29 +358,32 @@ export default class AuthService {
 
     const msgID = MessageData.GenerateID();
 
-    const bindMsg = new MessageData(this.tl.query('bind_auth_key_inner', {
+    const q = this.tl.create('bind_auth_key_inner', {
       nonce,
       temp_auth_key_id: tempAuthKeyID,
       perm_auth_key_id: permAuthKeyID,
-      temp_session_id: sessionID,
+      temp_session_id: sessionID.reverseBytes(),
       expires_at: expiresAt,
-    }).serialize(), true)
+    });
+
+    const bindMsg = new MessageData(q.serialize(), true)
       .setSalt(Hex.random(8))
       .setSessionID(Hex.random(8))
       .setMessageID(msgID)
       .setLength()
       .setPadding();
 
-    const query = this.tl.query('auth.bindTempAuthKey', {
+    const query = this.tl.create('auth.bindTempAuthKey', {
       perm_auth_key_id: permAuthKeyID,
       nonce,
       expires_at: expiresAt,
       encrypted_message: encryptDataMessage(this.permKey, bindMsg).toHex(),
     });
 
-    const [res] = await this.transport.call(query, { msgID });
+    // $FlowFixMe
+    const { result } = await this.transport.call(query, { msgID });
 
-    if (res.json() !== true) {
+    if (result.json() !== true) {
       throw new Error('Auth: Binding temp auth key failed');
     }
 

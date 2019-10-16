@@ -1,5 +1,7 @@
 // @flow
-// @flow
+
+import type { Schema } from '../schemas';
+import type { TLAny } from '../interfaces';
 
 import { SchemaProvider, MTProto } from '../schemas';
 import { GenericBuffer, Hex } from '../serialization';
@@ -31,7 +33,7 @@ export default class TypeLanguage {
    * @returns {TLConstructor} Type Language Constructor
    * @constructs
    */
-  create(query: string | number, data?: object): TLConstructor {
+  create(query: string | number, data?: Object): TLConstructor {
     return new TLConstructor(query, this.schema, false, data);
   }
 
@@ -42,7 +44,7 @@ export default class TypeLanguage {
    * @param {boolean} isBare True if it is a bare constructor
    * @param {string} predicate Predicate string, if bare constructor
    */
-  parse(source: GenericBuffer | Hex, isBare?: boolean = false, predicate?: string = ''): TLConstructor {
+  parse(source: GenericBuffer | Hex, isBare?: boolean = false, predicate?: string = ''): TLAny {
     const c = resolve(predicate, this.schema);
 
     if (isBare) c.isBare = isBare;
@@ -50,7 +52,7 @@ export default class TypeLanguage {
     if (source instanceof GenericBuffer) {
       c.map(source, 0);
     } else if (source instanceof Hex) {
-      c.map(source.toBuffer(), 0);
+      c.map(new GenericBuffer(source.toBuffer()), 0);
     }
 
     return c;

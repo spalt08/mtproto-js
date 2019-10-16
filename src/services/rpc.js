@@ -2,11 +2,12 @@
 
 import pako from 'pako';
 
-import type { Transport } from '../interfaces';
-import type { MessageHeaders } from '../serialization';
+import type { Transport, RPCResult } from '../interfaces';
 
 import TypeLanguage from '../tl';
+import TLAbstract from '../tl/abstract';
 import TLConstructor from '../tl/constructor';
+import TLVector from '../tl/vector';
 import { Hex, GenericBuffer, MessageData } from '../serialization';
 import { logs } from '../utils/log';
 
@@ -31,7 +32,7 @@ export default class RPCService {
   messages: {
     [string]: {
       msg: MessageData,
-      resolve: ([TLConstructor, MessageHeaders]) => any,
+      resolve: (RPCResult) => any,
       reject: (RPCError) => any,
     }
   }
@@ -53,17 +54,17 @@ export default class RPCService {
    * Subscribes callback to message identificator
    * @param {MessageData} msg Sent message
    * @param {func} resolve Promise resove function
-   * @returns {Promise} Promise for response
+   * @returns {Promise<RPCResult>} Promise for response
    */
-  subscribe(msg: MessageData): Promise<[TLConstructor, MessageHeaders]> {
+  subscribe(msg: MessageData): Promise<RPCResult> {
     const msgID = msg.getMessageID().toString();
-    const { predicate, method } = this.tl.parse(msg).declaration;
+    const { _ } = this.tl.parse(msg);
 
-    log('<- %s #%s seq: %d', predicate || method, msgID, msg.getSequenceNum());
+    log('<- %s #%s seq: %d', _, msgID, msg.getSequenceNum());
 
-    return new Promise((resolve: ([TLConstructor, MessageHeaders]) => any, reject: (RPCError) => any) => {
-      if (predicate === 'msgs_ack') {
-        resolve([new TLConstructor(), {}]);
+    return new Promise((resolve: (RPCResult) => any, reject: (RPCError) => any) => {
+      if (_ === 'msgs_ack') {
+        resolve({ result: new TLAbstract(), headers: {} });
       } else {
         this.messages[msgID] = { msg, resolve, reject };
       }
@@ -73,23 +74,23 @@ export default class RPCService {
   /**
    * Call callback due to message id
    * @param {string} msgID Request message identificator
-   * @param {[TLConstructor, MessageHeaders]} responseMsg Response Message
+   * @param {RPCResult} responseMsg Response Message
    */
-  emitResponse(msgID: string | string, response?: [TLConstructor, MessageHeaders], error?: RPCError) {
+  emitResponse(msgID: string | string, response?: RPCResult, error?: RPCError) {
     if (this.messages[msgID]) {
       if (error) this.messages[msgID].reject(error);
       if (response) {
-        const [result, headers] = response;
+        const { result, headers } = response;
 
-        if (result.declaration.predicate === 'gzip_packed') {
-          const gzData = result.params.packed_data.getHex().toBuffer();
+        if (result instanceof TLConstructor && result._ === 'gzip_packed') {
+          const gzData = result.params.packed_data.hex.toBuffer();
           const buf = new GenericBuffer(pako.inflate(gzData).buffer);
           const res = this.tl.parse(buf);
 
-          log('-> %s #%s', res.declaration.predicate, msgID);
-          this.messages[msgID].resolve([res, headers]);
+          log('-> %s #%s', res._, msgID);
+          this.messages[msgID].resolve({ result: res, headers });
         } else {
-          log('-> %s #%s', result.declaration.predicate, msgID);
+          log('-> %s #%s', result._, msgID);
           this.messages[msgID].resolve(response);
         }
       }
@@ -121,19 +122,19 @@ export default class RPCService {
    */
   ackMsg(...msgIDs: Hex[]) {
     this.transport.call(
-      this.tl.query('msgs_ack', { msg_ids: msgIDs.map((id) => id.reverseBytes()) }),
+      this.tl.create('msgs_ack', { msg_ids: msgIDs }),
     );
   }
 
   /**
    * Processes RPC response messages
-   * @param {[TLConstructor, MessageHeaders]} msg Received message
+   * @param {RPCResult} msg Received message
    */
-  processMessage(msg: [TLConstructor, MessageHeaders]) {
-    const [res, headers] = msg;
+  processMessage(msg: RPCResult) {
+    const { result } = msg;
 
-    switch (res.declaration.predicate) {
-      case 'msg_container': this.processMessageContainer([res, headers]); break;
+    switch (result._) {
+      case 'msg_container': this.processMessageContainer(msg); break;
       case 'new_session_created': this.processSessionCreated(msg); break;
       case 'bad_server_salt': this.processBadServerSalt(msg); break;
       case 'bad_msg_notification': this.processBadMsgNotification(msg); break;
@@ -141,101 +142,110 @@ export default class RPCService {
       case 'rpc_result': this.processRPCResult(msg); break;
 
       default:
-        log('unknown %s', res.declaration.predicate);
+        log('unknown %s', result._);
         break;
     }
   }
 
   /**
    * Processes: msg_container
-   * @param {string} msg Received message
+   * @param {RPCResult} msg Received message
    */
-  processMessageContainer(msg: [TLConstructor, MessageHeaders]) {
+  processMessageContainer(msg: RPCResult) {
     log('-> msg_container');
 
-    const [res] = msg;
+    const { result } = msg;
 
-    for (let i = 0; i < res.params.messages.items.length; i += 1) {
-      const item = res.params.messages.items[i];
+    if (result instanceof TLConstructor && result.params.messages instanceof TLVector) {
+      for (let i = 0; i < result.params.messages.items.length; i += 1) {
+        const item = result.params.messages.items[i];
 
-      this.processMessage([item.params.body, {
-        msgID: item.params.msg_id.getHex(true),
-        seqNum: item.params.seqno.getValue(),
-      }]);
+        if (item instanceof TLConstructor) {
+          this.processMessage({
+            result: item.params.body,
+            headers: {
+              msgID: item.params.msg_id.hex,
+              seqNum: item.params.seqno.value,
+            },
+          });
+        }
+      }
     }
   }
 
   /**
    * Processes: bad_server_salt
-   * @param {string} msg Received message
+   * @param {RPCResult} msg Received message
    */
-  processBadServerSalt(msg: [TLConstructor, MessageHeaders]) {
+  processBadServerSalt(msg: RPCResult) {
     log('-> bad_server_salt');
 
-    const [res, headers] = msg;
-    const msgID = res.params.bad_msg_id.getHex(true);
-    const newSalt = res.params.new_server_salt.getHex();
+    const { result, headers } = msg;
+
+    const msgID = result.params.bad_msg_id.hex;
+    const newSalt = result.params.new_server_salt.hex;
 
     this.transport.services.session.serverSalt = newSalt;
-    this.resend(msgID);
+    this.resend(msgID.toString());
 
     if (headers.msgID) this.ackMsg(headers.msgID);
   }
 
   /**
    * Processes: new_session_created
-   * @param {string} msg Received message
+   * @param {RPCResult} msg Received message
    */
-  processSessionCreated(msg: [TLConstructor, MessageHeaders]) {
+  processSessionCreated(msg: RPCResult) {
     log('-> new_session_created');
 
-    const [, headers] = msg;
+    const { headers } = msg;
     if (headers.msgID) this.ackMsg(headers.msgID);
   }
 
   /**
    * Processes: bad_msg_notification
-   * @param {string} msg Received message
+   * @param {RPCResult} msg Received message
    */
-  processBadMsgNotification(msg: [TLConstructor, MessageHeaders]) {
-    const [res] = msg;
+  processBadMsgNotification(msg: RPCResult) {
+    const { result } = msg;
 
-    log('-> bad_msg_notification #%s code: %d', res.params.bad_msg_id.getHex(true).toString(), res.params.error_code.getValue());
+    log('-> bad_msg_notification #%s code: %d', result.params.bad_msg_id.hex.toString(), result.params.error_code.value);
 
     return this;
   }
 
   /**
    * Processes: msgs_ack
-   * @param {string} msg Received message
+   * @param {RPCResult} msg Received message
    * @static
    */
-  static processMsgAck(msg: [TLConstructor, MessageHeaders]) {
-    const [res] = msg;
+  static processMsgAck(msg: RPCResult) {
+    const { result } = msg;
 
-    log(`-> msgs_ack #${res.params.msg_ids.items.map((i) => i.getHex().toString()).join(', #')}`);
+    if (result.params.msg_ids instanceof TLVector) {
+      log(`-> msgs_ack #${result.params.msg_ids.items.map((i) => i.hex.toString()).join(', #')}`);
+    }
   }
 
   /**
    * Processes: rpc_result
-   * @param {string} msg Received message
+   * @param {RPCResult} msg Received message
    */
-  processRPCResult(msg: [TLConstructor, MessageHeaders]) {
-    const [res, headers] = msg;
+  processRPCResult(msg: RPCResult) {
+    const { result: res, headers } = msg;
     const { result } = res.params;
-    const reqMsgID = res.params.req_msg_id.getHex(true).toString();
-    const resMsgHeaders = headers;
+    const reqMsgID = res.params.req_msg_id.hex.toString();
 
-    log('<- rpc_result #%s', reqMsgID);
+    log('-> rpc_result #%s', reqMsgID);
 
-    switch (result.declaration.predicate) {
+    switch (result._) {
       case 'rpc_error':
-        log('<- rpc_error %d %s', result.params.error_code.getValue(), result.params.error_message.getValue());
-        this.emitResponse(reqMsgID, undefined, result.json());
+        log('-> rpc_error %d %s', result.params.error_code.value, result.params.error_message.value);
+        this.emitResponse(reqMsgID, undefined, result.value);
         break;
 
       default:
-        this.emitResponse(reqMsgID, [result, resMsgHeaders]);
+        this.emitResponse(reqMsgID, { result, headers });
     }
 
     if (headers.msgID) this.ackMsg(headers.msgID);

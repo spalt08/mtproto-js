@@ -171,9 +171,9 @@ export default class SessionService {
   }
 
   async initConnection() {
-    const query = this.tl.construct('help.getNearestDc');
+    const query = this.tl.create('help.getNearestDc');
 
-    const connectionWrapper = this.tl.construct('initConnection', {
+    const connectionWrapper = this.tl.create('initConnection', {
       api_id: 1037552,
       device_model: 'Macbook Pro 2016',
       system_version: 'Mojave 10.14.3 Beta',
@@ -184,17 +184,18 @@ export default class SessionService {
       query,
     });
 
-    const invokeWrapper = this.tl.query('invokeWithLayer', {
+    const invokeWrapper = this.tl.create('invokeWithLayer', {
       layer: this.transport.APILayer,
       query: connectionWrapper,
     });
     console.log(invokeWrapper);
 
-    const [res] = await this.transport.call(invokeWrapper);
+    // $FlowFixMe
+    const { result } = await this.transport.call(invokeWrapper);
 
-    console.log('nearest dc:', res.json());
+    console.log('nearest dc:', result.json());
 
-    if (res.declaration.predicate === 'nearestDc') {
+    if (result._ === 'nearestDc') {
       this.isInited = true;
       log('session successfuly inited');
     }

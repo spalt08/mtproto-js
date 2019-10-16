@@ -1,17 +1,15 @@
 // @flow
 
 import BigInt from 'big-integer';
-import { Hex } from '../serialization';
 
 /**
  * Prime factorization p-Pollard Algorithm.
  * o(n^1/4)
- * Ref:
- * @param {Hex} pq
- * @returns {Hex[]} [p, q], where P > q
+ * @param {number} pq
+ * @returns {number[]} [p, q], where P > q
  */
-export default function pqPrimePollard(pq: Hex): Hex[] {
-  const n = BigInt(pq.toString(), 16);
+export default function pqPrimePollard(pq: number): number[] {
+  const n = BigInt(pq);
 
   const F = (_x: BigInt): BigInt => _x.multiply(_x).subtract(BigInt.one);
 
@@ -37,5 +35,5 @@ export default function pqPrimePollard(pq: Hex): Hex[] {
 
   const q = n.divide(gcd);
 
-  return gcd.greater(q) ? [q.toString(16), gcd.toString(16)] : [gcd.toString(16), q.toString(16)];
+  return gcd.greater(q) ? [q, gcd] : [gcd, q];
 }

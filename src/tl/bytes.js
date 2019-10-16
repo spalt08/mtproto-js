@@ -17,6 +17,9 @@ export default class TLBytes extends TLAbstract implements TLAny {
     'bytes', 'string',
   ];
 
+  /** Type language notation name */
+  _: string = 'bytes';
+
   /** Represents bare types */
   isBare: boolean = true;
 
@@ -63,7 +66,7 @@ export default class TLBytes extends TLAbstract implements TLAny {
       this._value = data;
     }
 
-    this.stringLength = this._value.length;
+    this.stringLength = this._value ? this._value.length : 0;
     this.byteDataOffset = this.stringLength > 253 ? 4 : 1;
     this.byteSize = this.byteDataOffset + this.stringLength;
 
@@ -113,7 +116,7 @@ export default class TLBytes extends TLAbstract implements TLAny {
    * @param {number} data Data to set
    */
   set number(data: number) {
-    this.hex = new Hex(data.toString(16));
+    this.value = new Hex(data.toString(16)).toRawString();
   }
 
   /**

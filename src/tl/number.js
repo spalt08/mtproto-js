@@ -36,6 +36,8 @@ export default class TLNumber extends TLAbstract implements TLAny {
   constructor(predicate: string, data?: number) {
     super();
 
+    this._ = predicate;
+
     switch (predicate) {
       case 'int': this.byteSize = 4; break;
       case 'int64': this.byteSize = 8; break;
@@ -85,6 +87,6 @@ export default class TLNumber extends TLAbstract implements TLAny {
    * @param {Hex} Hex Hex-string to set
    */
   set hex(hex: Hex) {
-    this.value = BigInt(hex.reverseBytes().toString(), 16);
+    this.value = BigInt(hex.toString(), 16);
   }
 }
