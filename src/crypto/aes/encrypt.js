@@ -16,7 +16,7 @@ const defaultOptions = {
  * @param {Hex} iv AES Init vector
  * @returns {Hex} Cipher Text
  */
-export default function encrypt(text: Hex, key: Hex, iv: Hex, options? = defaultOptions): Hex {
+export default function encrypt(text: Hex, key: Hex, iv: Hex, options?: Object = defaultOptions): Hex {
   const cipher = new aesjs.AES(new Uint8Array(key.toBuffer()));
 
   let prevX = iv.sliceBytes(options.blockSize, iv.byteLength);

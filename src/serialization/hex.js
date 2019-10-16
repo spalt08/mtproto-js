@@ -99,7 +99,7 @@ export default class Hex extends String {
    * @param {number[]} bytes Byte codes
    * @returns {Hex} Hex string from bytes
    */
-  static fromCharCode(...bytes: number[]): Hex {
+  static fromCharCode(...bytes: number[]): any {
     let str = '';
 
     for (let i = 0; i < bytes.length; i += 1) str += `0${bytes[i].toString(16)}`.slice(-2);

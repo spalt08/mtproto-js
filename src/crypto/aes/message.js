@@ -17,13 +17,13 @@ import decrypt from './decrypt';
  */
 export function encryptDataMessage(authKey: {key: Hex, id: Hex}, msg: Message): MessageEncrypted {
   const data = msg.toHex();
-  const dataToHash = new Hex(authKey.key.sliceBytes(88, 120) + data);
+  const dataToHash = new Hex(Hex.concat(authKey.key.sliceBytes(88, 120), data));
   const msgKeyLarge = SHA256.Hex(dataToHash);
   const msgKey = msgKeyLarge.sliceBytes(8, 24);
-  const sha256a = SHA256.Hex(new Hex(msgKey + authKey.key.sliceBytes(0, 36)));
-  const sha256b = SHA256.Hex(new Hex(authKey.key.sliceBytes(40, 76) + msgKey));
-  const aesKey = new Hex(sha256a.sliceBytes(0, 8) + sha256b.sliceBytes(8, 24) + sha256a.sliceBytes(24, 32));
-  const aesIv = new Hex(sha256b.sliceBytes(0, 8) + sha256a.sliceBytes(8, 24) + sha256b.sliceBytes(24, 32));
+  const sha256a = SHA256.Hex(Hex.concat(msgKey, authKey.key.sliceBytes(0, 36)));
+  const sha256b = SHA256.Hex(Hex.concat(authKey.key.sliceBytes(40, 76), msgKey));
+  const aesKey = Hex.concat(sha256a.sliceBytes(0, 8), sha256b.sliceBytes(8, 24), sha256a.sliceBytes(24, 32));
+  const aesIv = Hex.concat(sha256b.sliceBytes(0, 8), sha256a.sliceBytes(8, 24), sha256b.sliceBytes(24, 32));
   const encryptedData = encrypt(data, aesKey, aesIv);
 
   const encMsg = new MessageEncrypted(encryptedData.byteLength);
@@ -46,10 +46,10 @@ export function encryptDataMessage(authKey: {key: Hex, id: Hex}, msg: Message): 
 export function decryptDataMessage(authKey: {key: Hex, id: Hex}, msg: MessageEncrypted): MessageData {
   const data = msg.getData();
   const msgKey = msg.getMsgKey();
-  const sha256a = SHA256.Hex(new Hex(msgKey + authKey.key.sliceBytes(8, 44)));
-  const sha256b = SHA256.Hex(new Hex(authKey.key.sliceBytes(48, 84) + msgKey));
-  const aesKey = new Hex(sha256a.sliceBytes(0, 8) + sha256b.sliceBytes(8, 24) + sha256a.sliceBytes(24, 32));
-  const aesIv = new Hex(sha256b.sliceBytes(0, 8) + sha256a.sliceBytes(8, 24) + sha256b.sliceBytes(24, 32));
+  const sha256a = SHA256.Hex(Hex.concat(msgKey, authKey.key.sliceBytes(8, 44)));
+  const sha256b = SHA256.Hex(Hex.concat(authKey.key.sliceBytes(48, 84), msgKey));
+  const aesKey = Hex.concat(sha256a.sliceBytes(0, 8), sha256b.sliceBytes(8, 24), sha256a.sliceBytes(24, 32));
+  const aesIv = Hex.concat(sha256b.sliceBytes(0, 8), sha256a.sliceBytes(8, 24), sha256b.sliceBytes(24, 32));
 
   const decryptedData = decrypt(data, aesKey, aesIv);
 

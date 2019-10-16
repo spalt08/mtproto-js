@@ -12,10 +12,10 @@ export default class SHA256 {
   /**
    * Base function for calculating sha256(hex-string)
    *
-   * @param {string} str A hex string for hashing
-   * @returns {string} Result sha256 hash
+   * @param {Hex} str A hex string for hashing
+   * @returns {Hex} Result sha256 hash
    */
-  static Hex(hex: string): string {
+  static Hex(hex: Hex): Hex {
     return new Hex(forge.md.sha256.create().update(hex.toRawString()).digest().toHex());
   }
 
