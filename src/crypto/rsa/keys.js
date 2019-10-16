@@ -1,7 +1,7 @@
 // @flow
 
 import { Hex } from '../../serialization';
-import TLConstructor from '../../typeLanguage/constructor';
+import TLConstructor from '../../tl/constructor';
 import SchemaProvider from '../../schemas/provider';
 import SHA1 from '../sha1';
 

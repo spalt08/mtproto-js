@@ -5,8 +5,8 @@ import pako from 'pako';
 import type { Transport } from '../interfaces';
 import type { MessageHeaders } from '../serialization';
 
-import TypeLanguage from '../typeLanguage';
-import TLConstructor from '../typeLanguage/constructor';
+import TypeLanguage from '../tl';
+import TLConstructor from '../tl/constructor';
 import { Hex, GenericBuffer, MessageData } from '../serialization';
 import { logs } from '../utils/log';
 

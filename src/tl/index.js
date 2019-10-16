@@ -2,8 +2,9 @@
 // @flow
 
 import { SchemaProvider, MTProto } from '../schemas';
-import { GenericBuffer } from '../serialization';
+import { GenericBuffer, Hex } from '../serialization';
 import TLConstructor from './constructor';
+import resolve from './resolve';
 
 /** TypeLanguage ties up all TL objects together and connects Schema to it */
 export default class TypeLanguage {
@@ -28,34 +29,30 @@ export default class TypeLanguage {
    * @param {string | number} query TL Query or constructor number
    * @param {object} data Data to set
    * @returns {TLConstructor} Type Language Constructor
+   * @constructs
    */
-  construct(query: string | number, data?: object): TLConstructor {
+  create(query: string | number, data?: object): TLConstructor {
     return new TLConstructor(query, this.schema, false, data);
   }
 
   /**
-   * Method returns TLConstructor with message by query and data
-   * @param {string} query TL Query Expression
-   * @param {object} data Data to set
-   * @returns {TLConstructor} Type Language Constructor with mapped buffer
-   */
-  query(query: string, data?: object): TLConstructor {
-    const c = new TLConstructor(query, this.schema, false, data);
-    const buf = new GenericBuffer(c.byteSize);
-
-    c.mapBuffer(buf);
-
-    return c;
-  }
-
-  /**
    * Method wraps Byte Message to TLConstructor
-   * @param {GenericBuffer} buf Byte Message
+   * @param {GenericBuffer | Hex} buf Byte Message
    * @returns {TLConstructor} Type Language Constructor
    * @param {boolean} isBare True if it is a bare constructor
    * @param {string} predicate Predicate string, if bare constructor
    */
-  parse(buf: GenericBuffer, isBare?: boolean = false, predicate?: string = ''): TLConstructor {
-    return TLConstructor.FromBuffer(buf, 0, this.schema, isBare, predicate);
+  parse(source: GenericBuffer | Hex, isBare?: boolean = false, predicate?: string = ''): TLConstructor {
+    const c = resolve(predicate, this.schema);
+
+    if (isBare) c.isBare = isBare;
+
+    if (source instanceof GenericBuffer) {
+      c.map(source, 0);
+    } else if (source instanceof Hex) {
+      c.map(source.toBuffer(), 0);
+    }
+
+    return c;
   }
 }

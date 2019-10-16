@@ -1,21 +1,16 @@
-/* eslint-disable no-underscore-dangle */
 // @flow
 
-import TLType from './type';
+import type { TLAny } from '../interfaces';
+import TLAbstract from './abstract';
 
-/** TLBoolean is a param constructor view for message buffer */
-export default class TLFlags extends TLType {
+/** Represents flags handler for constructor */
+export default class TLFlags extends TLAbstract implements TLAny {
   /**
-   * Creates view to Message Buffer to set and get values
-   * @param {any} data Data to set
-   * @constructs
+   * Creates flags handler
    */
-  constructor(data: any) {
+  constructor() {
     super();
-
     this.byteSize = 4;
-
-    if (data) this.setValue(data);
   }
 
   /**
@@ -32,26 +27,24 @@ export default class TLFlags extends TLType {
    * @param {number} bit Bit Number
    */
   set(bit: number) {
-    this._value |= 1 << bit;
+    this.value |= 1 << bit;
   }
 
   /**
-   * Gets value from view
+   * Gets value
    * @returns {number} Number
    */
-  getValue(): number {
+  get value(): number {
     if (this.view) this._value = this.view.getNumber();
-
     return this._value;
   }
 
   /**
-   * Sets value to view
+   * Sets value
    * @param {number} Number
    */
-  setValue(data: number) {
+  set value(data: number) {
     this._value = data;
-
     if (this.view) this.view.setNumber(this._value);
   }
 }

@@ -1,23 +1,30 @@
-/* eslint-disable no-underscore-dangle */
 // @flow
 
-import TLType from './type';
+import type { TLAny } from '../interfaces';
+import TLAbstract from './abstract';
 
 const TL_TRUE = '997275b5';
 const TL_FALSE = 'bc799737';
 
 /** TLBoolean is a param constructor view for message buffer */
-export default class TLBoolean extends TLType {
+export default class TLBoolean extends TLAbstract implements TLAny {
   /**
    * Acceptable types
    * @static
    */
-  static ValidTypes = [
-    'Bool', 'true',
-  ];
+  static ValidTypes = ['Bool', 'true'];
 
   /**
-   * Creates view to Message Buffer to set and get values
+   * Acceptable hexes
+   * @static
+   */
+  static ValidHex = [TL_TRUE, TL_FALSE];
+
+  /** Value to store, if no buffer mapped */
+  _value: boolean = false;
+
+  /**
+   * Creates type language boolean constructor
    * @param {any} data Data to set
    * @param {boolean} isOptional Is flag boolean
    * @constructs
@@ -27,26 +34,24 @@ export default class TLBoolean extends TLType {
 
     this.byteSize = isOptional ? 0 : 4;
 
-    if (data) this.setValue(data);
+    if (data) this.value = data;
   }
 
   /**
-   * Gets value from view
+   * Gets bool
    * @returns {boolean} Bool
    */
-  getValue(): boolean {
+  get value(): boolean {
     if (this.view) this._value = this.view.getHex(0, 4, true).toString() === TL_TRUE;
-
     return this._value;
   }
 
   /**
-   * Sets value to view
+   * Sets boolean
    * @param {boolean} data
    */
-  setValue(data: boolean) {
+  set value(data: boolean) {
     this._value = data;
-
     if (this.view) this.view.setHex(data === true ? TL_TRUE : TL_FALSE);
   }
 }

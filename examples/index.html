@@ -37,9 +37,14 @@
           //   max_wait: 10000,
           // });
 
-          var q = tl.query('langpack.getLanguages', {
+          var q = tl.create('langpack.getLanguages', {
             lang_pack: 'macos',
           });
+
+          q.serialize();
+          
+          console.log(q);
+          console.log(q.json());
 
           // server.call(q).then((res) => {
           //   var response = res[0];

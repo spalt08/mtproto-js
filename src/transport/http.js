@@ -4,9 +4,9 @@ import type { Transport, Message } from '../interfaces';
 import type { GenericTranportConfig } from './abstract';
 import type { MessageHeaders } from '../serialization';
 
-import TypeLanguage from '../typeLanguage';
+import TypeLanguage from '../tl';
 import AbstractTransport from './abstract';
-import TLConstructor from '../typeLanguage/constructor';
+import TLConstructor from '../tl/constructor';
 import { MessagePlain, MessageData, MessageEncrypted } from '../serialization';
 import { encryptDataMessage, decryptDataMessage } from '../crypto/aes/message';
 import { AuthService } from '../services';

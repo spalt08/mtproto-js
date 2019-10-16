@@ -3,8 +3,8 @@
 import type { DataStorage, Transport, Message } from '../interfaces';
 import type { MessageHeaders } from '../serialization';
 
-import TypeLanguage from '../typeLanguage';
-import TLConstructor from '../typeLanguage/constructor';
+import TypeLanguage from '../tl';
+import TLConstructor from '../tl/constructor';
 import { ParseKey } from '../crypto/rsa/keys';
 import { AuthService, SessionService, RPCService } from '../services';
 import DefaultStorage from '../storage';

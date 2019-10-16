@@ -4,7 +4,7 @@ import BigInt from 'big-integer';
 
 import type { Transport, DataStorage } from '../interfaces';
 
-import TypeLanguage from '../typeLanguage';
+import TypeLanguage from '../tl';
 import { Hex, MessageData } from '../serialization';
 import pqPrimePollard from '../crypto/pq';
 import { PredefinedKeys } from '../crypto/rsa/keys';
