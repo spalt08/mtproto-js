@@ -85,6 +85,7 @@ export default class RPCService {
         if (result instanceof TLConstructor && result._ === 'gzip_packed') {
           const gzData = result.params.packed_data.hex.toBuffer();
           const buf = new GenericBuffer(pako.inflate(gzData).buffer);
+
           const res = this.tl.parse(buf);
 
           log('-> %s #%s', res._, msgID);
@@ -183,7 +184,7 @@ export default class RPCService {
     const { result, headers } = msg;
 
     const msgID = result.params.bad_msg_id.hex;
-    const newSalt = result.params.new_server_salt.hex;
+    const newSalt = result.params.new_server_salt.hex.reverseBytes();
 
     this.transport.services.session.serverSalt = newSalt;
     this.resend(msgID.toString());

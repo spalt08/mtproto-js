@@ -53,7 +53,7 @@ export default class TLVector extends TLAbstract implements TLAny {
     }
 
     this.byteSize = this.byteDataOffset;
-    this.value = data;
+    if (data) this.value = data;
   }
 
   /**
@@ -61,7 +61,7 @@ export default class TLVector extends TLAbstract implements TLAny {
    * @returns {any[]} Stored array
    */
   set value(data: any[]) {
-    if (this.itemDeclaration) {
+    if (this.itemDeclaration && data) {
       this.byteSize = this.byteDataOffset;
       this.items = [];
       this.itemsLength = 0;
@@ -119,6 +119,8 @@ export default class TLVector extends TLAbstract implements TLAny {
    * @returns {number} Byte offset after mapping
    */
   map(buf: GenericBuffer, offset?: number = 0): number {
+    if (this.isBare) this.byteDataOffset = 0;
+
     let nextOffset = offset + this.byteDataOffset;
 
     if (this.itemsLength > 0) {
@@ -135,7 +137,7 @@ export default class TLVector extends TLAbstract implements TLAny {
         nextOffset += this.items[i].map(buf, nextOffset);
       }
     } else {
-      const lengthView = new GenericView(buf, offset, 8);
+      const lengthView = new GenericView(buf, offset, 12);
 
       if (!this.isBare) {
         const cID = lengthView.getNumber(0, 4);
@@ -148,6 +150,14 @@ export default class TLVector extends TLAbstract implements TLAny {
       nextOffset = offset + this.byteDataOffset;
 
       this.itemsLength = this.isBare ? lengthView.getNumber(0, 4) : lengthView.getNumber(4, 4);
+
+      if (!this.itemDeclaration && this.itemsLength > 0) {
+        const innerID = lengthView.getNumber(this.byteDataOffset, 4);
+        const declaration = this.schema.find(innerID);
+        if (declaration && declaration.id) {
+          this.itemDeclaration = declaration.predicate || declaration.method || '';
+        }
+      }
 
       for (let i = 0; i < this.itemsLength; i += 1) {
         const itemHandler = this.createItem();

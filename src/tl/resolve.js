@@ -52,7 +52,11 @@ export default function resolve(predicate: string, schema: SchemaProvider): TLAn
   } else if (type === '!X') {
     result = new TLConstructor(type, schema);
 
-  // vector
+  // vector t
+  } else if (type === 'vector') {
+    result = new TLVector('', schema);
+
+  // vector<any>
   } else if (vExpr.test(type)) {
     // $FlowFixMe
     const [, innerType] = type.match(vExpr);

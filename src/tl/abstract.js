@@ -92,4 +92,12 @@ export default class TLAbstract implements TLAny {
   hasValue(): boolean {
     return this.value;
   }
+
+  /**
+   * Shortcut for getting value
+   * @returns {any} Json Object
+   */
+  json(): any {
+    return this.value;
+  }
 }

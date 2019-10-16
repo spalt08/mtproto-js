@@ -135,7 +135,7 @@ export default class TLConstructor extends TLAbstract implements TLAny {
 
       for (let i = 0; i < this.declaration.params.length; i += 1) {
         const param = this.declaration.params[i];
-        output[param.name] = this.params[param.name].value;
+        if (this.params[param.name]) output[param.name] = this.params[param.name].value;
       }
     }
 
@@ -178,14 +178,12 @@ export default class TLConstructor extends TLAbstract implements TLAny {
         const paramHandler = this.params[param.name];
 
         if (paramHandler) {
-          if (!paramHandler.isOptional || paramHandler.hasValue() || (this.flags && this.flags.has(paramHandler.flagIndex))) {
-            nextOffset = paramHandler.map(buf, nextOffset);
-          }
-
           if (paramHandler.isOptional && paramHandler instanceof TLBoolean) {
             if (this.flags && this.flags.has(paramHandler.flagIndex)) {
               paramHandler.value = true;
             }
+          } else if (!paramHandler.isOptional || paramHandler.hasValue() || (this.flags && this.flags.has(paramHandler.flagIndex))) {
+            nextOffset = paramHandler.map(buf, nextOffset);
           }
 
           if (paramHandler.hasValue() && this.flags && !this.flags.has(paramHandler.flagIndex)) {

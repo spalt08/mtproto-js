@@ -37,20 +37,20 @@
           //   max_wait: 10000,
           // });
 
-          var q = tl.create('langpack.getLanguages', {
+          // var q = tl.create('langpack.getLanguages', {
+          //   lang_pack: 'macos',
+          // });
+
+          var q = tl.create('langpack.getLangPack', {
             lang_pack: 'macos',
+            lang_code: 'en',
           });
 
-          q.serialize();
-          
-          console.log(q);
-          console.log(q.json());
-
-          // server.call(q).then((res) => {
-          //   var response = res[0];
-          //   console.log('res', response);
-          //   console.log('res', response.json());
-          // });
+          server.call(q).then((res) => {
+            var result = res.result;
+            console.log('res', result);
+            console.log('res', result.json());
+          });
         });
 
         // server.call(

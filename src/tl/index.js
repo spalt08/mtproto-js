@@ -4,9 +4,10 @@ import type { Schema } from '../schemas';
 import type { TLAny } from '../interfaces';
 
 import { SchemaProvider, MTProto } from '../schemas';
-import { GenericBuffer, Hex } from '../serialization';
+import { GenericBuffer, Hex, GenericView } from '../serialization';
 import TLConstructor from './constructor';
 import resolve from './resolve';
+import TLAbstract from './abstract';
 
 /** TypeLanguage ties up all TL objects together and connects Schema to it */
 export default class TypeLanguage {
@@ -45,15 +46,30 @@ export default class TypeLanguage {
    * @param {string} predicate Predicate string, if bare constructor
    */
   parse(source: GenericBuffer | Hex, isBare?: boolean = false, predicate?: string = ''): TLAny {
-    const c = resolve(predicate, this.schema);
-
-    if (isBare) c.isBare = isBare;
+    let c = new TLAbstract();
+    let buf = new GenericBuffer(0);
 
     if (source instanceof GenericBuffer) {
-      c.map(source, 0);
+      buf = source;
     } else if (source instanceof Hex) {
-      c.map(new GenericBuffer(source.toBuffer()), 0);
+      buf = new GenericBuffer(source.toBuffer());
     }
+
+    if (predicate) {
+      c = resolve(predicate, this.schema);
+    } else {
+      const view = new GenericView(buf);
+      const cID = view.getNumber(0, 4);
+      const schemaPredicate = this.schema.find(cID);
+
+      if (schemaPredicate && schemaPredicate.type) {
+        c = resolve(schemaPredicate.predicate || schemaPredicate.method || '', this.schema);
+      }
+    }
+
+    c.map(buf, 0);
+
+    if (isBare) c.isBare = isBare;
 
     return c;
   }
