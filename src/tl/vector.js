@@ -2,7 +2,7 @@
 // @flow
 
 import type { TLAny } from '../interfaces';
-import type { Schema } from '../schemas';
+import type { SchemaEntity } from '../schemas';
 
 import { SchemaProvider } from '../schemas';
 import { GenericView, GenericBuffer } from '../serialization';
@@ -18,7 +18,7 @@ export default class TLVector extends TLAbstract implements TLAny {
   schema: SchemaProvider
 
   /** Schema of array item */
-  itemDeclaration: Schema;
+  itemDeclaration: ?SchemaEntity;
 
   /** Count of array items */
   itemsLength: number = 0;
@@ -58,7 +58,7 @@ export default class TLVector extends TLAbstract implements TLAny {
    * @returns {any[]} Stored array
    */
   set value(data: any[]) {
-    if (this.itemDeclaration.predicate) {
+    if (this.itemDeclaration && (this.itemDeclaration.predicate || this.itemDeclaration.method)) {
       this.byteSize = this.byteDataOffset;
       this.items = [];
       this.itemsLength = 0;
@@ -95,13 +95,17 @@ export default class TLVector extends TLAbstract implements TLAny {
    * @returns {TLAny}
    */
   createItem(data?: any): TLAny {
-    const itemHandler = resolve(this.itemDeclaration.predicate, this.schema);
+    if (this.itemDeclaration) {
+      const itemHandler = resolve(this.itemDeclaration.predicate || this.itemDeclaration.method || '', this.schema);
 
-    if (tlHandler) {
-      if (data) itemHandler.value = data;
+      if (itemHandler) {
+        if (data) itemHandler.value = data;
+      }
+
+      return itemHandler;
     }
 
-    return itemHandler;
+    throw new Error('Type Language: Unable to create vector with unknown type');
   }
 
 

@@ -19,7 +19,7 @@ export default class SchemaProvider {
     this.schema = [];
 
     for (let i = 0; i < schemas.length; i += 1) {
-      this.schema.push(...schemas[i].constructors);
+      if (schemas[i].constructors) this.schema.push(...schemas[i].constructors);
       if (schemas[i].methods) this.schema.push(...schemas[i].methods);
     }
   }
@@ -30,24 +30,25 @@ export default class SchemaProvider {
    * @param {string | number} query Constructor predicate or ID
    * @returns {SchemaEntity} Schema Entity
    */
-  find(query: string | number): SchemaEntity {
+  find(query: string | number): ?SchemaEntity {
     const result = this.schema.find((s) => (
       parseInt(s.id, 10) === parseInt(query, 10)
    || parseInt(s.id, 10) === parseInt(query, 16)
-   || (query.toLowerCase && s.predicate && s.predicate.toLowerCase() === query.toLowerCase())
-   || (query.toLowerCase && s.method && s.method.toLowerCase() === query.toLowerCase())
+   || (typeof query === 'string' && s.predicate && s.predicate.toLowerCase() === query.toLowerCase())
+   || (typeof query === 'string' && s.method && s.method.toLowerCase() === query.toLowerCase())
     ));
 
     if (!result) {
       if (typeof query === 'number') throw new Error(`TL: Unknown constructor number ${query}`);
       const parsed = parse(query);
 
-      if (parsed.type) this.define(query);
-
-      return this.schema.find((s) => s.predicate === parsed.predicate);
+      if (parsed && parsed.type) {
+        this.define(query);
+        return parsed;
+      }
     }
 
-    return result;
+    return result || null;
   }
 
   /**
@@ -64,8 +65,7 @@ export default class SchemaProvider {
    * @param {string} query Constructor query
    */
   define(query: string) {
-    this.schema.push(
-      parse(query),
-    );
+    const parsed = parse(query);
+    if (parsed && parsed.type) this.schema.push(parsed);
   }
 }

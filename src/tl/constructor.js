@@ -168,7 +168,7 @@ export default class TLConstructor extends TLAbstract implements TLAny {
           }
 
           if (paramHandler.hasValue() && this.flags && !this.flags.has(paramHandler.flagIndex)) {
-            this.flags.set(param.flagIndex);
+            this.flags.set(paramHandler.flagIndex);
           }
         }
 
