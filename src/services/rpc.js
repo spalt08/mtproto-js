@@ -132,7 +132,7 @@ export default class RPCService {
    * @param {RPCResult} msg Received message
    */
   processMessage(msg: RPCResult) {
-    const { result } = msg;
+    const { result, headers } = msg;
 
     switch (result._) {
       case 'msg_container': this.processMessageContainer(msg); break;
@@ -143,7 +143,8 @@ export default class RPCService {
       case 'rpc_result': this.processRPCResult(msg); break;
 
       default:
-        log('unknown %s', result._);
+        log('unknown %s', result._, result);
+        if (headers.msgID) this.ackMsg(headers.msgID);
         break;
     }
   }

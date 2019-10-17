@@ -45,12 +45,14 @@ export default class TypeLanguage {
    * @param {boolean} isBare True if it is a bare constructor
    * @param {string} predicate Predicate string, if bare constructor
    */
-  parse(source: GenericBuffer | Hex, isBare?: boolean = false, predicate?: string = ''): TLAny {
+  parse(source: GenericBuffer | Hex | ArrayBuffer, isBare?: boolean = false, predicate?: string = ''): TLAny {
     let c = new TLAbstract();
     let buf = new GenericBuffer(0);
 
     if (source instanceof GenericBuffer) {
       buf = source;
+    } else if (source instanceof ArrayBuffer) {
+      buf = new GenericBuffer(source);
     } else if (source instanceof Hex) {
       buf = new GenericBuffer(source.toBuffer());
     }
@@ -67,6 +69,7 @@ export default class TypeLanguage {
       }
     }
 
+    console.log('parse\n', buf.dump(), '\n', c);
     c.map(buf, 0);
 
     if (isBare) c.isBare = isBare;

@@ -31,6 +31,11 @@ export default class GenericView extends DataView {
     return Hex.fromCharCode(...bytes).toString();
   }
 
+  /** Debug stuff */
+  get extend(): GenericView {
+    return new GenericView(this.buffer, this.byteOffset + this.byteLength - 4, 14);
+  }
+
   /**
    * The method returns hex-string data from array buffer slice
    * @param {number} offset Byte offset

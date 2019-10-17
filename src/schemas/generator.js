@@ -8,7 +8,7 @@ import type { Schema } from './types';
  * @param {string} source TL query expression
  * @returns {Schema}
  */
-export default function generateScheme(source: string): Schema {
+export default function generateSchema(source: string): Schema {
   const schema = { constructors: [] };
 
   // eslint-disable-next-line no-restricted-syntax

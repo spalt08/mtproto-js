@@ -35,7 +35,7 @@ export default class TLBoolean extends TLAbstract implements TLAny {
   constructor(data: any, isOptional?: boolean = false) {
     super();
 
-    this.byteSize = isOptional ? 0 : 4;
+    this.isOptional = isOptional;
 
     if (data) this.value = data;
   }
@@ -56,5 +56,21 @@ export default class TLBoolean extends TLAbstract implements TLAny {
   set value(data: boolean) {
     this._value = data;
     if (this.view) this.view.setHex(data === true ? TL_TRUE : TL_FALSE);
+  }
+
+  /**
+   * Gets byte size
+   * @returns {number} Byte size
+   */
+  get byteSize(): number {
+    return this.isOptional ? 0 : 4;
+  }
+
+  /**
+   * Sets byte size
+   * @param {number} size Byte size
+   */
+  set byteSize(size: number) {
+    this._byteSize = this.isOptional ? 0 : 4;
   }
 }

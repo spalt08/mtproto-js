@@ -21,7 +21,7 @@ export default class TLAbstract implements TLAny {
   view: GenericView;
 
   /** Byte size for allocation */
-  byteSize: number = 0;
+  _byteSize: number = 0;
 
   /** Constructor params */
   params: { [string]: TLAny } = {};
@@ -63,6 +63,22 @@ export default class TLAbstract implements TLAny {
   set hex(data: any) {
     this._value = new Hex(data);
     if (this.view) this.view.setHex(this._value);
+  }
+
+  /**
+   * Gets byte size for allocation
+   * @returns {number} Byte size
+   */
+  get byteSize() {
+    return this._byteSize;
+  }
+
+  /**
+   * Sets byte size for allocation
+   * @param {number} size Byte size
+   */
+  set byteSize(size: number) {
+    this._byteSize = size;
   }
 
   /**

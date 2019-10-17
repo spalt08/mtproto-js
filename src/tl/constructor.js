@@ -16,6 +16,9 @@ export default class TLConstructor extends TLAbstract implements TLAny {
   /** Schortcut for this.declaration.predicate || this.declaration.method */
   _: string = '';
 
+  /** Cached byte size */
+  _byteSize: number = 0;
+
   /* Schema Entity for mapping props */
   declaration: ?SchemaEntity = null;
 
@@ -31,9 +34,6 @@ export default class TLConstructor extends TLAbstract implements TLAny {
   /* Flag is bare type */
   isBare: boolean = false;
 
-  /* Byte ofsset of constructor params */
-  byteParamsOffset: number = 4;
-
   /**
    * Creates type language constructor
    * @param {string | number} query TL expression or constructor number
@@ -45,11 +45,7 @@ export default class TLConstructor extends TLAbstract implements TLAny {
     super();
 
     this.schema = schema;
-
-    this.declaration = null;
-    this.params = {};
     this.isBare = isBare;
-    this.byteParamsOffset = isBare ? 0 : 4;
 
     if (query && schema) {
       const declaration = schema.find(query);
@@ -57,6 +53,8 @@ export default class TLConstructor extends TLAbstract implements TLAny {
     }
 
     if (data) this.value = data;
+
+    if (this._) console.log(this);
   }
 
   /**
@@ -67,7 +65,6 @@ export default class TLConstructor extends TLAbstract implements TLAny {
     this.declaration = declaration;
     this._ = declaration.predicate || declaration.method || '';
     this.params = {};
-    this.byteSize = this.byteParamsOffset;
 
     if (this.declaration.params) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
@@ -75,11 +72,8 @@ export default class TLConstructor extends TLAbstract implements TLAny {
 
         if (param.name === 'flags' && param.type === '#') {
           this.flags = new TLFlags();
-          this.byteSize += this.flags.byteSize;
         } else {
           const paramHandler = resolve(param.type, this.schema);
-
-          this.byteSize += paramHandler.byteSize;
           this.params[param.name] = paramHandler;
         }
       }
@@ -95,10 +89,6 @@ export default class TLConstructor extends TLAbstract implements TLAny {
       const declaration = this.schema.find(data._);
       if (declaration && declaration.id) this.fetch(declaration);
     }
-
-    this.byteSize = this.byteParamsOffset;
-
-    if (this.flags) this.byteSize += this.flags.byteSize;
 
     if (this.declaration && this.declaration.params) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
@@ -116,8 +106,6 @@ export default class TLConstructor extends TLAbstract implements TLAny {
           if (paramHandler.isOptional && this.flags && paramHandler.hasValue()) {
             this.flags.set(paramHandler.flagIndex);
           }
-
-          this.byteSize += paramHandler.byteSize;
         }
       }
     }
@@ -143,32 +131,68 @@ export default class TLConstructor extends TLAbstract implements TLAny {
   }
 
   /**
+   * Method calculates byte offset for constructor
+   * @returns {number} Constructor byte offset
+   */
+  get byteParamsOffset(): number {
+    return this.isBare ? 0 : 4;
+  }
+
+  /**
+   * Method calculates byte size of constructor
+   * @returns {number} Constructor byte size
+   */
+  get byteSize(): number {
+    this._byteSize = this.byteParamsOffset;
+
+    if (this.flags) this._byteSize += this.flags.byteSize;
+
+    if (this.declaration && this.declaration.params) {
+      for (let i = 0; i < this.declaration.params.length; i += 1) {
+        const param = this.declaration.params[i];
+        const paramHandler = this.params[param.name];
+
+        if (paramHandler) {
+          if (!paramHandler.isOptional || (this.flags && this.flags.has(paramHandler.flagIndex))) {
+            this._byteSize += paramHandler.byteSize;
+          }
+        }
+      }
+    }
+
+    return this._byteSize;
+  }
+
+  /**
+   * Method sets byte size
+   * @param {number} size Constructor byte size
+   */
+  set byteSize(size: number) {
+    this._byteSize = size;
+  }
+
+  /**
    * Method maps part of buffer
    * @param {GenericBuffer} buf Buffer for mapping
    * @param {number} offset Byte offset for mapping buffer
    * @returns {number} Byte offset after mapping
    */
   map(buf: GenericBuffer, offset?: number = 0): number {
-    const cView = new GenericView(buf, offset, 4);
-    const cID = cView.getNumber();
+    this.view = new GenericView(buf, offset, 4);
+    const cID = this.view.getNumber(0, 4);
 
     if (!this.isBare) {
       if (cID === 0 && this.declaration) {
-        cView.setNumber(this.declaration.id);
+        this.view.setNumber(parseInt(this.declaration.id, 10), 0, 4);
       } else {
         const declaration = this.schema.find(cID);
         if (declaration && declaration.id) this.fetch(declaration);
       }
-    } else {
-      this.byteParamsOffset = 0;
     }
-
-    this.byteSize = this.byteParamsOffset;
 
     let nextOffset = offset + this.byteParamsOffset;
 
     if (this.flags) {
-      this.byteSize += this.flags.byteSize;
       nextOffset = this.flags.map(buf, nextOffset);
     }
 
@@ -186,14 +210,13 @@ export default class TLConstructor extends TLAbstract implements TLAny {
             nextOffset = paramHandler.map(buf, nextOffset);
           }
 
-          if (paramHandler.hasValue() && this.flags && !this.flags.has(paramHandler.flagIndex)) {
+          if (paramHandler.isOptional && paramHandler.hasValue() && this.flags && !this.flags.has(paramHandler.flagIndex)) {
             this.flags.set(paramHandler.flagIndex);
           }
-
-          this.byteSize += paramHandler.byteSize;
         }
-        // else console.log('missing param handler', param.name, this);
       }
+
+      this.view = new GenericView(buf, offset, this.byteSize);
     }
 
     return nextOffset;
@@ -206,8 +229,9 @@ export default class TLConstructor extends TLAbstract implements TLAny {
   hasValue(): boolean {
     if (this.declaration && this.declaration.params) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
-        if (this.params[this.declaration.params[i].name]) {
-          if (this.params[this.declaration.params[i].name].hasValue()) return true;
+        const paramHandler = this.params[this.declaration.params[i].name];
+        if (paramHandler) {
+          if (paramHandler.hasValue()) return true;
         }
       }
     }
