@@ -163,6 +163,8 @@ export default class RPCService {
         const item = result.params.messages.items[i];
 
         if (item instanceof TLConstructor) {
+          this.ackMsg(item.params.msg_id.hex);
+
           this.processMessage({
             result: item.params.body,
             headers: {
@@ -184,13 +186,13 @@ export default class RPCService {
 
     const { result, headers } = msg;
 
+    if (headers.msgID) this.ackMsg(headers.msgID);
+
     const msgID = result.params.bad_msg_id.hex;
     const newSalt = result.params.new_server_salt.hex.reverseBytes();
 
     this.transport.services.session.serverSalt = newSalt;
     this.resend(msgID.toString());
-
-    if (headers.msgID) this.ackMsg(headers.msgID);
   }
 
   /**
@@ -200,8 +202,12 @@ export default class RPCService {
   processSessionCreated(msg: RPCResult) {
     log('-> new_session_created');
 
-    const { headers } = msg;
+    const { result, headers } = msg;
+
     if (headers.msgID) this.ackMsg(headers.msgID);
+
+    const newSalt = result.params.server_salt.hex.reverseBytes();
+    this.transport.services.session.serverSalt = newSalt;
   }
 
   /**
@@ -209,9 +215,13 @@ export default class RPCService {
    * @param {RPCResult} msg Received message
    */
   processBadMsgNotification(msg: RPCResult) {
-    const { result } = msg;
+    const { result, headers } = msg;
 
     log('-> bad_msg_notification #%s code: %d', result.params.bad_msg_id.hex.toString(), result.params.error_code.value);
+
+    // To Do: sync server time
+
+    if (headers.msgID) this.ackMsg(headers.msgID);
 
     return this;
   }
@@ -225,7 +235,7 @@ export default class RPCService {
     const { result } = msg;
 
     if (result.params.msg_ids instanceof TLVector) {
-      log(`-> msgs_ack #${result.params.msg_ids.items.map((i) => i.hex.toString()).join(', #')}`);
+      // log(`-> msgs_ack #${result.params.msg_ids.items.map((i) => i.hex.toString()).join(', #')}`);
     }
   }
 
@@ -240,6 +250,8 @@ export default class RPCService {
 
     log('-> rpc_result #%s', reqMsgID);
 
+    if (headers.msgID) this.ackMsg(headers.msgID);
+
     switch (result._) {
       case 'rpc_error':
         log('-> rpc_error %d %s', result.params.error_code.value, result.params.error_message.value);
@@ -249,7 +261,5 @@ export default class RPCService {
       default:
         this.emitResponse(reqMsgID, { result, headers });
     }
-
-    if (headers.msgID) this.ackMsg(headers.msgID);
   }
 }

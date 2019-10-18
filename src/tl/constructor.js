@@ -188,8 +188,6 @@ export default class TLConstructor extends TLAbstract implements TLAny {
       }
     }
 
-    if (this._) console.log(this);
-
     let nextOffset = offset + this.byteParamsOffset;
 
     if (this.flags) {
