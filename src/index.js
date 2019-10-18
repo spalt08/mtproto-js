@@ -6,4 +6,4 @@ export { default as TypeLanguage } from './tl';
 
 export { default as Schema } from './schemas';
 
-export { Hex, MessageData } from './serialization';
+export { Hex, GenericBuffer, MessageData } from './serialization';

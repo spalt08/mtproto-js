@@ -53,8 +53,6 @@ export default class TLConstructor extends TLAbstract implements TLAny {
     }
 
     if (data) this.value = data;
-
-    if (this._) console.log(this);
   }
 
   /**
@@ -189,6 +187,8 @@ export default class TLConstructor extends TLAbstract implements TLAny {
         if (declaration && declaration.id) this.fetch(declaration);
       }
     }
+
+    if (this._) console.log(this);
 
     let nextOffset = offset + this.byteParamsOffset;
 

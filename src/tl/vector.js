@@ -173,4 +173,12 @@ export default class TLVector extends TLAbstract implements TLAny {
 
     return nextOffset;
   }
+
+  /**
+   * Method checks nested params for a values
+   * @returns {boolean} If constructor has any param with value
+   */
+  hasValue(): boolean {
+    return this.itemsLength > 0;
+  }
 }

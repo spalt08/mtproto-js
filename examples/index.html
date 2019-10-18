@@ -27,25 +27,24 @@
 
           // var q = tl.create('auth.signIn', { 
           //   phone_number: '79296649893', 
-          //   phone_code_hash: 'f02a8b5fc8b2f25454',
-          //   phone_code: '64308',
+          //   phone_code_hash: '8bb897092bcb928251',
+          //   phone_code: '36853',
           // });
 
-          // var q = tl.query('http_wait', {
-          //   max_delay: 1000,
-          //   wait_after: 5000,
-          //   max_wait: 10000,
-          // });
+          var q = tl.create('http_wait', {
+            max_delay: 1000,
+            wait_after: 5000,
+            max_wait: 10000,
+          });
 
           // var q = tl.create('langpack.getLanguages', {
           //   lang_pack: 'ios',
           // });
 
-          var q = tl.create('langpack.getLangPack', {
-            lang_pack: 'macos',
-            lang_code: 'en',
-          });
-
+          // var q = tl.create('langpack.getLangPack', {
+          //   lang_pack: 'macos',
+          //   lang_code: 'en',
+          // });
 
           console.log(q);
           server.call(q).then((res) => {
