@@ -2,7 +2,7 @@
 
 import BigInt from 'big-integer';
 
-import type { Transport, DataStorage, TLAny } from '../interfaces';
+import type { Transport, DataStorage } from '../interfaces';
 import type { MessageHeaders } from '../serialization';
 
 import TypeLanguage from '../tl';
@@ -18,7 +18,6 @@ import getTime from '../utils/timer';
 import { logs } from '../utils/log';
 import TLVector from '../tl/vector';
 import TLBytes from '../tl/bytes';
-import TLNumber from '../tl/number';
 
 const log = logs('auth');
 
@@ -225,7 +224,7 @@ export default class AuthService {
 
     let publicKeyFingerprint: number;
     let publicKey: ?RSAKey;
-    
+
     if (resPQ.params.server_public_key_fingerprints instanceof TLVector) {
       const fingerprints: TLVector = resPQ.params.server_public_key_fingerprints;
       for (let i = 0; i < fingerprints.items.length; i += 1) {
