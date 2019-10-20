@@ -54,8 +54,8 @@ export default class Http extends AbstractTransport implements Transport {
   }
 
   async connect() {
-    await this.services.auth.prepare();
-    await this.services.session.prepare();
+    await this.auth.prepare();
+    await this.session.prepare();
     log('ready');
   }
 
@@ -84,19 +84,19 @@ export default class Http extends AbstractTransport implements Transport {
       const isContentRelated = tlHandler._ !== 'msgs_ack';
 
       msg = new MessageData(tlHandler.serialize())
-        .setSessionID(headers.sessionID || this.services.session.sessionID)
-        .setSalt(headers.serverSalt || this.services.session.serverSalt)
+        .setSessionID(headers.sessionID || this.session.sessionID)
+        .setSalt(headers.serverSalt || this.session.serverSalt)
         .setMessageID(headers.msgID)
-        .setSequenceNum(headers.seqNum || this.services.session.nextSeqNum(isContentRelated))
+        .setSequenceNum(headers.seqNum || this.session.nextSeqNum(isContentRelated))
         .setLength()
         .setPadding();
     }
 
-    this.send(encryptDataMessage(this.services.auth.tempKey, msg), Http.WrapEncryptedResponse).then(
-      (response: RPCResult) => this.services.rpc.processMessage(response),
+    this.send(encryptDataMessage(this.auth.tempKey, msg), Http.WrapEncryptedResponse).then(
+      (response: RPCResult) => this.rpc.processMessage(response),
     );
 
-    return this.services.rpc.subscribe(msg);
+    return this.rpc.subscribe(msg);
   }
 
   /**
@@ -148,7 +148,7 @@ export default class Http extends AbstractTransport implements Transport {
       req.onreadystatechange = () => {
         if (req.readyState !== 4) return;
         if (req.status >= 200 && req.status < 300) {
-          resolve(rw(req.response, this.tl, this.services));
+          resolve(rw(req.response, this.tl, { auth: this.auth }));
         } else {
           const err = new Error(`HTTP Error: Unexpected status ${req.status}`);
           reject(err);

@@ -109,7 +109,7 @@ export default class RPCService {
 
     if (request) {
       request.msg
-        .setSalt(this.transport.services.session.serverSalt)
+        .setSalt(this.transport.session.serverSalt)
         .setMessageID();
 
       this.transport.call(this.messages[msgID.toString()].msg);
@@ -191,7 +191,7 @@ export default class RPCService {
     const msgID = result.params.bad_msg_id.hex;
     const newSalt = result.params.new_server_salt.hex.reverseBytes();
 
-    this.transport.services.session.serverSalt = newSalt;
+    this.transport.session.serverSalt = newSalt;
     this.resend(msgID.toString());
   }
 
@@ -207,7 +207,7 @@ export default class RPCService {
     if (headers.msgID) this.ackMsg(headers.msgID);
 
     const newSalt = result.params.server_salt.hex.reverseBytes();
-    this.transport.services.session.serverSalt = newSalt;
+    this.transport.session.serverSalt = newSalt;
   }
 
   /**

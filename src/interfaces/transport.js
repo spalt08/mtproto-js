@@ -12,7 +12,10 @@ export type RPCResult = { result: TLAny, headers: MessageHeaders };
 /**
  * Transport interface is used to transmit type language serialized message to server with specific protocol, such as http or websocket
  * @param {TypeLanguage} tl Type language handler
- * @param {object} services Attached services
+ * @param {AuthService} auth  Authorization service
+ * @param {SessionService} session Session Service
+ * @param {RPCService} rpc RPC Service
+ * @param {number} APILayer Invoked api layer
  */
 export interface Transport {
   /**
@@ -36,10 +39,12 @@ export interface Transport {
   /** API Layer */
   APILayer: number;
 
-  /** Attached services */
-  services: {
-    auth: AuthService;
-    session: SessionService;
-    rpc: RPCService;
-  };
+  /** Authorization Service */
+  auth: AuthService;
+
+  /** Session Service */
+  session: SessionService;
+
+  /** RPC Service */
+  rpc: RPCService;
 }

@@ -26,19 +26,23 @@ const defaultConfig = {
 
 /** Abstract class for all mtproto transport classes
  * @param {TypeLanguage} tl Type Language handler
- * @param {object} services Attached services
+ * @param {AuthService} auth  Authorization service
+ * @param {SessionService} session Session Service
+ * @param {RPCService} rpc RPC Service
  * @param {number} APILayer API Layer
 */
 export default class AbstractTransport implements Transport {
   /** Type Language handler */
   tl: TypeLanguage;
 
-  /** Attached services */
-  services: {
-    auth: AuthService;
-    session: SessionService;
-    rpc: RPCService;
-  };
+  /** Authorization Service */
+  auth: AuthService;
+
+  /** Session Service */
+  session: SessionService;
+
+  /** RPC Service */
+  rpc: RPCService;
 
   /** API Layer */
   APILayer: number
@@ -55,14 +59,12 @@ export default class AbstractTransport implements Transport {
 
     this.APILayer = APILayer;
 
-    this.services = {
-      auth: new AuthService(this, tl, storage),
-      session: new SessionService(this, tl, storage),
-      rpc: new RPCService(this, tl),
-    };
+    this.auth = new AuthService(this, tl, storage);
+    this.session = new SessionService(this, tl, storage);
+    this.rpc = new RPCService(this, tl);
 
     if (cfg.RSAKeys) {
-      for (let i = 0; i <= cfg.RSAKeys.length; i += 1) this.services.auth.RSAKeys.push(ParseKey(cfg.RSAKeys[i]));
+      for (let i = 0; i <= cfg.RSAKeys.length; i += 1) this.auth.RSAKeys.push(ParseKey(cfg.RSAKeys[i]));
     }
   }
 

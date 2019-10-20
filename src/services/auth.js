@@ -320,7 +320,7 @@ export default class AuthService {
 
     const authKey = ga.modPow(b, dhPrime).toString(16);
 
-    if (isTemporary) this.transport.services.session.serverSalt = Hex.xor(nnr.sliceBytes(0, 8), snr.sliceBytes(0, 8));
+    if (isTemporary) this.transport.session.serverSalt = Hex.xor(nnr.sliceBytes(0, 8), snr.sliceBytes(0, 8));
 
     if (isTemporary) {
       this.tempKey = authKey;
@@ -351,8 +351,8 @@ export default class AuthService {
     const nonce = Hex.random(8);
     const expiresAt = this.keys.temporary.expires;
 
-    this.transport.services.session.sessionID = sessionID;
-    this.transport.services.session.expires = expiresAt;
+    this.transport.session.sessionID = sessionID;
+    this.transport.session.expires = expiresAt;
 
     const msgID = MessageData.GenerateID();
 
