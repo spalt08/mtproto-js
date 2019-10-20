@@ -10,15 +10,15 @@ export interface DataStorage {
    * @param {string} key Value key
    * @param {any} value Value itself of any type
    */
-  save(namespace: string, key: string, value: any): void;
+  save(namespace: string, key: string, value: any): Promise<void>;
 
   /**
    * Method gets value of any type
    * @param {string} namespace Value namespace
    * @param {string} key Value key
-   * @returns {any} Value itself of any type
+   * @returns {Promise<any>} Value itself of any type
    */
-  load(namespace: string, key: string): any;
+  load(namespace: string, key: string): Promise<any>;
 
   /**
    * Values that can be stored {namespace.key: valueType}

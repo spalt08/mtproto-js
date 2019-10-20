@@ -74,24 +74,6 @@ export default class AuthService {
     this.transport = transport;
     this.storage = storage;
 
-    const tempKey = new Hex(this.storage.load('auth', 'authKeyTemp'));
-    const permKey = new Hex(this.storage.load('auth', 'authKeyPerm'));
-    const expireAt = this.storage.load('auth', 'tempKeyExpire');
-    const isBinded = this.storage.load('auth', 'tempKeyBinded');
-
-    this.keys = {
-      temporary: {
-        key: tempKey,
-        id: tempKey ? SHA1.Hex(tempKey).sliceBytes(-8) : new Hex(),
-        expires: expireAt || 0,
-        binded: isBinded || false,
-      },
-      permanent: {
-        key: permKey,
-        id: tempKey ? SHA1.Hex(permKey).sliceBytes(-8) : new Hex(),
-      },
-    };
-
     this.RSAKeys = [...PredefinedKeys];
   }
 
@@ -165,6 +147,8 @@ export default class AuthService {
    * Manages auth keys and performs authorization is necessary
    */
   async prepare() {
+    await this.loadFromStore();
+
     // Permanent auth key wasn't loaded from storage
     if (this.keys.permanent.key.length === 0) {
       await this.createAuthKeys();
@@ -182,6 +166,29 @@ export default class AuthService {
     } else {
       log('auth keys loaded from storage');
     }
+  }
+
+  /**
+   * Loads authorization data from async storage
+   */
+  async loadFromStore() {
+    const tempKey = new Hex(await this.storage.load('auth', 'authKeyTemp'));
+    const permKey = new Hex(await this.storage.load('auth', 'authKeyPerm'));
+    const expireAt = await this.storage.load('auth', 'tempKeyExpire');
+    const isBinded = await this.storage.load('auth', 'tempKeyBinded');
+
+    this.keys = {
+      temporary: {
+        key: tempKey,
+        id: tempKey ? SHA1.Hex(tempKey).sliceBytes(-8) : new Hex(),
+        expires: expireAt || 0,
+        binded: isBinded || false,
+      },
+      permanent: {
+        key: permKey,
+        id: tempKey ? SHA1.Hex(permKey).sliceBytes(-8) : new Hex(),
+      },
+    };
   }
 
   /**

@@ -20,9 +20,9 @@ export default class DefaultStorage {
    * @param {string} key Value key
    * @param {any} value Value itself of any type
    */
-  save(namespace: string, key: string, value: any) {
+  async save(namespace: string, key: string, value: any) {
     // console.log('storage updated', namespace, key, value);
-    localStorage.setItem(this.getLocalStorageKey(namespace, key), JSON.stringify(value));
+    await localStorage.setItem(this.getLocalStorageKey(namespace, key), JSON.stringify(value));
   }
 
   /**
@@ -31,8 +31,8 @@ export default class DefaultStorage {
    * @param {string} key Value key
    * @returns {any} Value itself of any type
    */
-  load(namespace: string, key: string): any {
-    const valueStr = localStorage.getItem(this.getLocalStorageKey(namespace, key));
+  async load(namespace: string, key: string): Promise<any> {
+    const valueStr = await localStorage.getItem(this.getLocalStorageKey(namespace, key));
 
     if (valueStr) return JSON.parse(valueStr);
 

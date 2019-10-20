@@ -43,20 +43,6 @@ export default class SessionService {
     this.tl = tl;
     this.transport = transport;
     this.storage = storage;
-
-    const sessionID = storage.load('session', 'sessionID');
-    const serverSalt = storage.load('session', 'serverSalt');
-    const messageSeqNum = storage.load('session', 'messageSeqNum');
-    const expires = storage.load('session', 'sessionExpires');
-    const inited = storage.load('session', 'sessionInited');
-
-    this.session = {
-      sid: sessionID ? new Hex(sessionID) : undefined,
-      salt: serverSalt ? new Hex(serverSalt) : undefined,
-      expires: expires ? parseInt(expires, 10) : undefined,
-      seqNum: messageSeqNum ? parseInt(messageSeqNum, 10) : 0,
-      inited: inited || false,
-    };
   }
 
   /**
@@ -162,6 +148,8 @@ export default class SessionService {
   }
 
   async prepare() {
+    await this.loadFromStorage();
+
     if (!this.isInited) {
       log('initing new session');
       await this.initConnection();
@@ -170,6 +158,28 @@ export default class SessionService {
     }
   }
 
+  /**
+   * Loads session data from async storage
+   */
+  async loadFromStorage() {
+    const sessionID = await this.storage.load('session', 'sessionID');
+    const serverSalt = await this.storage.load('session', 'serverSalt');
+    const messageSeqNum = await this.storage.load('session', 'messageSeqNum');
+    const expires = await this.storage.load('session', 'sessionExpires');
+    const inited = await this.storage.load('session', 'sessionInited');
+
+    this.session = {
+      sid: sessionID ? new Hex(sessionID) : undefined,
+      salt: serverSalt ? new Hex(serverSalt) : undefined,
+      expires: expires ? parseInt(expires, 10) : undefined,
+      seqNum: messageSeqNum ? parseInt(messageSeqNum, 10) : 0,
+      inited: inited || false,
+    };
+  }
+
+  /**
+   * Calls initConnection method invoked with layer
+   */
   async initConnection() {
     const query = this.tl.create('help.getNearestDc');
 
