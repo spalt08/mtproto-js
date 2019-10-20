@@ -188,12 +188,8 @@ export default class SessionService {
       layer: this.transport.APILayer,
       query: connectionWrapper,
     });
-    console.log(invokeWrapper);
 
-    // $FlowFixMe
     const { result } = await this.transport.call(invokeWrapper);
-
-    console.log('nearest dc:', result.json());
 
     if (result._ === 'nearestDc') {
       this.isInited = true;

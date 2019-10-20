@@ -40,6 +40,9 @@ export interface TLAny {
   /** Constructor params */
   params: { [string]: TLAny };
 
+  /** Type language vector items */
+  items?: Array<TLAny>;
+
   /**
    * Method maps part of buffer
    * @param {GenericBuffer} buf Buffer for mapping
@@ -53,4 +56,10 @@ export interface TLAny {
    * @returns {boolean} If constructor has any value
    */
   hasValue(): boolean;
+
+  /**
+   * Returns json of type language constructor
+   * @returns {any} JSON
+   */
+  json(): any;
 }

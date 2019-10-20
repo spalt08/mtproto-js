@@ -17,17 +17,21 @@ export type RPCResult = { result: TLAny, headers: MessageHeaders };
 export interface Transport {
   /**
    * Method ecnrypts serialized message and sends it to the server
-   * @param {TLConstructor | GenericBuffer} query Data to send, wrapped at tl constructor or generic buffer
+   * @param {TLConstructor | Message | string} query Constructor name or data to send, wrapped at tl constructor or generic buffer
+   * @param {MessageHeaders | Object} args Constructor data or message headers
+   * @param {MessageHeaders} aargs Message headers
    * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
    */
-  call(query: TLAny | Message, headers?: { [string]: any }): Promise<RPCResult>;
+  call(query: TLAny | Message | string, args?: MessageHeaders | Object, aargs?: MessageHeaders): Promise<RPCResult>;
 
   /**
    * Method sends plain message to the server
-   * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
+   * @param {TLConstructor | Message | string} query Constructor name or data to send, wrapped at tl constructor or generic buffer
+   * @param {MessageHeaders | Object} args Constructor data or message headers
+   * @param {MessageHeaders} aargs Message headers
    * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
    */
-  callPlain(query: TLAny | Message, headers?: { [string]: any }): Promise<RPCResult>;
+  callPlain(query: TLAny | Message | string, args?: MessageHeaders | Object, aargs?: MessageHeaders): Promise<RPCResult>;
 
   /** API Layer */
   APILayer: number;

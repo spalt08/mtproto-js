@@ -3,7 +3,6 @@
 import type {
   DataStorage, Transport, Message, TLAny, RPCResult,
 } from '../interfaces';
-import type { MessageHeaders } from '../serialization';
 
 import TypeLanguage from '../tl';
 import { ParseKey } from '../crypto/rsa/keys';
@@ -68,12 +67,12 @@ export default class AbstractTransport implements Transport {
   }
 
   // eslint-disable-next-line class-methods-use-this
-  call(query: TLAny | Message, headers?: MessageHeaders = {}): Promise<RPCResult> {
-    throw new Error(`Abstract Transport does not implements call method, args: ${query.toString()}, ${headers.toString()}`);
+  call(query: TLAny | Message | string): Promise<RPCResult> {
+    throw new Error(`Abstract Transport does not implements call method, query: ${query.toString()}`);
   }
 
   // eslint-disable-next-line class-methods-use-this
-  callPlain(query: TLAny | Message, headers?: MessageHeaders = {}): Promise<RPCResult> {
-    throw new Error(`Abstract Transport does not implements callPlain method, args: ${query.toString()}, ${headers.toString()}`);
+  callPlain(query: TLAny | Message | string): Promise<RPCResult> {
+    throw new Error(`Abstract Transport does not implements callPlain method, query: ${query.toString()}`);
   }
 }

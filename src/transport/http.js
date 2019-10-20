@@ -61,19 +61,29 @@ export default class Http extends AbstractTransport implements Transport {
 
   /**
    * Method ecnrypts serialized message and sends it to the server
-   * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
-   * @param {MessageHeaders} headers Optional message headers
-   * @returns {Promise<[TLConstructor, MessageHeaders]>} Promise response wrapped by type language constructor
+   * @param {TLConstructor | Message | string} query Constructor number or data to send, wrapped at tl constructor or generic buffer
+   * @param {MessageHeaders | Object} args Constructor data or message headers
+   * @param {MessageHeaders} args Message headers
+   * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
    */
-  call(query: TLAny | Message, headers?: MessageHeaders = {}): Promise<RPCResult> {
+  call(query: TLAny | Message | string, args?: MessageHeaders | Object = {}, aargs: MessageHeaders = {}): Promise<RPCResult> {
     let msg = new MessageData();
+    let tlHandler = query;
+    let headers = aargs;
 
     if (query instanceof MessageData) {
       msg = query;
-    } else if (query instanceof TLConstructor) {
-      const isContentRelated = query._ !== 'msgs_ack';
+    } else if (typeof query === 'string') {
+      tlHandler = this.tl.create(query, args);
+      headers = aargs;
+    } else if (tlHandler instanceof TLConstructor) {
+      headers = args;
+    }
 
-      msg = new MessageData(query.serialize())
+    if (tlHandler instanceof TLConstructor) {
+      const isContentRelated = tlHandler._ !== 'msgs_ack';
+
+      msg = new MessageData(tlHandler.serialize())
         .setSessionID(headers.sessionID || this.services.session.sessionID)
         .setSalt(headers.serverSalt || this.services.session.serverSalt)
         .setMessageID(headers.msgID)
@@ -91,18 +101,30 @@ export default class Http extends AbstractTransport implements Transport {
 
   /**
    * Method sends plain message to the server
-   * @param {TLConstructor | Message} query Data to send, wrapped at tl constructor or generic buffer
-   * @param {MsgHeaders} headers Optional message headers
-   * @returns {Promise<TLConstructor>} Promise response wrapped by type language constructor
+   * @param {TLConstructor | Message | string} query Constructor number or data to send, wrapped at tl constructor or generic buffer
+   * @param {MessageHeaders | Object} args Constructor data or message headers
+   * @param {MessageHeaders} args Message headers
+   * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
    */
-  callPlain(query: TLAny | Message, headers?: MessageHeaders = {}): Promise<RPCResult> {
+  callPlain(query: TLAny | Message | string, args?: MessageHeaders | Object = {}, aargs: MessageHeaders = {}): Promise<RPCResult> {
+    let tlHandler = query;
+    let msg = new MessagePlain();
+    let headers = aargs;
+
     if (query instanceof MessagePlain) {
-      return this.send(query, Http.WrapPlainResponse);
+      msg = query;
+    } else if (typeof query === 'string') {
+      tlHandler = this.tl.create(query, args);
+      headers = aargs;
+    } else if (tlHandler instanceof TLConstructor) {
+      headers = args;
     }
 
-    const msg = new MessagePlain(query instanceof TLConstructor ? query.serialize() : undefined)
-      .setMessageID(headers.msgID)
-      .setLength();
+    if (tlHandler instanceof TLConstructor) {
+      msg = new MessagePlain(tlHandler.serialize())
+        .setMessageID(headers.msgID)
+        .setLength();
+    }
 
     return this.send(msg, Http.WrapPlainResponse);
   }

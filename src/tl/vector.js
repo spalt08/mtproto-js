@@ -13,6 +13,9 @@ export default class TLVector extends TLAbstract implements TLAny {
   /** TL Constructor number */
   static ConstructorNumber = 0x1cb5c415;
 
+  /** Type language notation name */
+  _: string = 'vector';
+
   /** Schema provider */
   schema: SchemaProvider
 
@@ -156,6 +159,7 @@ export default class TLVector extends TLAbstract implements TLAny {
         const declaration = this.schema.find(innerID);
         if (declaration && declaration.id) {
           this.itemDeclaration = declaration.predicate || declaration.method || '';
+          this._ = `Vector<${this.itemDeclaration}>`;
         }
       }
 

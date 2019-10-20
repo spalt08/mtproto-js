@@ -69,7 +69,6 @@ export default class TypeLanguage {
       }
     }
 
-    console.log('parse\n', buf.dump(), '\n', c);
     c.map(buf, 0);
 
     if (isBare) c.isBare = isBare;

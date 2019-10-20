@@ -2,7 +2,8 @@
 
 import BigInt from 'big-integer';
 
-import type { Transport, DataStorage } from '../interfaces';
+import type { Transport, DataStorage, TLAny } from '../interfaces';
+import type { MessageHeaders } from '../serialization';
 
 import TypeLanguage from '../tl';
 import { Hex, MessageData } from '../serialization';
@@ -15,6 +16,9 @@ import { encryptDataMessage } from '../crypto/aes/message_v1';
 import SHA1 from '../crypto/sha1';
 import getTime from '../utils/timer';
 import { logs } from '../utils/log';
+import TLVector from '../tl/vector';
+import TLBytes from '../tl/bytes';
+import TLNumber from '../tl/number';
 
 const log = logs('auth');
 
@@ -210,27 +214,28 @@ export default class AuthService {
     const nonce = Hex.random(16);
     const newNonce = Hex.random(32);
 
-    const reqPQ = this.tl.create('req_pq', { nonce });
-    // $FlowFixMe
-    const { result: resPQ } = await this.transport.callPlain(reqPQ);
+    const { result: resPQ } = await this.transport.callPlain('req_pq_multi nonce:int128 = ResPQ', { nonce });
 
     if (resPQ._ !== 'resPQ') throw new Error(`Auth: Unexpected resPQ response. Got ${resPQ._}`);
 
     const serverNonce = resPQ.params.server_nonce.hex;
 
-    const pq = resPQ.params.pq.number;
+    const pq = resPQ.params.pq instanceof TLBytes ? resPQ.params.pq.number : 0;
     const [p, q] = pqPrimePollard(pq);
 
     let publicKeyFingerprint: number;
     let publicKey: ?RSAKey;
+    
+    if (resPQ.params.server_public_key_fingerprints instanceof TLVector) {
+      const fingerprints: TLVector = resPQ.params.server_public_key_fingerprints;
+      for (let i = 0; i < fingerprints.items.length; i += 1) {
+        const publicKeyFingerprintHex = fingerprints.items[i].hex.reverseBytes().toString();
+        publicKey = this.RSAKeys.find((k) => k.fingerprint === publicKeyFingerprintHex);
 
-    for (let i = 0; i < resPQ.params.server_public_key_fingerprints.items.length; i += 1) {
-      const publicKeyFingerprintHex = resPQ.params.server_public_key_fingerprints.items[i].hex.reverseBytes().toString();
-      publicKey = this.RSAKeys.find((k) => k.fingerprint === publicKeyFingerprintHex);
-
-      if (publicKey) {
-        publicKeyFingerprint = resPQ.params.server_public_key_fingerprints.items[i].value;
-        break;
+        if (publicKey) {
+          publicKeyFingerprint = fingerprints.items[i].value;
+          break;
+        }
       }
     }
 
@@ -253,7 +258,7 @@ export default class AuthService {
     const dataHash = SHA1.Hex(data);
     const dataWithHash = Hex.concat(dataHash, data, Hex.random(255 - ((data.byteLength + dataHash.byteLength) % 255)));
 
-    const reqDH = this.tl.create('req_DH_params', {
+    const { result: resDH } = await this.transport.callPlain('req_DH_params', {
       nonce,
       server_nonce: serverNonce,
       p: new Hex(p.toString(16)),
@@ -261,9 +266,6 @@ export default class AuthService {
       public_key_fingerprint: publicKeyFingerprint,
       encrypted_data: new Hex(publicKey && RSAEncrypt(dataWithHash.toString(), publicKey.n, publicKey.e)),
     });
-
-    // $FlowFixMe
-    const { result: resDH } = await this.transport.callPlain(reqDH);
 
     if (resDH._ !== 'server_DH_params_ok') {
       throw new Error(`Auth: Unexpected req_DH_params response. Got ${resDH._}`);
@@ -307,14 +309,11 @@ export default class AuthService {
     const dataDHhash = SHA1.Hex(dataDH);
     const dataDHwithHash = Hex.concat(dataDHhash, dataDH, Hex.random(16 - ((dataDH.byteLength + dataDHhash.byteLength) % 16)));
 
-    const reqSetDH = this.tl.create('set_client_DH_params', {
+    const { result: statusDH } = await this.transport.callPlain('set_client_DH_params', {
       nonce,
       server_nonce: serverNonce,
       encrypted_data: AESEncrypt(dataDHwithHash, tmpAesKey, tmpAesIv),
     });
-
-    // $FlowFixMe
-    const { result: statusDH } = await this.transport.callPlain(reqSetDH);
 
     if (statusDH._ !== 'dh_gen_ok') {
       throw new Error(`Auth: Unexpected set_client_DH_params response. Got ${statusDH._}`);
@@ -380,8 +379,7 @@ export default class AuthService {
       encrypted_message: encryptDataMessage(this.permKey, bindMsg).toHex(),
     });
 
-    // $FlowFixMe
-    const { result } = await this.transport.call(query, { msgID });
+    const { result } = await this.transport.call(query, ({ msgID }: MessageHeaders));
 
     if (result.json() !== true) {
       throw new Error('Auth: Binding temp auth key failed');

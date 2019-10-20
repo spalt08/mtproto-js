@@ -31,26 +31,27 @@
           //   phone_code: '36853',
           // });
 
-          var q = tl.create('http_wait', {
-            max_delay: 1000,
-            wait_after: 5000,
-            max_wait: 10000,
-          });
-
-          // var q = tl.create('langpack.getLanguages', {
-          //   lang_pack: 'ios',
+          // var q = tl.create('http_wait', {
+          //   max_delay: 1000,
+          //   wait_after: 5000,
+          //   max_wait: 10000,
           // });
+
+          var q = tl.create('help.getConfig');
 
           // var q = tl.create('langpack.getLangPack', {
           //   lang_pack: 'macos',
           //   lang_code: 'en',
           // });
 
-          console.log(q);
-          server.call(q).then((res) => {
-            var result = res.result;
+          // server.on('updateUserStatus', function(data) {
+          //   console.log(data);
+          // });
+
+          server.call(q).then(r => {
+            var result = r.result;
+
             console.log('res', result);
-            console.log('res', result.json());
           });
         });
 
