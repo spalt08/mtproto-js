@@ -1,7 +1,7 @@
 {
   "name": "mtproto-js",
   "description": "JavaScript MTProto Implementation",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "author": "Konstantin Darutkin",
   "dependencies": {
     "aes-js": "^3.1.2",
