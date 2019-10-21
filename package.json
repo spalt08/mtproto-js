@@ -31,11 +31,26 @@
     "webpack": "^4.40.2",
     "webpack-cli": "^3.3.9"
   },
-  "license": "GNU",
+  "license": "GPL-3.0-or-later",
   "main": "dist/lib.js",
   "scripts": {
     "flow": "flow",
     "lint": "eslint --ext js ./src",
     "build": "webpack"
-  }
+  },
+  "directories": {
+    "example": "examples"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spalt08/mtproto-js.git"
+  },
+  "keywords": [
+    "mtproto",
+    "type-language"
+  ],
+  "bugs": {
+    "url": "https://github.com/spalt08/mtproto-js/issues"
+  },
+  "homepage": "https://github.com/spalt08/mtproto-js#readme"
 }
