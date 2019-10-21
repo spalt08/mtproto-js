@@ -28,6 +28,15 @@ type RSAKey = {
   e: string,
 };
 
+/** Storage Keys */
+const skNameSpace = 'auth';
+const sk = {
+  tempKey: 'tempKey',
+  permKey: 'permKey',
+  tempKeyExpire: 'tempKeyExpire',
+  tempKeyBinded: 'tempKeyBinded',
+};
+
 /**
  * Service class helper for authorization stuff
  * @param {object} tempKey Temporary authorization key
@@ -76,6 +85,8 @@ export default class AuthService {
     this.storage = storage;
 
     this.RSAKeys = [...PredefinedKeys];
+
+    this.loadFromStorage();
   }
 
   /**
@@ -93,7 +104,7 @@ export default class AuthService {
   set tempKey(key: string) {
     const hexKey = new Hex(key);
 
-    this.storage.save('auth', 'authKeyTemp', hexKey.toString());
+    this.storage.save(skNameSpace, sk.tempKey, hexKey.toString());
 
     this.keys.temporary = {
       key: hexKey,
@@ -108,7 +119,7 @@ export default class AuthService {
    * @param {number} expire Temporary authorization key expire time
    */
   set tempKeyExpire(expireAt: number) {
-    this.storage.save('auth', 'tempKeyExpire', expireAt);
+    this.storage.save(skNameSpace, sk.tempKeyExpire, expireAt);
     this.keys.temporary.expires = expireAt;
   }
 
@@ -117,7 +128,7 @@ export default class AuthService {
    * @param {boolean} isBinded Binding flag
    */
   set tempKeyBinding(isBinded: boolean) {
-    this.storage.save('auth', 'tempKeyBinded', isBinded);
+    this.storage.save(skNameSpace, sk.tempKeyBinded, isBinded);
     this.keys.temporary.binded = isBinded;
   }
 
@@ -136,7 +147,7 @@ export default class AuthService {
   set permKey(key: string) {
     const hexKey = new Hex(key);
 
-    this.storage.save('auth', 'authKeyPerm', hexKey.toString());
+    this.storage.save(skNameSpace, sk.permKey, hexKey.toString());
 
     this.keys.permanent = {
       key: hexKey,
@@ -148,7 +159,7 @@ export default class AuthService {
    * Manages auth keys and performs authorization is necessary
    */
   async prepare() {
-    await this.loadFromStore();
+    await this.loadFromStorage();
 
     // Permanent auth key wasn't loaded from storage
     if (this.keys.permanent.key.length === 0) {
@@ -172,11 +183,11 @@ export default class AuthService {
   /**
    * Loads authorization data from async storage
    */
-  async loadFromStore() {
-    const tempKey = new Hex(await this.storage.load('auth', 'authKeyTemp'));
-    const permKey = new Hex(await this.storage.load('auth', 'authKeyPerm'));
-    const expireAt = await this.storage.load('auth', 'tempKeyExpire');
-    const isBinded = await this.storage.load('auth', 'tempKeyBinded');
+  async loadFromStorage() {
+    const tempKey = new Hex(await this.storage.load(skNameSpace, sk.tempKey));
+    const permKey = new Hex(await this.storage.load(skNameSpace, sk.permKey));
+    const expireAt = await this.storage.load(skNameSpace, sk.tempKeyExpire);
+    const isBinded = await this.storage.load(skNameSpace, sk.tempKeyBinded);
 
     this.keys = {
       temporary: {

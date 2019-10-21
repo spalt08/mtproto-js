@@ -8,6 +8,16 @@ import { logs } from '../utils/log';
 
 const log = logs('session');
 
+/** Storage Keys */
+const skNameSpace = 'session';
+const sk = {
+  sid: 'sid',
+  salt: 'salt',
+  seqNo: 'seqNo',
+  expire: 'expire',
+  inited: 'inited',
+};
+
 /**
  * Service class for storing session data
  * @param {sessionID} Hex Session identificator
@@ -44,6 +54,8 @@ export default class SessionService {
     this.tl = tl;
     this.transport = transport;
     this.storage = storage;
+
+    this.loadFromStorage();
   }
 
   /**
@@ -60,7 +72,7 @@ export default class SessionService {
    * @param {Hex} sid Session identificator
    */
   set sessionID(sid: Hex) {
-    this.storage.save('session', 'sessionID', sid.toString());
+    this.storage.save(skNameSpace, sk.sid, sid.toString());
     this.msgSeqNum = 0;
     this.isInited = false;
     this.session.sid = sid;
@@ -80,7 +92,7 @@ export default class SessionService {
    * @param {Hex} sid Session identificator
    */
   set serverSalt(salt: Hex) {
-    this.storage.save('session', 'serverSalt', salt.toString());
+    this.storage.save(skNameSpace, sk.salt, salt.toString());
     this.session.salt = salt;
   }
 
@@ -97,7 +109,7 @@ export default class SessionService {
    * @param {number} seqNum Message sequence number
    */
   set msgSeqNum(seqNum: number) {
-    this.storage.save('session', 'messageSeqNum', seqNum);
+    this.storage.save(skNameSpace, sk.seqNo, seqNum);
     this.session.seqNum = seqNum;
   }
 
@@ -127,7 +139,7 @@ export default class SessionService {
    * @param {number} exp Message sequence number
    */
   set expires(exp: number) {
-    this.storage.save('session', 'sessionExpires', exp);
+    this.storage.save(skNameSpace, sk.expire, exp);
     this.session.expires = exp;
   }
 
@@ -144,7 +156,7 @@ export default class SessionService {
    * @param {boolean} value Initialization flag
    */
   set isInited(value: boolean) {
-    this.storage.save('session', 'sessionInited', value);
+    this.storage.save(skNameSpace, sk.inited, value);
     this.session.inited = value;
   }
 
@@ -163,11 +175,11 @@ export default class SessionService {
    * Loads session data from async storage
    */
   async loadFromStorage() {
-    const sessionID = await this.storage.load('session', 'sessionID');
-    const serverSalt = await this.storage.load('session', 'serverSalt');
-    const messageSeqNum = await this.storage.load('session', 'messageSeqNum');
-    const expires = await this.storage.load('session', 'sessionExpires');
-    const inited = await this.storage.load('session', 'sessionInited');
+    const sessionID = await this.storage.load(skNameSpace, sk.sid);
+    const serverSalt = await this.storage.load(skNameSpace, sk.salt);
+    const messageSeqNum = await this.storage.load(skNameSpace, sk.seqNo);
+    const expires = await this.storage.load(skNameSpace, sk.expire);
+    const inited = await this.storage.load(skNameSpace, sk.inited);
 
     this.session = {
       sid: sessionID ? new Hex(sessionID) : undefined,

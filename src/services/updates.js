@@ -8,6 +8,15 @@ import TLVector from '../tl/vector';
 
 const log = logs('updates');
 
+/** Storage Keys */
+const skNameSpace = 'updates';
+const sk = {
+  pts: 'pts',
+  qts: 'qts',
+  seq: 'seq',
+  date: 'date',
+};
+
 /**
  * Service class for handling update messages
  */
@@ -27,6 +36,7 @@ export default class UpdatesService {
     qts: number;
     seq: number;
     date: number;
+    registered: boolean;
   }
 
   /** Subscribers */
@@ -50,6 +60,7 @@ export default class UpdatesService {
       qts: 0,
       seq: 0,
       date: 0,
+      registered: false,
     };
   }
 
@@ -66,7 +77,7 @@ export default class UpdatesService {
    * @param {number} value PTS
    */
   set pts(value: number) {
-    this.storage.save('updates', 'pts', value);
+    this.storage.save(skNameSpace, sk.pts, value);
     this.state.pts = value;
   }
 
@@ -83,7 +94,7 @@ export default class UpdatesService {
    * @param {number} value QTS
    */
   set qts(value: number) {
-    this.storage.save('updates', 'qts', value);
+    this.storage.save(skNameSpace, sk.qts, value);
     this.state.qts = value;
   }
 
@@ -100,7 +111,7 @@ export default class UpdatesService {
    * @param {number} value Seq
    */
   set seq(value: number) {
-    this.storage.save('updates', 'seq', value);
+    this.storage.save(skNameSpace, sk.seq, value);
     this.state.seq = value;
   }
 
@@ -117,20 +128,35 @@ export default class UpdatesService {
    * @param {number} value Date
    */
   set date(value: number) {
-    this.storage.save('updates', 'date', value);
+    this.storage.save(skNameSpace, sk.date, value);
     this.state.date = value;
+  }
+
+  /**
+   * Gets registered flag
+   * @returns {boolean} Is registered
+   */
+  get registered(): boolean {
+    return this.state.registered;
   }
 
   /** Fetches update state */
   async prepare() {
     await this.loadFromStorage();
-
-    const remoteState = await this.transport.call('updates.getState');
-
-    this.pts = remoteState.result.params.pts.value;
-    this.qts = remoteState.result.params.qts.value;
-    this.date = remoteState.result.params.date.value;
-    this.seq = remoteState.result.params.seq.value;
+    return this.transport.call('updates.getState')
+      .then(
+        (remoteState) => {
+          this.pts = remoteState.result.params.pts.value;
+          this.qts = remoteState.result.params.qts.value;
+          this.date = remoteState.result.params.date.value;
+          this.seq = remoteState.result.params.seq.value;
+          this.state.registered = true;
+        },
+      ).catch(
+        (err) => {
+          if (err.error_message === 'AUTH_KEY_UNREGISTERED') this.state.registered = false;
+        },
+      );
 
     // const diff = await this.transport.call('updates.getDifference', {
     //   pts: this.pts,
@@ -145,19 +171,19 @@ export default class UpdatesService {
    * Loads session data from async storage
    */
   async loadFromStorage() {
-    const pts = await this.storage.load('updates', 'pts');
-    const qts = await this.storage.load('updates', 'qts');
-    const seq = await this.storage.load('updates', 'seq');
-    const date = await this.storage.load('updates', 'date');
+    const pts = await this.storage.load(skNameSpace, sk.pts);
+    const qts = await this.storage.load(skNameSpace, sk.qts);
+    const seq = await this.storage.load(skNameSpace, sk.seq);
+    const date = await this.storage.load(skNameSpace, sk.date);
 
     this.state = {
       pts: pts ? parseInt(pts, 10) : 0,
       qts: qts ? parseInt(qts, 10) : 0,
       seq: seq ? parseInt(seq, 10) : 0,
       date: date ? parseInt(date, 10) : 0,
+      registered: false,
     };
   }
-
 
   /**
    * Calls specific callback on update
@@ -191,6 +217,8 @@ export default class UpdatesService {
    * @param {TLAny} updateMsg Updates type message
    */
   process(updateMsg: TLAny) {
+    if (!this.state.registered) this.state.registered = true;
+
     switch (updateMsg._) {
       case 'updateShort':
         this.date = updateMsg.params.date.value;

@@ -176,8 +176,6 @@ export default class RPCService {
    * @param {RPCResult} msg Received message
    */
   processMessageContainer(msg: RPCResult) {
-    log('-> msg_container');
-
     const { result } = msg;
 
     if (result instanceof TLConstructor && result.params.messages instanceof TLVector) {

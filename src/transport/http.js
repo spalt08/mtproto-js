@@ -96,7 +96,7 @@ export default class Http extends AbstractTransport implements Transport {
 
     this.send(encryptDataMessage(this.auth.tempKey, msg), Http.WrapEncryptedResponse).then(
       (response: RPCResult) => this.rpc.processMessage(response).then(
-        () => !this.isConnected && this.call('http_wait', {
+        () => !this.isConnected && this.updates.registered && this.call('http_wait', {
           max_delay: 5000,
           wait_after: 5000,
           max_wait: 5000,
