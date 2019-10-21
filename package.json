@@ -56,8 +56,5 @@
   "bugs": {
     "url": "https://github.com/spalt08/mtproto-js/issues"
   },
-  "homepage": "https://github.com/spalt08/mtproto-js#readme",
-  "files": [
-    "dist"
-  ]
+  "homepage": "https://github.com/spalt08/mtproto-js#readme"
 }
