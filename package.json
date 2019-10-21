@@ -33,6 +33,7 @@
   },
   "license": "GPL-3.0-or-later",
   "main": "dist/lib.js",
+  "module": "./index.js",
   "scripts": {
     "flow": "flow",
     "lint": "eslint --ext js ./src",
