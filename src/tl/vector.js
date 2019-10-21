@@ -137,7 +137,7 @@ export default class TLVector extends TLAbstract implements TLAny {
       }
 
       for (let i = 0; i < this.itemsLength; i += 1) {
-        nextOffset += this.items[i].map(buf, nextOffset);
+        nextOffset = this.items[i].map(buf, nextOffset);
       }
     } else {
       const lengthView = new GenericView(buf, offset, 12);

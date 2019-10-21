@@ -4,7 +4,9 @@ import type { Message } from './message';
 import type { MessageHeaders } from '../serialization';
 import type { TLAny } from './tl';
 
-import { AuthService, SessionService, RPCService } from '../services';
+import {
+  AuthService, SessionService, RPCService, UpdatesService,
+} from '../services';
 
 /** RPC Result generic type */
 export type RPCResult = { result: TLAny, headers: MessageHeaders };
@@ -44,6 +46,9 @@ export interface Transport {
 
   /** Session Service */
   session: SessionService;
+
+  /** Updates Service */
+  updates: UpdatesService;
 
   /** RPC Service */
   rpc: RPCService;

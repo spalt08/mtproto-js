@@ -37,6 +37,9 @@ export default class RPCService {
     }
   }
 
+  /** Pending message acknowlegments  */
+  pendingAcks: Array<Hex>;
+
   /**
    * Creates auth service object
    * @param {transport} transport Transport Handler
@@ -48,6 +51,7 @@ export default class RPCService {
     this.transport = transport;
 
     this.messages = {};
+    this.pendingAcks = [];
   }
 
   /**
@@ -60,12 +64,11 @@ export default class RPCService {
     const msgID = msg.getMessageID().toString();
     const { _ } = this.tl.parse(msg);
 
-    log('<- %s #%s seq: %d', _, msgID, msg.getSequenceNum());
-
     return new Promise((resolve: (RPCResult) => any, reject: (RPCError) => any) => {
       if (_ === 'msgs_ack') {
         resolve({ result: new TLAbstract(), headers: {} });
       } else {
+        log('<- %s #%s seq: %d', _, msgID, msg.getSequenceNum());
         this.messages[msgID] = { msg, resolve, reject };
       }
     });
@@ -118,20 +121,30 @@ export default class RPCService {
   }
 
   /**
-   * Resends request message by id
+   * Adds message ID to ack pending list
    * @param {string} msgID Request message identificator
    */
   ackMsg(...msgIDs: Hex[]) {
-    this.transport.call(
-      this.tl.create('msgs_ack', { msg_ids: msgIDs }),
-    );
+    for (let i = 0; i < msgIDs.length; i += 1) {
+      if (!this.pendingAcks.find((m) => m.toString() === msgIDs[i].toString())) this.pendingAcks.push(msgIDs[i]);
+    }
+  }
+
+  /**
+   * Sends message acks from pending list
+   */
+  sendAcks() {
+    if (this.pendingAcks.length > 0) {
+      this.transport.call('msgs_ack', { msg_ids: this.pendingAcks });
+      this.pendingAcks = [];
+    }
   }
 
   /**
    * Processes RPC response messages
    * @param {RPCResult} msg Received message
    */
-  processMessage(msg: RPCResult) {
+  async processMessage(msg: RPCResult, ack?: boolean = true) {
     const { result, headers } = msg;
 
     switch (result._) {
@@ -143,10 +156,19 @@ export default class RPCService {
       case 'rpc_result': this.processRPCResult(msg); break;
 
       default:
-        log('unknown %s', result._, result);
+        if (result instanceof TLConstructor && result.declaration) {
+          if (result.declaration.type === 'Updates') {
+            this.transport.updates.process(result);
+          }
+        } else {
+          log('unknown %s', result._, result);
+        }
+
         if (headers.msgID) this.ackMsg(headers.msgID);
         break;
     }
+
+    if (ack) this.sendAcks();
   }
 
   /**
@@ -171,7 +193,7 @@ export default class RPCService {
               msgID: item.params.msg_id.hex,
               seqNum: item.params.seqno.value,
             },
-          });
+          }, false);
         }
       }
     }

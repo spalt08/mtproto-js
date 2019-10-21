@@ -6,7 +6,9 @@ import type {
 
 import TypeLanguage from '../tl';
 import { ParseKey } from '../crypto/rsa/keys';
-import { AuthService, SessionService, RPCService } from '../services';
+import {
+  AuthService, SessionService, RPCService, UpdatesService,
+} from '../services';
 import DefaultStorage from '../storage';
 
 /** Generic config for mtproto transport classes */
@@ -44,6 +46,9 @@ export default class AbstractTransport implements Transport {
   /** RPC Service */
   rpc: RPCService;
 
+  /** Updates Service */
+  updates: UpdatesService;
+
   /** API Layer */
   APILayer: number
 
@@ -62,6 +67,7 @@ export default class AbstractTransport implements Transport {
     this.auth = new AuthService(this, tl, storage);
     this.session = new SessionService(this, tl, storage);
     this.rpc = new RPCService(this, tl);
+    this.updates = new UpdatesService(this, tl, storage);
 
     if (cfg.RSAKeys) {
       for (let i = 0; i <= cfg.RSAKeys.length; i += 1) this.auth.RSAKeys.push(ParseKey(cfg.RSAKeys[i]));

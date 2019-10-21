@@ -37,6 +37,7 @@ export default class SessionService {
    * Creates session service object
    * @param {transport} transport Transport Handler
    * @param {TypeLanguage} tl Type Language Handler
+   * @param {DataStorage} stroage Async storage
    * @constructs
    */
   constructor(transport: Transport, tl: TypeLanguage, storage: DataStorage) {

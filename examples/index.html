@@ -27,32 +27,32 @@
 
           // var q = tl.create('auth.signIn', { 
           //   phone_number: '79296649893', 
-          //   phone_code_hash: '8bb897092bcb928251',
-          //   phone_code: '36853',
+          //   phone_code_hash: '669b0a4faca69a7190',
+          //   phone_code: '53677',
           // });
 
-          // var q = tl.create('http_wait', {
-          //   max_delay: 1000,
-          //   wait_after: 5000,
-          //   max_wait: 10000,
-          // });
+          var q = tl.create('http_wait', {
+            max_delay: 1000,
+            wait_after: 5000,
+            max_wait: 10000,
+          });
 
-          var q = tl.create('help.getConfig');
+          // var q = tl.create('help.getConfig');
 
           // var q = tl.create('langpack.getLangPack', {
           //   lang_pack: 'macos',
           //   lang_code: 'en',
           // });
 
-          // server.on('updateUserStatus', function(data) {
-          //   console.log(data);
-          // });
-
-          server.call(q).then(r => {
-            var result = r.result;
-
-            console.log('res', result);
+          server.updates.on('updateUserStatus', function(data) {
+            console.log(data.json());
           });
+
+          // server.call(q).then(r => {
+          //   var result = r.result;
+
+          //   console.log('res', result);
+          // });
         });
 
         // server.call(

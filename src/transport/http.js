@@ -34,10 +34,11 @@ const defaultConfig = {
  * @extends {AbstractTransport}
  */
 export default class Http extends AbstractTransport implements Transport {
-  /**
-   * @param {string} addr Full server address
-   */
+  /** Full server address */
   addr: string;
+
+  /** Is Http request pending */
+  isConnected: boolean = false;
 
   /**
    * Creates HTTP handler for MTProto server.
@@ -56,6 +57,7 @@ export default class Http extends AbstractTransport implements Transport {
   async connect() {
     await this.auth.prepare();
     await this.session.prepare();
+    await this.updates.prepare();
     log('ready');
   }
 
@@ -93,7 +95,13 @@ export default class Http extends AbstractTransport implements Transport {
     }
 
     this.send(encryptDataMessage(this.auth.tempKey, msg), Http.WrapEncryptedResponse).then(
-      (response: RPCResult) => this.rpc.processMessage(response),
+      (response: RPCResult) => this.rpc.processMessage(response).then(
+        () => !this.isConnected && this.call('http_wait', {
+          max_delay: 5000,
+          wait_after: 5000,
+          max_wait: 5000,
+        }),
+      ),
     );
 
     return this.rpc.subscribe(msg);
@@ -144,10 +152,13 @@ export default class Http extends AbstractTransport implements Transport {
     req.addEventListener('error', this.handleError);
     req.send(msg.getBuffer());
 
+    this.isConnected = true;
+
     return new Promise((resolve: (RPCResult) => any, reject) => {
       req.onreadystatechange = () => {
         if (req.readyState !== 4) return;
         if (req.status >= 200 && req.status < 300) {
+          this.isConnected = false;
           resolve(rw(req.response, this.tl, { auth: this.auth }));
         } else {
           const err = new Error(`HTTP Error: Unexpected status ${req.status}`);
