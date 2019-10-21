@@ -34,7 +34,7 @@
   "license": "GPL-3.0-or-later",
   "main": "dist/lib.js",
   "scripts": {
-    "flow": "flow",
+    "prepare": "npm run build",
     "lint": "eslint --ext js ./src",
     "build": "webpack"
   },
