@@ -42,7 +42,7 @@ export default function resolve(predicate: string, schema: SchemaProvider): TLAn
 
   // bytes
   } else if (TLBytes.ValidTypes.indexOf(type) !== -1) {
-    result = new TLBytes();
+    result = new TLBytes(type);
 
   // boolean
   } else if (TLBoolean.ValidTypes.indexOf(type) !== -1) {

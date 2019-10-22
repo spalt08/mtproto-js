@@ -106,8 +106,9 @@ export default class RPCService {
   /**
    * Resends request message by id
    * @param {string} msgID Request message identificator
+   * @param {boolean} changeSeq Force change sequence number
    */
-  resend(msgID: string) {
+  resend(msgID: string, changeSeq?: boolean = false) {
     const request = this.messages[msgID.toString()];
 
     if (request) {
@@ -115,7 +116,9 @@ export default class RPCService {
         .setSalt(this.transport.session.serverSalt)
         .setMessageID();
 
-      this.transport.call(this.messages[msgID.toString()].msg);
+      if (changeSeq) request.msg.setSequenceNum(this.transport.session.nextSeqNum(true));
+
+      this.transport.call(request.msg);
       log('re-sent %s', msgID);
     }
   }
@@ -240,8 +243,7 @@ export default class RPCService {
     log('-> bad_msg_notification #%s code: %d', result.params.bad_msg_id.hex.toString(), result.params.error_code.value);
 
     if (result.params.error_code.value === 32) {
-      this.transport.session.msgSeqNum += 1;
-      this.resend(result.params.bad_msg_id.hex.toString());
+      this.resend(result.params.bad_msg_id.hex.toString(), true);
     }
 
     // To Do: sync server time

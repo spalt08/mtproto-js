@@ -36,9 +36,10 @@ export default class TLBytes extends TLAbstract implements TLAny {
    * Creates TLString object from data
    * @param {string} data Data to be setted
    */
-  constructor(data?: string) {
+  constructor(predicate: string, data?: string) {
     super();
 
+    this._ = predicate;
     if (data) {
       this.value = data;
     } else {
@@ -51,7 +52,11 @@ export default class TLBytes extends TLAbstract implements TLAny {
    * @returns {string} String
    */
   get value(): string {
-    if (this.view) this._value = decodeURIComponent(escape(this.view.getString(this.byteDataOffset, this.stringLength)));
+    if (this.view) {
+      this._value = this.view.getString(this.byteDataOffset, this.stringLength);
+      if (this._ === 'string') this._value = decodeURIComponent(escape(this._value));
+    }
+
     return this._value;
   }
 
@@ -63,7 +68,8 @@ export default class TLBytes extends TLAbstract implements TLAny {
     if (typeof data === 'object' && data instanceof Hex) {
       this._value = data.toRawString();
     } else {
-      this._value = unescape(encodeURIComponent(data));
+      this._value = data;
+      if (this._ === 'string' && this._value) this._value = unescape(encodeURIComponent(data));
     }
 
     this.stringLength = this._value ? this._value.length : 0;

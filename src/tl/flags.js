@@ -22,7 +22,7 @@ export default class TLFlags extends TLAbstract implements TLAny {
    * @returns {boolean} Result
    */
   has(bit: number): boolean {
-    return (this._value >> (bit)) % 2 === 1;
+    return (this._value & (1 << bit)) !== 0;
   }
 
   /**
