@@ -51,7 +51,7 @@ export default class TLBytes extends TLAbstract implements TLAny {
    * @returns {string} String
    */
   get value(): string {
-    if (this.view) this._value = this.view.getString(this.byteDataOffset, this.stringLength);
+    if (this.view) this._value = decodeURIComponent(escape(this.view.getString(this.byteDataOffset, this.stringLength)));
     return this._value;
   }
 
@@ -61,9 +61,9 @@ export default class TLBytes extends TLAbstract implements TLAny {
    */
   set value(data: string | Hex) {
     if (typeof data === 'object' && data instanceof Hex) {
-      this._value = data.toRawString();
+      this._value = unescape(encodeURIComponent(data.toRawString()));
     } else {
-      this._value = data;
+      this._value = unescape(encodeURIComponent(data));
     }
 
     this.stringLength = this._value ? this._value.length : 0;
