@@ -61,7 +61,7 @@ export default class TLBytes extends TLAbstract implements TLAny {
    */
   set value(data: string | Hex) {
     if (typeof data === 'object' && data instanceof Hex) {
-      this._value = unescape(encodeURIComponent(data.toRawString()));
+      this._value = data.toRawString();
     } else {
       this._value = unescape(encodeURIComponent(data));
     }
