@@ -140,11 +140,16 @@ export default class TLVector extends TLAbstract implements TLAny {
         nextOffset = this.items[i].map(buf, nextOffset);
       }
     } else {
-      const lengthView = new GenericView(buf, offset, 12);
+      const lengthView = new GenericView(buf, offset);
 
       if (!this.isBare) {
         const cID = lengthView.getNumber(0, 4);
-        if (cID !== TLVector.ConstructorNumber) {
+        if (cID === 0) {
+          const len = lengthView.getNumber(4, 4);
+          if (cID === 0 && len === 0) {
+            lengthView.setNumber(TLVector.ConstructorNumber, 0, 4);
+          }
+        } else if (cID !== TLVector.ConstructorNumber) {
           this.isBare = true;
           this.byteDataOffset = 4;
         }

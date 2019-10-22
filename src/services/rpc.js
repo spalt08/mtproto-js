@@ -239,6 +239,11 @@ export default class RPCService {
 
     log('-> bad_msg_notification #%s code: %d', result.params.bad_msg_id.hex.toString(), result.params.error_code.value);
 
+    if (result.params.error_code.value === 32) {
+      this.transport.session.msgSeqNum += 1;
+      this.resend(result.params.bad_msg_id.hex.toString());
+    }
+
     // To Do: sync server time
 
     if (headers.msgID) this.ackMsg(headers.msgID);

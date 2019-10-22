@@ -31,10 +31,14 @@
           //   phone_code: '53677',
           // });
 
-          var q = tl.create('http_wait', {
-            max_delay: 1000,
-            wait_after: 5000,
-            max_wait: 10000,
+          // var q = tl.create('http_wait', {
+          //   max_delay: 1000,
+          //   wait_after: 5000,
+          //   max_wait: 10000,
+          // });
+
+          var q = tl.create('messages.getAllChats', {
+            except_ids: [],
           });
 
           // var q = tl.create('help.getConfig');
@@ -44,15 +48,17 @@
           //   lang_code: 'en',
           // });
 
+          console.log(q);
+
           server.updates.on('updateUserStatus', function(data) {
             console.log(data.json());
           });
 
-          // server.call(q).then(r => {
-          //   var result = r.result;
+          server.call(q).then(r => {
+            var result = r.result;
 
-          //   console.log('res', result);
-          // });
+            console.log('res', result);
+          });
         });
 
         // server.call(

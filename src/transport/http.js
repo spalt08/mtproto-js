@@ -83,7 +83,7 @@ export default class Http extends AbstractTransport implements Transport {
     }
 
     if (tlHandler instanceof TLConstructor) {
-      const isContentRelated = tlHandler._ !== 'msgs_ack';
+      const isContentRelated = tlHandler._ !== 'msgs_ack' && tlHandler._ !== 'http_wait';
 
       msg = new MessageData(tlHandler.serialize())
         .setSessionID(headers.sessionID || this.session.sessionID)
