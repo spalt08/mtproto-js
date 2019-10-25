@@ -46,7 +46,7 @@ export default function resolve(predicate: string, schema: SchemaProvider): TLAn
 
   // boolean
   } else if (TLBoolean.ValidTypes.indexOf(type) !== -1) {
-    result = new TLBoolean();
+    result = new TLBoolean(type);
 
   // query
   } else if (type === '!X') {

@@ -32,10 +32,11 @@ export default class TLBoolean extends TLAbstract implements TLAny {
    * @param {boolean} isOptional Is flag boolean
    * @constructs
    */
-  constructor(data: any, isOptional?: boolean = false) {
+  constructor(predicate: string, data: any, isOptional?: boolean = false) {
     super();
 
     this.isOptional = isOptional;
+    this._ = predicate;
 
     if (data) this.value = data;
   }
@@ -63,7 +64,7 @@ export default class TLBoolean extends TLAbstract implements TLAny {
    * @returns {number} Byte size
    */
   get byteSize(): number {
-    return this.isOptional ? 0 : 4;
+    return this.isOptional && this._ === 'true' ? 0 : 4;
   }
 
   /**
@@ -71,6 +72,6 @@ export default class TLBoolean extends TLAbstract implements TLAny {
    * @param {number} size Byte size
    */
   set byteSize(size: number) {
-    this._byteSize = this.isOptional ? 0 : 4;
+    this._byteSize = this.isOptional && this._ === 'true' ? 0 : 4;
   }
 }

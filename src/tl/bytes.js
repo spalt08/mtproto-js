@@ -54,7 +54,13 @@ export default class TLBytes extends TLAbstract implements TLAny {
   get value(): string {
     if (this.view) {
       this._value = this.view.getString(this.byteDataOffset, this.stringLength);
-      if (this._ === 'string') this._value = decodeURIComponent(escape(this._value));
+      if (this._ === 'string') {
+        try {
+          this._value = decodeURIComponent(escape(this._value));
+        } catch (e) {
+          console.log('Type Language: Unable to decode string value "', this._value, '"');
+        }
+      }
     }
 
     return this._value;

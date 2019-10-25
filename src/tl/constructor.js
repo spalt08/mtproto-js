@@ -7,7 +7,6 @@ import type { SchemaEntity } from '../schemas';
 import { SchemaProvider } from '../schemas';
 import { GenericView, GenericBuffer } from '../serialization';
 import TLAbstract from './abstract';
-import TLBoolean from './boolean';
 import TLFlags from './flags';
 import resolve from './resolve';
 
@@ -63,6 +62,7 @@ export default class TLConstructor extends TLAbstract implements TLAny {
     this.declaration = declaration;
     this._ = declaration.predicate || declaration.method || '';
     this.params = {};
+    this.flags = null;
 
     if (this.declaration.params) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
@@ -200,7 +200,7 @@ export default class TLConstructor extends TLAbstract implements TLAny {
         const paramHandler = this.params[param.name];
 
         if (paramHandler) {
-          if (paramHandler.isOptional && paramHandler instanceof TLBoolean) {
+          if (paramHandler.isOptional && paramHandler._ === 'true') {
             if (this.flags && this.flags.has(paramHandler.flagIndex)) {
               paramHandler.value = true;
             }

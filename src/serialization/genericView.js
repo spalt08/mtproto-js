@@ -32,8 +32,13 @@ export default class GenericView extends DataView {
   }
 
   /** Debug stuff */
-  get extend(): GenericView {
-    return new GenericView(this.buffer, this.byteOffset + this.byteLength - 4, 14);
+  get goRight(): GenericView {
+    return new GenericView(this.buffer, this.byteOffset + this.byteLength, 10);
+  }
+
+  /** Debug stuff */
+  get goLeft(): GenericView {
+    return new GenericView(this.buffer, this.byteOffset - 10, 10);
   }
 
   /**
