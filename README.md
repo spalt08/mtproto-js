@@ -67,15 +67,13 @@ MTProto.Schema.parse('tl expression or formula'); // returns single schema for c
 ```
 
 ### Transport
-*!! WebSockets are under development, currently HTTP is stable only.*
-
 This package implements http, https, websocket and websocket over https [transports](https://core.telegram.org/mtproto#mtproto-transport) for MTProto.
 ```js
-import { Http, WebSocket } from 'mtproto-js';
+import { Http, Socket } from 'mtproto-js';
 
 // const server = new Http(addr: string, tl: TypeLanguage, options: Object);
 const server = new Http('venus.web.telegram.org', tl, { ssl: true });
-const server = new WebSocket('venus.web.telegram.org', tl, { ssl: true });
+const server = new Socket('venus.web.telegram.org', tl, { ssl: true });
 ```
 
 Transport classes has methods for calling encrypted and plain messages:
