@@ -27,7 +27,7 @@ export default class Hex extends String {
    * @returns {number} Length in bytes
    */
   get byteLength() {
-    return super.length / 2;
+    return this.length / 2;
   }
 
   /**
@@ -47,10 +47,10 @@ export default class Hex extends String {
    */
   sliceBytes(start: number, end?: number): Hex {
     if (end) {
-      return new Hex(super.slice(start * 2, end * 2));
+      return new Hex(this.slice(start * 2, end * 2));
     }
 
-    return new Hex(super.slice(start * 2));
+    return new Hex(this.slice(start * 2));
   }
 
   /**
@@ -63,6 +63,19 @@ export default class Hex extends String {
     for (let i = this.byteLength - 1; i >= 0; i -= 1) revStr += this.sliceBytes(i, i + 1).toString();
 
     return new Hex(revStr);
+  }
+
+  /**
+   * Returns hex padded by extra bytes
+   * @param {number} byteNum Number of output bytes
+   * @returns {Hex} Hex string
+   */
+  toFixedBytes(byteNum: number): Hex {
+    if (byteNum > this.byteLength) {
+      return Hex.concat(this, new Hex('00'.repeat(byteNum - this.byteLength)));
+    }
+
+    return this;
   }
 
   /**
