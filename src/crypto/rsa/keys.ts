@@ -1,9 +1,7 @@
-// @flow
-
-import { Hex } from '../../serialization';
+import { Bytes } from '../../serialization';
 import TLConstructor from '../../tl/constructor';
-import SchemaProvider from '../../schemas/provider';
-import SHA1 from '../sha1';
+import SchemaProvider from '../../schema/provider';
+import sha1 from '../sha1';
 
 type ParsedKey = {
   fingerprint: string,
@@ -16,42 +14,41 @@ type ParsedKey = {
  * @param {string} key Public key
  * @returns {ParsedKey} Fingerprint, modulus, exponent
  */
-export function ParseKey(key: string): ParsedKey {
+export function parseKey(key: string): ParsedKey {
   const matches = key.match(/-----BEGIN ([A-Z ]+?)-----([A-Za-z0-9\s+/]+)-----([A-Z ]+?)-----/m);
 
   if (!matches) throw new Error(`RSA Key: Unable to parse key \n ${key}`);
 
   const keyType = matches[1];
-  const rawStr = atob(matches[2].trim());
-  const hexStr = Hex.fromRawString(rawStr);
+  const raw = atob(matches[2].trim());
 
-  let n; let e;
+  const buf = new Bytes(raw.length);
+  buf.raw = raw;
+
+  let n: string; let e: string;
 
   switch (keyType) {
     case 'RSA PUBLIC KEY':
-      n = hexStr.sliceBytes(9, 265);
-      e = hexStr.sliceBytes(-3);
+      n = buf.slice(9, 265).hex;
+      e = buf.slice(buf.length - 3).hex;
       break;
 
     case 'PUBLIC KEY':
-      n = hexStr.sliceBytes(33, 289);
-      e = hexStr.sliceBytes(-3);
+      n = buf.slice(33, 289).hex;
+      e = buf.slice(buf.length - 3).hex;
       break;
 
     default:
       throw new Error(`RSA Key: Unknown key format ${keyType}`);
   }
-  const tlKey = new TLConstructor('rsa_public_key n:string e:string = RSAPublicKey', new SchemaProvider(), true, {
-    n: n.toRawString(),
-    e: e.toRawString(),
-  });
 
-  const keyHash = SHA1.Hex(tlKey.serialize().toHex());
+  const tlKey = new TLConstructor('rsa_public_key n:bytes e:bytes = RSAPublicKey', new SchemaProvider(), true, { n, e });
+  const keyHash = sha1(tlKey.serialize());
 
   return {
-    fingerprint: keyHash.sliceBytes(-8).toString(),
-    n: n.toString(),
-    e: e.toString(),
+    fingerprint: keyHash.slice(keyHash.length - 8).hex,
+    n,
+    e,
   };
 }
 

@@ -6,8 +6,8 @@ import BigInt, { BigInteger } from 'big-integer';
  * @param {number} pq
  * @returns {number[]} [p, q], where P > q
  */
-export default function pqPrimePollard(pq: number | BigInteger): BigInteger[] {
-  const n = BigInt(pq.toString());
+export default function pqPrimePollard(pq: BigInteger): BigInteger[] {
+  const n = BigInt(pq);
 
   const F = (_x: BigInteger): BigInteger => _x.multiply(_x).subtract(BigInt.one);
 

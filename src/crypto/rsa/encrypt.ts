@@ -1,5 +1,3 @@
-// @flow
-
 import BigInt from 'big-integer';
 
 /**
@@ -9,7 +7,7 @@ import BigInt from 'big-integer';
  * @param {string} exponent RSA Key Exponent, hex-string
  * @returns {string} Encrypted data, hex-string
  */
-export default function encrypt(data: string, modulus?: string, exponent?: string): string {
+export default function encrypt(data: string, modulus: string, exponent: string): string {
   const x = BigInt(data, 16);
   const n = BigInt(modulus, 16);
   const e = BigInt(exponent, 16);

@@ -1,8 +1,13 @@
-
 declare module 'rusha' {
-  function createHash(): any;
-  function digest(data: any): string;
-  function digestFromString(strityng: string): string;
+  type digest = {
+    digest(format: string): string;
+  };
+
+  type hash = {
+    update: (data: string) => digest;
+  };
+
+  function createHash(): hash;
 }
 
 declare module '*.json' {
