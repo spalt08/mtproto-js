@@ -1,12 +1,4 @@
-/* eslint-disable func-names */
-/* eslint-disable no-multi-assign */
-/* eslint-disable no-param-reassign */
-/* eslint-disable no-use-before-define */
-/* eslint-disable vars-on-top */
-/* eslint-disable no-var */
-/* eslint-disable no-plusplus */
-/* eslint-disable no-bitwise */
-/* eslint-disable no-underscore-dangle */
+/* eslint-disable */
 
 // Ref: https://github.com/brillout/forge-sha256/blob/master/build/forge-sha256.js
 
@@ -996,4 +988,4 @@ util.hasWideChar = function (str) {
 
 forge.util = util;
 
-export default forge;
+module.exports = forge;

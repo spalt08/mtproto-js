@@ -8,7 +8,7 @@ import { Bytes } from '../serialization';
 
 export default function sha256(data: Bytes): Bytes {
   const buf = new Bytes(32);
-  buf.raw = forge.md.sha256.create().update(data.raw).digest().data;
+  buf.raw = (forge as any).md.sha256.create().update(data.raw).digest().data;
 
   return buf;
 }
