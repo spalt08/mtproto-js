@@ -1,27 +1,34 @@
 {
     "env": {
         "browser": true,
-        "es6": true
+        "es6": true,
+        "jest/globals": true
     },
     "extends": [
-        "airbnb/base",
-        "plugin:flowtype/recommended"
+        "airbnb-typescript"
     ],
     "globals": {
         "Atomics": "readonly",
         "SharedArrayBuffer": "readonly"
     },
+    "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": 2018,
         "sourceType": "module"
     },
     "plugins": [
-        "flowtype"
+        "@typescript-eslint",
+        "jest"
     ],
     "rules": {
         "max-len": [2, 150, 4],
         "no-continue": 0,
         "no-bitwise": 0,
         "no-underscore-dangle": "off"
+    },
+    "settings": {
+      "import/resolver": {
+        "webpack": {}
+      }
     }
 }

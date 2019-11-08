@@ -1,55 +1,78 @@
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
-module.exports = {
-  mode: 'production',
+const sourceDirectory = 'src';
+const destinationDirectory = 'dist';
 
-  entry: './src/index',
+module.exports = (env, argv) => {
+  const { analyze, mode } = argv;
+  const isProduction = mode === 'production';
 
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: 'lib.js',
-    publicPath: '/',
-    library: 'mtproto-js',
-    libraryTarget: 'umd',
-  },
+  return {
+    entry: './src/index',
 
-  optimization: {
-    minimize: true,
-    minimizer: [
-      new TerserPlugin({
-        terserOptions: {
-          keep_classnames: true,
-          keep_fnames: true,
-          mangle: {
-            // keep_fnames: true,
-            keep_classnames: true,
+    mode: isProduction ? 'production' : 'development',
+
+    devtool: isProduction ? undefined : 'inline-source-map',
+
+    plugins: [
+      ...(analyze ? [
+        new BundleAnalyzerPlugin({
+          analyzerPort: 3001,
+        }),
+      ] : []),
+    ],
+
+    output: {
+      path: path.resolve(__dirname, destinationDirectory),
+      filename: 'lib.js',
+      publicPath: '/',
+      library: 'mtproto-js',
+      libraryTarget: 'umd',
+    },
+
+    optimization: {
+      minimize: true,
+      minimizer: [
+        new TerserPlugin({
+          // sourceMap: true, // For source maps in production (may be required depending on the contest rules)
+          extractComments: false,
+          terserOptions: {
+            output: {
+              comments: false,
+            },
+          },
+        }),
+      ],
+    },
+
+    module: {
+      rules: [
+        {
+          test: /\.js$/,
+          include: path.resolve(__dirname, 'src'),
+          exclude: /node_modules/,
+          loader: 'babel-loader',
+        },
+        {
+          test: /\.ts$/,
+          exclude: /node_modules/,
+          loader: 'ts-loader',
+          options: {
+            transpileOnly: true,
           },
         },
-      }),
-    ],
-  },
+      ],
+    },
 
-  module: {
-    rules: [
-      {
-        test: /\.js$/,
-        include: path.resolve(__dirname, 'src'),
-        exclude: /node_modules/,
-        loader: 'babel-loader',
-      },
-    ],
-  },
+    resolve: {
+      modules: [sourceDirectory, 'node_modules'],
+      extensions: ['.js', '.ts'],
+    },
 
-  resolve: {
-    modules: [
-      path.resolve(__dirname, 'src'),
-      'node_modules',
-    ],
-    extensions: ['.js'],
-  },
-
-  node: {
-    fs: 'empty',
-  },
+    node: {
+      fs: 'empty',
+    },
+  };
 };
