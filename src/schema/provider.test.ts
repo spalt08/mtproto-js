@@ -1,10 +1,18 @@
 import SchemaProvider from './provider';
 
+const cases = [
+  ['req_pq', '1615239032'],
+  ['msgs_all_info', '-1933520591'],
+  ['req_pq_multi nonce:int128 = ResPQ', '-1099002127'],
+];
+
 test('SchemaProvider | find', () => {
   const schema = new SchemaProvider();
 
-  expect(schema.find('req_pq').id).toBe('1615239032');
-  expect(schema.find('msgs_all_info').id).toBe('-1933520591');
+  for (let i = 0; i < cases.length; i += 1) {
+    const [req, res] = cases[i];
+    expect(schema.find(req).id).toBe(res);
+  }
+
   expect(schema.find(558156313).predicate).toBe('rpc_error');
-  expect(schema.find('req_pq_multi nonce:int128 = ResPQ').id).toBe('-1099002127');
 });

@@ -1,5 +1,8 @@
 import Bytes from './bytes';
 
+/**
+ * Helper function for creating Bytes with hex string
+ */
 export default function hex(str: string): Bytes {
   const normalized = str.length % 2 === 1 ? `0${str}` : str;
   const bytes = new Bytes(normalized.length / 2);

@@ -10,5 +10,4 @@ module.exports = {
     '^.+\\.(ts)?$': 'ts-jest',
   },
   collectCoverage: true,
-  mapCoverage: true,
 };
