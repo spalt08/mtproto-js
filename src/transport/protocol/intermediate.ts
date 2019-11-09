@@ -1,9 +1,6 @@
 /* eslint-disable class-methods-use-this */
-// @flow
-
-import {
-  Hex, MessagePlain, MessageEncrypted, GenericBuffer,
-} from '../../serialization';
+import { PlainMessage, EncryptedMessage } from '../../message';
+import { Bytes } from '../../serialization';
 
 /**
  * Intermediate MTProto Transport Protocol
@@ -13,47 +10,37 @@ export default class Intermediate {
   /**
    * Protocol header
    */
-  header: Hex = new Hex('eeeeeeee');
+  header = 'eeeeeeee';
 
   /**
    * Wraps type language message at envelope
-   * @param {MessagePlain | MessageEncrypted} payload Input message to envlope
-   * @returns {Hex} Result data to send
    */
-  wrap(payload: MessagePlain | MessageEncrypted): Hex {
-    const len = payload.buf.byteLength;
-    const lenBytes = Hex.concat(new Hex(len.toString(16)).reverseBytes(), new Hex('00'.repeat(3))).sliceBytes(0, 4);
-    const envelopedData = Hex.concat(lenBytes, payload.toHex());
+  wrap(payload: PlainMessage | EncryptedMessage): Bytes {
+    const len = payload.buf.length;
+    const enveloped = new Bytes(4 + len);
 
-    return envelopedData;
+    enveloped.slice(0, 4).int32 = len;
+    enveloped.slice(4).raw = payload.buf.raw;
+
+    return enveloped;
   }
 
 
   /**
    * Unwraps incoming bytes to type language message
-   * @param {Hex} buf Input bytes
-   * @returns {MessagePlain | MessageEncrypted} MTProto message
    */
-  unWrap(data: Hex): MessagePlain | MessageEncrypted | null {
-    const envelopedData = new GenericBuffer(data.toBuffer());
+  unWrap(data: Bytes): PlainMessage | EncryptedMessage {
+    let len = data.slice(0, 4).int32;
 
-    let len = envelopedData.view.getNumber(0, 4) as number;
+    if (len < 8) throw new Error(`Unexpected frame: ${data.hex}`);
+
+    if (data.slice(4, 12).uint.toString() === '0') {
+      return new PlainMessage(data.slice(4));
+    }
 
     len = len % 16 === 8 ? len : len - 16 + (len % 16);
     len = len % 16 === 0 ? len + 8 : len;
 
-    if (len > 8) {
-      const authKeyID = envelopedData.view.getNumber(4, 8);
-      const messageHex = envelopedData.view.getHex(4, len);
-
-      // eslint-disable-next-line eqeqeq
-      if (authKeyID == 0) {
-        return new MessagePlain(messageHex.toBuffer());
-      }
-
-      return new MessageEncrypted(messageHex.toBuffer());
-    }
-
-    return null;
+    return new EncryptedMessage(data.slice(4, 4 + len));
   }
 }

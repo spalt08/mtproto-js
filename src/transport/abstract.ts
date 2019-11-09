@@ -1,53 +1,35 @@
-// @flow
+/* eslint-disable class-methods-use-this, @typescript-eslint/no-unused-vars, no-dupe-class-members */
+import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
+import { Message, PlainMessage, EncryptedMessage } from '../message';
 
-import {
-  DataStorage, Transport, Message, TLAny, RPCResult,
-} from '../interfaces';
+/** Generic error for mtproto transport */
+export type TranportError = {
+  type: 'rpc' | 'network';
+  code: number,
+  message?: string,
+};
 
-import TypeLanguage from '../tl';
-import { ParseKey } from '../crypto/rsa/keys';
-import {
-  AuthService, SessionService, RPCService, UpdatesService,
-} from '../services';
-import DefaultStorage from '../storage';
+/** Generic callback for mtproto transport request */
+export type ResponseCallback = (error: TranportError | null, result?: TLAbstract, headers?: Record<string, any>) => void;
 
 /** Generic config for mtproto transport classes */
 export type GenericTranportConfig = {
   APIID?: string,
   APIHash?: string,
   APILayer: number,
-  RSAKeys?: string[],
-  storage: DataStorage,
 };
 
 /** Default generic config */
 const defaultConfig = {
   APILayer: 105,
-  storage: new DefaultStorage(),
 };
 
-/** Abstract class for all mtproto transport classes
- * @param {TypeLanguage} tl Type Language handler
- * @param {AuthService} auth  Authorization service
- * @param {SessionService} session Session Service
- * @param {RPCService} rpc RPC Service
- * @param {number} APILayer API Layer
-*/
-export default class AbstractTransport implements Transport {
+/**
+ * Abstract class for all mtproto transport classes
+ */
+export default class Transport {
   /** Type Language handler */
   tl: TypeLanguage;
-
-  /** Authorization Service */
-  auth: AuthService;
-
-  /** Session Service */
-  session: SessionService;
-
-  /** RPC Service */
-  rpc: RPCService;
-
-  /** Updates Service */
-  updates: UpdatesService;
 
   /** API Layer */
   APILayer: number;
@@ -60,27 +42,60 @@ export default class AbstractTransport implements Transport {
     this.tl = tl;
 
     const cfg: GenericTranportConfig = { ...defaultConfig, ...extCfg };
-    const { storage, APILayer } = cfg;
+    const { APILayer } = cfg;
 
     this.APILayer = APILayer;
-
-    this.auth = new AuthService(this, tl, storage);
-    this.session = new SessionService(this, tl, storage);
-    this.rpc = new RPCService(this, tl);
-    this.updates = new UpdatesService(this, tl, storage);
-
-    if (cfg.RSAKeys) {
-      for (let i = 0; i <= cfg.RSAKeys.length; i += 1) this.auth.RSAKeys.push(ParseKey(cfg.RSAKeys[i]));
-    }
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  call(query: TLAny | Message | string): Promise<RPCResult> {
-    throw new Error(`Abstract Transport does not implements call method, query: ${query.toString()}`);
+  // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-unused-vars
+  call(_query: TLConstructor | Message | string, _args: Record<string, any>, _aargs: Record<string, any>) {}
+
+  public plainCall(src: TLConstructor | PlainMessage, cb: ResponseCallback): void;
+
+  public plainCall(src: TLConstructor | PlainMessage, headers: Record<string, any>, cb: ResponseCallback): void;
+
+  public plainCall(method: string, data: Record<string, any>, cb: ResponseCallback): void;
+
+  public plainCall(method: string, data: Record<string, any>, headers: Record<string, any>, cb: ResponseCallback): void;
+
+  public plainCall(src: TLConstructor | PlainMessage | string, ...args: unknown[]): void {
+    let msg: PlainMessage;
+    let cb: ResponseCallback = () => {};
+    let headers: Record<string, any> = {};
+
+    if (src instanceof PlainMessage) {
+      msg = src;
+
+      if (typeof args[0] === 'object') headers = args[0] as Record<string, any>;
+      if (typeof args[0] === 'function') cb = args[0] as ResponseCallback;
+      if (typeof args[1] === 'function') cb = args[1] as ResponseCallback;
+    } else if (src instanceof TLConstructor) {
+      msg = new PlainMessage(src);
+
+      if (typeof args[0] === 'object') headers = args[0] as Record<string, any>;
+      if (typeof args[0] === 'function') cb = args[0] as ResponseCallback;
+      if (typeof args[1] === 'function') cb = args[1] as ResponseCallback;
+    } else if (typeof src === 'string') {
+      let data: Record<string, any> = {};
+
+      if (typeof args[0] === 'object') data = args[0] as Record<string, any>;
+
+      msg = new PlainMessage(
+        this.tl.create(src, data),
+      );
+
+      if (typeof args[1] === 'object') headers = args[1] as Record<string, any>;
+      if (typeof args[1] === 'function') cb = args[1] as ResponseCallback;
+      if (typeof args[2] === 'function') cb = args[2] as ResponseCallback;
+    } else throw new Error(`Unable to create request with ${src}`);
+
+    if (headers.msgID) msg.id = headers.msgID;
+    if (!msg.id) msg.id = PlainMessage.GenerateID();
+
+    return this.send(msg, cb);
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  callPlain(query: TLAny | Message | string): Promise<RPCResult> {
-    throw new Error(`Abstract Transport does not implements callPlain method, query: ${query.toString()}`);
+  send(_msg: PlainMessage | EncryptedMessage, _cb: ResponseCallback) {
+    throw new Error('You should overload send method first');
   }
 }

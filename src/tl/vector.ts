@@ -79,17 +79,17 @@ export default class TLVector extends TLAbstract {
     this.items = [];
 
     // check bareness
-    if (!this.isBare && buf.slice(offset, offset + 4).int !== TLVector.ConstructorNumber) this.isBare = true;
+    if (!this.isBare && buf.slice(offset, offset + 4).int32 !== TLVector.ConstructorNumber) this.isBare = true;
 
     let nextOffset = offset + (this.isBare ? 0 : 4);
     this._byteSize = this.isBare ? 4 : 8;
 
-    const length = buf.slice(nextOffset, nextOffset + 4).int;
+    const length = buf.slice(nextOffset, nextOffset + 4).int32;
     nextOffset += 4;
 
     // check for inner type
     if (!this.itemDeclaration && length > 0) {
-      const innerID = buf.slice(nextOffset, nextOffset + 4).int;
+      const innerID = buf.slice(nextOffset, nextOffset + 4).int32;
       const declaration = this.schema.find(innerID);
       if (declaration && declaration.id) {
         this.itemDeclaration = declaration.predicate || declaration.method || '';
@@ -125,12 +125,12 @@ export default class TLVector extends TLAbstract {
 
     // write constructor id
     if (!this.isBare) {
-      this.buf.slice(0, 4).int = TLVector.ConstructorNumber;
+      this.buf.slice(0, 4).int32 = TLVector.ConstructorNumber;
       nextOffset += 4;
     }
 
     // write length
-    this.buf.slice(nextOffset, nextOffset + 4).int = this.items.length;
+    this.buf.slice(nextOffset, nextOffset + 4).int32 = this.items.length;
     nextOffset = offset + nextOffset + 4;
 
     for (let i = 0; i < this.items.length; i += 1) {

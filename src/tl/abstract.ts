@@ -75,7 +75,7 @@ export default class TLAbstract {
   /**
    * Shortcut for getting value
    */
-  json(): string {
+  json(): any {
     return this.value;
   }
 }

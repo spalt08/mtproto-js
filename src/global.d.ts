@@ -14,3 +14,5 @@ declare module '*.json' {
   const data: Record<string, any>;
   export default data;
 }
+
+declare module 'aes-js'

@@ -1,5 +1,3 @@
-// @flow
-
 const premadeTable = (() => {
   const table = [];
 

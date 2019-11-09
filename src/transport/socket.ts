@@ -1,79 +1,63 @@
-
-import {
-  Transport, TLAny, Message, TransportProtocol, RPCResult,
-} from '../interfaces';
-import TypeLanguage from '../tl';
+import TypeLanguage, { TLNumber } from '../tl';
 import TLConstructor from '../tl/constructor';
-import AbstractTransport, { GenericTranportConfig } from './abstract';
-import {
-  MessagePlain, MessageEncrypted, MessageData, MessageHeaders,
-} from '../serialization';
-import { encryptDataMessage, decryptDataMessage } from '../crypto/aes/message';
+import Transport, { GenericTranportConfig, ResponseCallback } from './abstract';
+import { PlainMessage, EncryptedMessage } from '../message';
 import { logs } from '../utils/log';
-import { Abridged, TransportObfuscation } from './protocol';
+import {
+  Abridged,
+  IntermediatePadded,
+  Intermediate,
+  Full,
+  Obfuscation,
+} from './protocol';
+import { Bytes } from '../serialization';
 
 const log = logs('socket');
+
+type MTProtoTransport = Abridged | Intermediate | IntermediatePadded | Full;
 
 /** Configuration object for WebSocket transport */
 type SocketConfig = GenericTranportConfig & {
   ssl?: boolean,
-  protocol: TransportProtocol,
+  protocol: MTProtoTransport,
 };
 
 /** Default configuration for HTTP transport */
 const defaultConfig = {
+  APILayer: 105,
   ssl: false,
-  protocol: new Abridged(),
+  protocol: new Intermediate(),
 };
 
-export default class Socket extends AbstractTransport implements Transport {
+export default class Socket extends Transport {
   /** Web Socket Handler */
   ws: WebSocket;
 
   /** MTProto Transport Protocol */
-  protocol: TransportProtocol;
+  protocol: MTProtoTransport;
 
   /** MTProto Transport Protocol */
-  obfuscation: TransportObfuscation;
+  obfuscation: Obfuscation;
 
-  /** Is Socket ready */
-  isReady: boolean = false;
-
-  /** On connect callback */
-  connectCb: () => any;
-
-  /** Quene of promise resolve functions for plain requests */
-  plainResolvers: Array<{ resolve: (RPCResult) => any, reject: (any) => any }>;
+  /** Quene of reponse callbacks for plain requests */
+  plainResolvers: Record<string, ResponseCallback> = {};
 
   /**
    * Creates new web socket handler
-   * @param {string} addr Server address or IP
-   * @param {TypeLanguage} tl Type language handler
-   * @param {object} cfg Transport Configuration
    */
-  constructor(addr: string, tl: TypeLanguage, extCfg?: SocketConfig) {
+  constructor(tl: TypeLanguage, extCfg?: SocketConfig) {
     super(tl, extCfg);
 
     const cfg: SocketConfig = { ...defaultConfig, ...extCfg };
 
     this.protocol = cfg.protocol;
-    this.obfuscation = new TransportObfuscation();
-    this.plainResolvers = [];
+    this.obfuscation = new Obfuscation();
 
-    this.ws = new WebSocket(`ws${cfg.ssl ? 's' : ''}://${addr}/apiws`, 'binary');
+    this.ws = new WebSocket(`ws${cfg.ssl ? 's' : ''}://venus.web.telegram.org/apiws`, 'binary');
     this.ws.binaryType = 'arraybuffer';
     this.ws.onopen = this.handleOpen;
+    this.ws.onclose = () => log('closed');
     this.ws.onmessage = this.handleMessage;
-  }
-
-  connect(): Promise<any> {
-    return new Promise((resolve: () => any) => {
-      if (this.isReady) {
-        resolve();
-      } else {
-        this.connectCb = resolve;
-      }
-    });
   }
 
   /**
@@ -83,121 +67,52 @@ export default class Socket extends AbstractTransport implements Transport {
     log('opened');
 
     const initPayload = this.obfuscation.init(this.protocol.header);
-    this.ws.send(initPayload);
-
-    await this.auth.prepare();
-    await this.session.prepare();
-    await this.updates.prepare();
+    this.ws.send(initPayload.buffer.buffer);
 
     log('ready');
-
-    this.isReady = true;
-
-    if (this.connectCb) this.connectCb();
   };
 
   /**
    * Handles onmessage event at websocket object
-   * @param {MessageEvent} event Websocket Message Event
    */
   handleMessage = (event: MessageEvent) => {
     if (event.data instanceof ArrayBuffer) {
-      const msg = this.protocol.unWrap(this.obfuscation.decode(event.data));
+      const msg = this.protocol.unWrap(this.obfuscation.decode(new Bytes(event.data)));
 
-      if (msg instanceof MessagePlain) {
-        const firstPromise = this.plainResolvers.shift();
-        firstPromise.resolve({ result: this.tl.parse(msg), headers: { msgID: msg.getMessageID() } });
+      if (msg instanceof PlainMessage) {
+        const result = this.tl.parse(msg.data);
+
+        if (result instanceof TLConstructor && result.params.nonce instanceof TLNumber && result.params.nonce.buf) {
+          msg.nonce = result.params.nonce.buf.hex;
+        }
+
+        if (msg.nonce && this.plainResolvers[msg.nonce]) {
+          this.plainResolvers[msg.nonce](null, result, {
+            msgID: msg.id,
+          });
+          delete this.plainResolvers[msg.nonce];
+        }
       }
 
-      if (msg instanceof MessageEncrypted) {
-        const decryptedMsg = decryptDataMessage(this.auth.tempKey, msg);
-        const response = { result: this.tl.parse(decryptedMsg), headers: { msgID: decryptedMsg.getMessageID() } };
-        this.rpc.processMessage(response);
+      if (msg instanceof EncryptedMessage) {
+        console.log(msg);
       }
     }
   };
-
-  /**
-   * Method ecnrypts serialized message and sends it to the server
-   * @param {TLConstructor | Message | string} query Constructor number or data to send, wrapped at tl constructor or generic buffer
-   * @param {MessageHeaders | Object} args Constructor data or message headers
-   * @param {MessageHeaders} args Message headers
-   * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
-   */
-  call(query: TLAny | Message | string, args: MessageHeaders | Object = {}, aargs: MessageHeaders = {}): Promise<RPCResult> {
-    let msg = new MessageData();
-    let tlHandler = query;
-    let headers = aargs;
-
-    if (query instanceof MessageData) {
-      msg = query;
-    } else if (typeof query === 'string') {
-      tlHandler = this.tl.create(query, args);
-      headers = aargs;
-    } else if (tlHandler instanceof TLConstructor) {
-      headers = args;
-    }
-
-    if (tlHandler instanceof TLConstructor) {
-      const isContentRelated = tlHandler._ !== 'msgs_ack' && tlHandler._ !== 'http_wait';
-
-      msg = new MessageData(tlHandler.serialize())
-        .setSessionID(headers.sessionID || this.session.sessionID)
-        .setSalt(headers.serverSalt || this.session.serverSalt)
-        .setMessageID(headers.msgID)
-        .setSequenceNum(headers.seqNum || this.session.nextSeqNum(isContentRelated))
-        .setLength()
-        .setPadding();
-    }
-
-    this.send(encryptDataMessage(this.auth.tempKey, msg));
-
-    return this.rpc.subscribe(msg);
-  }
-
-  /**
-   * Method sends plain message to the server
-   * @param {TLConstructor | Message | string} query Constructor number or data to send, wrapped at tl constructor or generic buffer
-   * @param {MessageHeaders | Object} args Constructor data or message headers
-   * @param {MessageHeaders} args Message headers
-   * @returns {Promise<RPCResult>} Promise response wrapped by type language constructor
-   */
-  callPlain(query: TLAny | Message | string, args: MessageHeaders | Object = {}, aargs: MessageHeaders = {}): Promise<RPCResult> {
-    let tlHandler = query;
-    let msg;
-    let headers = aargs;
-
-    if (query instanceof MessagePlain) {
-      msg = query;
-    } else if (typeof query === 'string') {
-      tlHandler = this.tl.create(query, args);
-      headers = aargs;
-    } else if (tlHandler instanceof TLConstructor) {
-      headers = args;
-    }
-
-    if (tlHandler instanceof TLConstructor) {
-      msg = new MessagePlain(tlHandler.serialize())
-        .setMessageID(headers.msgID)
-        .setLength();
-    }
-
-    this.send(msg);
-
-    return new Promise((resolve: (RPCResult) => any, reject: (any) => any) => {
-      this.plainResolvers.push({ resolve, reject });
-    });
-  }
 
   /**
    * Method sends bytes to server via web socket.
    * @param {Message} msg Message interface
    */
-  send(msg: MessagePlain | MessageEncrypted) {
+  send(msg: PlainMessage | EncryptedMessage, cb: ResponseCallback) {
+    if (msg instanceof PlainMessage) {
+      this.plainResolvers[msg.nonce] = cb;
+    }
+
     this.ws.send(
       this.obfuscation.encode(
         this.protocol.wrap(msg),
-      ),
+      ).buffer.buffer,
     );
   }
 }

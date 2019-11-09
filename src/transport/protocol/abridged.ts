@@ -1,9 +1,6 @@
 /* eslint-disable class-methods-use-this */
-// @flow
-
-import {
-  Hex, MessagePlain, MessageEncrypted, GenericBuffer,
-} from '../../serialization';
+import { Bytes } from '../../serialization';
+import { PlainMessage, EncryptedMessage } from '../../message';
 
 /**
  * Abridged MTProto Transport Protocol
@@ -13,58 +10,56 @@ export default class Abridged {
   /**
    * Protocol header
    */
-  header: Hex = new Hex('ef');
+  header = 'efefefef';
 
   /**
    * Wraps type language message at envelope
-   * @param {MessagePlain | MessageEncrypted} payload Input message to envlope
-   * @returns {Hex} Result data to send
    */
-  wrap(payload: MessagePlain | MessageEncrypted): Hex {
-    const len = payload.buf.byteLength >> 2;
-    let lenBytes = new Hex(len.toString(16));
+  wrap(payload: PlainMessage | EncryptedMessage): Bytes {
+    const len = payload.buf.length >> 2;
 
-    if (len >= 127) {
-      lenBytes = Hex.concat(new Hex('7f'), lenBytes.reverseBytes(), new Hex('00'.repeat(3))).sliceBytes(0, 4);
+    if (len >= 0x7F) {
+      const enveloped = new Bytes(4 + payload.buf.length);
+      enveloped.slice(0, 1).uint = 0x7F;
+      enveloped.slice(1, 4).uint = len;
+      enveloped.slice(4).raw = payload.buf.raw;
+
+      return enveloped;
     }
 
-    return Hex.concat(lenBytes, payload.toHex());
+    const enveloped = new Bytes(1 + payload.buf.length);
+    enveloped.slice(0, 1).uint = len;
+    enveloped.slice(1).raw = payload.buf.raw;
+
+    return enveloped;
   }
 
   /**
    * Unwraps incoming bytes to type language message
-   * @param {Hex} buf Input bytes
-   * @returns {MessagePlain | MessageEncrypted} Result data
    */
-  unWrap(data: Hex): MessagePlain | MessageEncrypted | null {
-    const envelopedData = new GenericBuffer(data.toBuffer());
+  unWrap(data: Bytes): PlainMessage | EncryptedMessage {
+    let len = data.buffer[0];
+    let hlen = 1;
 
-    let payloadOffset = 1;
-    let len = envelopedData.view.getNumber(0, 1) as number;
-
-    if (len === 127) {
-      payloadOffset = 4;
-      len = envelopedData.view.getNumber(1, 3) as number;
+    if (len >= 0x7f) {
+      len = data.slice(1, 4).uint as number;
+      hlen = 4;
     }
 
     len <<= 2;
 
-    if (len > 8) {
-      const authKeyID = envelopedData.view.getNumber(payloadOffset, 8);
+    if (len < 8) throw new Error(`Unexpected frame: ${data.hex}`);
 
-      // eslint-disable-next-line eqeqeq
-      if (authKeyID == 0) {
-        const messageHex = envelopedData.view.getHex(payloadOffset, len);
-        return new MessagePlain(messageHex.toBuffer());
-      }
+    const authKeyID = data.slice(hlen, hlen + 8).uint;
 
-      len = len % 16 === 8 ? len : len - 16 + (len % 16);
-      len = len % 16 === 0 ? len + 8 : len;
-
-      const messageHex = envelopedData.view.getHex(payloadOffset, len);
-      return new MessageEncrypted(messageHex.toBuffer());
+    if (authKeyID.toString() === '0') {
+      return new PlainMessage(data.slice(hlen));
     }
 
-    return null;
+    // todo: quick ack
+    len = len % 16 === 8 ? len : len - 16 + (len % 16);
+    len = len % 16 === 0 ? len + 8 : len;
+
+    return new EncryptedMessage(data.slice(hlen, hlen + len));
   }
 }

@@ -71,6 +71,23 @@ export default class Bytes {
   }
 
   /**
+   * Gets string encoded as hex (little-endian)
+   */
+  get lhex(): string {
+    return Array.prototype.map.call(this.reverse().buffer, (byte: number): string => `0${byte.toString(16)}`.slice(-2)).join('');
+  }
+
+  /**
+   * Sets string encoded as hex (little-endian)
+   */
+  set lhex(str: string) {
+    const normalized = str.length % 2 === 1 ? `0${str}` : str;
+    for (let i = 0; i < this.length * 2; i += 2) {
+      this.buffer[this.length - i / 2 - 1] = i + 2 <= normalized.length ? +`0x${normalized.slice(i, i + 2)}` : 0;
+    }
+  }
+
+  /**
    * Gets raw string
    */
   get raw(): string {
@@ -120,7 +137,7 @@ export default class Bytes {
    * Gets unsigned integer in little endian order
    * Limited for 32 bit.
    */
-  get int(): number {
+  get int32(): number {
     if (this.length > 4) throw new Error('Unsigned ints can be parsed from 4 byte only');
 
     const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
@@ -131,14 +148,39 @@ export default class Bytes {
    * Sets unsigned integer in little endian order
    * Limited for 32 bit.
    */
-  set int(data: number) {
+  set int32(data: number) {
     if (this.length > 4) throw new Error('Unsigned ints can be parsed from 4 byte only');
 
     const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
     view.setInt32(0, data, true);
   }
 
+  /**
+   * Creates new Bytes object pointed to same array buffer
+   */
   slice(start?: number, end?: number): Bytes {
     return new Bytes(this.buffer, start, end);
+  }
+
+  /**
+   * Creates new reversed bytes object
+   */
+  reverse(): Bytes {
+    const buf = new Bytes(this.length);
+
+    for (let i = 0; i < this.length; i += 1) {
+      buf.buffer[this.length - i - 1] = this.buffer[i];
+    }
+
+    return buf;
+  }
+
+  /**
+   * Randomize bytes
+   */
+  randomize() {
+    for (let i = 0; i < this.length; i += 1) {
+      this.buffer[i] = Math.ceil(Math.random() * 255);
+    }
   }
 }

@@ -91,7 +91,7 @@ export default class TLConstructor extends TLAbstract {
 
     // read constructor id
     if (!this.isBare) {
-      const cID = buf.slice(nextOffset, nextOffset + 4).int;
+      const cID = buf.slice(nextOffset, nextOffset + 4).int32;
       this.fetch(this.schema.find(cID));
     }
 
@@ -142,7 +142,7 @@ export default class TLConstructor extends TLAbstract {
 
     // write constructor id
     if (!this.isBare && this.declaration) {
-      this.buf.slice(0, 4).int = +this.declaration.id;
+      this.buf.slice(0, 4).int32 = +this.declaration.id;
       nextOffset += 4;
     }
 

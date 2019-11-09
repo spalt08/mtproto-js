@@ -33,6 +33,22 @@ test('Bytes | hex', () => {
   expect(buf.hex).toBe('ffffff');
 });
 
+test('Bytes | reverse', () => {
+  const buf = new Bytes(new Uint8Array([10, 255, 127]));
+  expect(buf.reverse().buffer).toEqual(new Uint8Array([127, 255, 10]));
+});
+
+test('Bytes | lhex', () => {
+  const buf = new Bytes(new Uint8Array([10, 255, 127]));
+  expect(buf.lhex).toBe('7fff0a');
+
+  buf.lhex = '0a';
+  expect(buf.hex).toBe('00000a');
+
+  buf.lhex = 'ffffff';
+  expect(buf.hex).toBe('ffffff');
+});
+
 test('Bytes | raw string', () => {
   const buf = new Bytes(new Uint8Array([97, 98, 99]));
   expect(buf.raw).toBe('abc');
@@ -60,9 +76,9 @@ test('Bytes | big integer', () => {
 test('Bytes | int', () => {
   const buf = new Bytes(4);
 
-  buf.int = -790100132;
+  buf.int32 = -790100132;
   expect(buf.hex).toBe('5c07e8d0');
-  expect(buf.int).toBe(-790100132);
+  expect(buf.int32).toBe(-790100132);
 });
 
 
@@ -77,4 +93,16 @@ test('Bytes | slice', () => {
 
   expect(sliced.buffer.buffer).toEqual(buf.buffer.buffer);
   expect(sliced2.buffer.buffer).toEqual(buf.buffer.buffer);
+});
+
+test('Bytes | randomize', () => {
+  const buf = new Bytes(10);
+
+  buf.randomize();
+
+  expect(buf.hex).not.toEqual('00000000000000000000');
+
+  for (let i = 0; i < buf.length; i += 1) {
+    expect(buf.buffer[i]).not.toEqual(0);
+  }
 });
