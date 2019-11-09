@@ -32,7 +32,7 @@ export default class Http extends Transport {
 
     const cfg: HTTPConfig = { ...defaultConfig, ...extCfg };
 
-    this.addr = `http${cfg.ssl ? 's' : ''}://venus.web.telegram.org/apiw1`;
+    this.addr = `http${cfg.ssl ? 's' : ''}://${this.dc.getHost()}/apiw1`;
   }
 
   /**

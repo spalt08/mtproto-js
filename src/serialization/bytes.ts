@@ -178,9 +178,25 @@ export default class Bytes {
   /**
    * Randomize bytes
    */
-  randomize() {
+  randomize(): Bytes {
     for (let i = 0; i < this.length; i += 1) {
       this.buffer[i] = Math.ceil(Math.random() * 255);
     }
+
+    return this;
+  }
+
+  /**
+   * @static
+   * Returns xor of two bytes strings
+   */
+  static xor(left: Bytes, right: Bytes): Bytes {
+    const bytes = new Bytes(left.length);
+
+    for (let i = 0; i < left.length; i += 1) {
+      bytes.buffer[i] = left.buffer[i] ^ right.buffer[i];
+    }
+
+    return bytes;
   }
 }

@@ -63,6 +63,16 @@ module.exports = (env, argv) => {
             transpileOnly: true,
           },
         },
+        {
+          test: /\.worker\.js$/,
+          use: {
+            loader: 'worker-loader',
+            options: {
+              inline: true,
+              fallback: false,
+            },
+          },
+        },
       ],
     },
 

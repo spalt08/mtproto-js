@@ -1,6 +1,7 @@
 /* eslint-disable class-methods-use-this, @typescript-eslint/no-unused-vars, no-dupe-class-members */
 import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
 import { Message, PlainMessage, EncryptedMessage } from '../message';
+import { DCService, AuthService } from '../services';
 
 /** Generic error for mtproto transport */
 export type TranportError = {
@@ -17,6 +18,7 @@ export type GenericTranportConfig = {
   APIID?: string,
   APIHash?: string,
   APILayer: number,
+  baseDC?: number,
 };
 
 /** Default generic config */
@@ -34,6 +36,12 @@ export default class Transport {
   /** API Layer */
   APILayer: number;
 
+  /** Datacenter service */
+  dc: DCService;
+
+  /** Authorization service */
+  auth: AuthService;
+
   /**
    * Creates abstract transport object
    * @param {GenericTranportConfig} cfg Generic transport config
@@ -42,9 +50,11 @@ export default class Transport {
     this.tl = tl;
 
     const cfg: GenericTranportConfig = { ...defaultConfig, ...extCfg };
-    const { APILayer } = cfg;
 
-    this.APILayer = APILayer;
+    this.APILayer = cfg.APILayer;
+
+    this.dc = new DCService(cfg.baseDC);
+    this.auth = new AuthService(this, this.tl);
   }
 
   // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-unused-vars

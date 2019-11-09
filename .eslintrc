@@ -24,7 +24,8 @@
         "max-len": [2, 150, 4],
         "no-continue": 0,
         "no-bitwise": 0,
-        "no-underscore-dangle": "off"
+        "no-underscore-dangle": "off",
+        "import/no-webpack-loader-syntax": "off"
     },
     "settings": {
       "import/resolver": {

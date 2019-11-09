@@ -42,6 +42,9 @@ export default class Socket extends Transport {
   /** Quene of reponse callbacks for plain requests */
   plainResolvers: Record<string, ResponseCallback> = {};
 
+  /** Event listeners */
+  events: Record<string, Array<() => void>> = {};
+
   /**
    * Creates new web socket handler
    */
@@ -53,23 +56,34 @@ export default class Socket extends Transport {
     this.protocol = cfg.protocol;
     this.obfuscation = new Obfuscation();
 
-    this.ws = new WebSocket(`ws${cfg.ssl ? 's' : ''}://venus.web.telegram.org/apiws`, 'binary');
+    this.ws = new WebSocket(`ws${cfg.ssl ? 's' : ''}://${this.dc.getHost()}/apiws`, 'binary');
     this.ws.binaryType = 'arraybuffer';
     this.ws.onopen = this.handleOpen;
-    this.ws.onclose = () => log('closed');
+    this.ws.onclose = this.handleClose;
     this.ws.onmessage = this.handleMessage;
   }
 
   /**
    * Handles onopen event at websocket object
    */
-  handleOpen = async () => {
+  handleOpen = () => {
     log('opened');
 
     const initPayload = this.obfuscation.init(this.protocol.header);
     this.ws.send(initPayload.buffer.buffer);
 
     log('ready');
+
+    this.emit('ready');
+  };
+
+  /**
+   * Handles onclose event at websocket object
+   */
+  handleClose = () => {
+    log('closed');
+
+    this.emit('disconnected');
   };
 
   /**
@@ -114,5 +128,24 @@ export default class Socket extends Transport {
         this.protocol.wrap(msg),
       ).buffer.buffer,
     );
+  }
+
+  /**
+   * Subscribe to transport event
+   */
+  on(event: string, cb: () => {}): void {
+    if (!this.events[event]) this.events[event] = [];
+    this.events[event].push(cb);
+  }
+
+  /**
+   * Emit transport event
+   */
+  emit(event: string): void {
+    if (this.events[event]) {
+      for (let i = 0; i < this.events[event].length; i += 1) {
+        this.events[event][i]();
+      }
+    }
   }
 }

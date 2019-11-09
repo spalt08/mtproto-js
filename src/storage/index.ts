@@ -1,8 +1,9 @@
-// @flow
-
 /**
  * Default storage using native browser local storage
  */
+
+type StorageKeyMap = 'authPermKey';
+
 export default class DefaultStorage {
   /** Local storage key prefix */
   prefix: string = 'mtp-';
@@ -10,29 +11,22 @@ export default class DefaultStorage {
   /**
    * Creates an item key for native local storage
    */
-  getLocalStorageKey(namespace: string, key: string) {
-    return `${this.prefix}${namespace}-${key}`;
+  getLocalStorageKey(key: StorageKeyMap) {
+    return `${this.prefix}-${key}`;
   }
 
   /**
    * Method saves value of any type
-   * @param {string} namespace Value namespace
-   * @param {string} key Value key
-   * @param {any} value Value itself of any type
    */
-  async save(namespace: string, key: string, value: any) {
-    // console.log('storage updated', namespace, key, value);
-    await localStorage.setItem(this.getLocalStorageKey(namespace, key), JSON.stringify(value));
+  save(key: StorageKeyMap, value: any) {
+    localStorage.setItem(this.getLocalStorageKey(key), JSON.stringify(value));
   }
 
   /**
    * Method gets value of any type
-   * @param {string} namespace Value namespace
-   * @param {string} key Value key
-   * @returns {any} Value itself of any type
    */
-  async load(namespace: string, key: string): Promise<any> {
-    const valueStr = await localStorage.getItem(this.getLocalStorageKey(namespace, key));
+  load(key: StorageKeyMap) {
+    const valueStr = localStorage.getItem(this.getLocalStorageKey(key));
 
     if (valueStr) return JSON.parse(valueStr);
 

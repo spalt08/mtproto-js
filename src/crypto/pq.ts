@@ -7,9 +7,9 @@ import BigInt, { BigInteger } from 'big-integer';
  * @returns {number[]} [p, q], where P > q
  */
 export default function pqPrimePollard(pq: BigInteger): BigInteger[] {
-  const n = BigInt(pq);
+  const n = pq;
 
-  const F = (_x: BigInteger): BigInteger => _x.multiply(_x).subtract(BigInt.one);
+  const F = (x: BigInteger): BigInteger => x.multiply(x).subtract(BigInt.one);
 
   let x = BigInt.randBetween(1, n);
   let y = BigInt.one;

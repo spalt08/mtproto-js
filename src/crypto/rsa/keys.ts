@@ -3,7 +3,7 @@ import TLConstructor from '../../tl/constructor';
 import SchemaProvider from '../../schema/provider';
 import sha1 from '../sha1';
 
-type ParsedKey = {
+export type RSAKey = {
   fingerprint: string,
   n: string,
   e: string,
@@ -11,10 +11,8 @@ type ParsedKey = {
 
 /**
  * Converts base64-encoded public key to {fingerprint, modulus, exponent} object
- * @param {string} key Public key
- * @returns {ParsedKey} Fingerprint, modulus, exponent
  */
-export function parseKey(key: string): ParsedKey {
+export function parseKey(key: string): RSAKey {
   const matches = key.match(/-----BEGIN ([A-Z ]+?)-----([A-Za-z0-9\s+/]+)-----([A-Z ]+?)-----/m);
 
   if (!matches) throw new Error(`RSA Key: Unable to parse key \n ${key}`);
@@ -52,7 +50,7 @@ export function parseKey(key: string): ParsedKey {
   };
 }
 
-export const PredefinedKeys = [
+export const PredefinedKeys: RSAKey[] = [
   /**
    * -----BEGIN RSA PUBLIC KEY-----
    * MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6
