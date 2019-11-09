@@ -9,12 +9,14 @@ const log = logs('http');
 /** Configuration object for HTTP transport */
 type HTTPConfig = GenericTranportConfig & {
   ssl?: boolean,
+  test?: boolean,
 };
 
 /** Default configuration for HTTP transport */
 const defaultConfig = {
   APILayer: 105,
   ssl: true,
+  test: false,
 };
 
 /**
@@ -22,7 +24,7 @@ const defaultConfig = {
  * @extends Transport
  */
 export default class Http extends Transport {
-  addr: string;
+  config: HTTPConfig;
 
   /**
    * Creates HTTP handler for MTProto server.
@@ -30,15 +32,13 @@ export default class Http extends Transport {
   constructor(tl: TypeLanguage, extCfg?: HTTPConfig) {
     super(tl, extCfg);
 
-    const cfg: HTTPConfig = { ...defaultConfig, ...extCfg };
-
-    this.addr = `http${cfg.ssl ? 's' : ''}://${this.dc.getHost()}/apiw1`;
+    this.config = { ...defaultConfig, ...extCfg };
   }
 
   /**
    * Method sends bytes to server via http.
    */
-  send(msg: PlainMessage | EncryptedMessage, cb: ResponseCallback) {
+  send(msg: PlainMessage | EncryptedMessage, headers: Record<string, any>, cb: ResponseCallback) {
     const req = new XMLHttpRequest();
 
     if (msg instanceof PlainMessage) {
@@ -49,7 +49,7 @@ export default class Http extends Transport {
       log('-> encrypted sent', msg.key);
     }
 
-    req.open('POST', this.addr);
+    req.open('POST', `http${this.config.ssl ? 's' : ''}://${this.dc.getHost(headers.dcID)}/apiw1_test`);
     req.responseType = 'arraybuffer';
     req.addEventListener('error', (error: ProgressEvent) => {
       cb({
@@ -65,22 +65,14 @@ export default class Http extends Transport {
         const authKey = buf.slice(0, 8).uint;
 
         if (authKey.toString() === '0') {
-          try {
-            const resMsg = new PlainMessage(buf);
-            const result = this.tl.parse(resMsg.data);
+          const resMsg = new PlainMessage(buf);
+          const result = this.tl.parse(resMsg.data);
 
-            log('<- plain received', resMsg.id);
+          log('<- plain received', resMsg.id);
 
-            cb(null, result, {
-              msgID: resMsg.id,
-            });
-          } catch (e) {
-            cb({
-              type: 'network',
-              code: 0,
-              message: `Serialization error: ${e}`,
-            });
-          }
+          cb(null, result, {
+            msgID: resMsg.id,
+          });
         } else {
           const resMsg = new EncryptedMessage(buf);
 

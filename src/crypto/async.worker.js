@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 import BigInt from 'big-integer';
-import pqPrimePollard from './pq';
+import { BrentPrime } from './pq';
 import { logs } from '../utils/log';
 import { Bytes, hex } from '../serialization';
 import RSAEncrypt from './rsa/encrypt';
@@ -23,7 +23,7 @@ self.addEventListener('message', (event) => {
 
     switch (task) {
       case 'factorize': {
-        const [p, q] = pqPrimePollard(BigInt(payload, 16));
+        const [p, q] = BrentPrime(BigInt(payload, 16));
         resolve(id, [p.toString(16), q.toString(16)]);
         break;
       }
@@ -54,6 +54,7 @@ self.addEventListener('message', (event) => {
         tmpAesIv.slice(8, 28).raw = sha1(hex(newnonce + newnonce)).raw;
         tmpAesIv.slice(28, 32).raw = hex(newnonce).slice(0, 4).raw;
 
+
         resolve(id, decrypt(hex(data), tmpAesKey, tmpAesIv).hex);
         break;
       }
@@ -70,6 +71,7 @@ self.addEventListener('message', (event) => {
         tmpAesIv.slice(0, 8).raw = sha1(hex(srvnonce + newnonce)).slice(12, 20).raw;
         tmpAesIv.slice(8, 28).raw = sha1(hex(newnonce + newnonce)).raw;
         tmpAesIv.slice(28, 32).raw = hex(newnonce).slice(0, 4).raw;
+
 
         let len = 20 + data.length / 2;
         len += 16 - (len % 16);

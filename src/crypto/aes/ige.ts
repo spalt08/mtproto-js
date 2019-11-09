@@ -45,7 +45,7 @@ export function encrypt(text: Bytes, key: Bytes, iv: Bytes, options: Record<stri
     const x = text.slice(i, i + options.blockSize);
     const yXOR = Bytes.xor(x, prevY);
 
-    const bytesY = new Bytes(cipher.decrypt(yXOR.buffer));
+    const bytesY = new Bytes(cipher.encrypt(yXOR.buffer));
     const y = Bytes.xor(bytesY, prevX);
 
     prevX = x;

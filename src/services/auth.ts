@@ -47,7 +47,7 @@ export default class AuthService {
     const nonce = new Bytes(16).randomize();
     const newNonce = new Bytes(32).randomize();
 
-    this.transport.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: nonce.uint }, (err, resPQ) => {
+    this.transport.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: nonce.uint }, { dcID }, (err, resPQ) => {
       if (err || !(resPQ instanceof TLConstructor) || resPQ._ !== 'resPQ') throw new Error('Auth: Unexpected resPQ response');
 
       const serverNonce = resPQ.params.server_nonce.buf!;
@@ -99,7 +99,7 @@ export default class AuthService {
             encrypted_data: encryptedPQ,
           };
 
-          this.transport.plainCall('req_DH_params', dhParams, (errd, resDH) => {
+          this.transport.plainCall('req_DH_params', dhParams, { dcID }, (errd, resDH) => {
             if (errd || !(resDH instanceof TLConstructor) || resDH._ !== 'server_DH_params_ok') {
               throw new Error('Auth: Unexpected req_DH_params response');
             }
@@ -114,7 +114,7 @@ export default class AuthService {
               const g = BigInt(serverDH.params.g.value);
               const ga = BigInt(serverDH.params.g_a.value, 16);
               const dhPrime = BigInt(serverDH.params.dh_prime.value, 16);
-              const b = BigInt(new Bytes(256).randomize().hex, 16);
+              const b = BigInt.randBetween('-1e256', '1e256'); // BigInt(new Bytes(255).randomize().hex, 16);
 
               const gb = g.modPow(b, dhPrime);
 
@@ -134,8 +134,8 @@ export default class AuthService {
                   encrypted_data: encryptedDH,
                 };
 
-                this.transport.plainCall('set_client_DH_params', clientDHParams, (errc, statusDH) => {
-                  if (errc || !(statusDH instanceof TLConstructor) || statusDH._ !== 'dh_gen_ok') {
+                this.transport.plainCall('set_client_DH_params', clientDHParams, { dcID }, (errc, sDH) => {
+                  if (errc || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
                     throw new Error('Auth Service: Unexpected set_client_DH_params response');
                   }
 
@@ -145,7 +145,7 @@ export default class AuthService {
 
                   log(`${expiresAfter > 0 ? 'temporary' : 'permanent'} key created`);
 
-                  cb(authKey);
+                  if (cb) cb(authKey);
                 });
               });
             });

@@ -102,10 +102,10 @@ export default class Transport {
     if (headers.msgID) msg.id = headers.msgID;
     if (!msg.id) msg.id = PlainMessage.GenerateID();
 
-    return this.send(msg, cb);
+    return this.send(msg, headers, cb);
   }
 
-  send(_msg: PlainMessage | EncryptedMessage, _cb: ResponseCallback) {
+  send(_msg: PlainMessage | EncryptedMessage, _headers: Record<string, any>, _cb: ResponseCallback) {
     throw new Error('You should overload send method first');
   }
 }
