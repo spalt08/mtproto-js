@@ -63,3 +63,12 @@ test('TLConstructor | write', () => {
     expect(empty.buffer).toEqual(serialized.buffer);
   }
 });
+
+test('TLConstructor | parse', () => {
+  const schema = new SchemaProvider();
+  const data = 'dcf8f1730200000001183f815fe2c75d010000001c0000000809c29e042111125fe2c75d1364c3c06d6c418b48cef284637978bd012c3f815fe2c75d030000002c000000016d5cf3042111125fe2c75d19ca44210cfeffff16496e76616c6964206d7367735f61636b207175657279000bb990795288b1e0e9daf5f4d55b0267';
+  const buf = hex(data);
+
+  const tl = new TLConstructor('msg_container', schema, false);
+  tl.read(buf, 0);
+});

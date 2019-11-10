@@ -1,4 +1,4 @@
-import { PlainMessage, EncryptedMessage } from '../message';
+import { PlainMessage, EncryptedMessage, Message } from '../message';
 import TypeLanguage from '../tl';
 import Transport, { GenericTranportConfig, ResponseCallback } from './abstract';
 import { logs } from '../utils/log';
@@ -38,15 +38,15 @@ export default class Http extends Transport {
   /**
    * Method sends bytes to server via http.
    */
-  send(msg: PlainMessage | EncryptedMessage, headers: Record<string, any>, cb: ResponseCallback) {
+  send(msg: PlainMessage | Message, headers: Record<string, any>, cb: ResponseCallback) {
     const req = new XMLHttpRequest();
 
     if (msg instanceof PlainMessage) {
       log('-> plain sent', msg.id);
     }
 
-    if (msg instanceof EncryptedMessage) {
-      log('-> encrypted sent', msg.key);
+    if (msg instanceof Message) {
+      log('-> encrypted sent', msg.id);
     }
 
     req.open('POST', `http${this.config.ssl ? 's' : ''}://${this.dc.getHost(headers.dcID)}/apiw1_test`);
@@ -77,8 +77,6 @@ export default class Http extends Transport {
           const resMsg = new EncryptedMessage(buf);
 
           log('<- encrypted received', resMsg.key);
-
-          console.log(resMsg);
         }
       } else {
         cb({

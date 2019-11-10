@@ -9,7 +9,7 @@ test('transport | intermediate padded short', () => {
   payload.randomize();
 
   const msg = new EncryptedMessage(payload);
-  const enveloped = protocol.wrap(msg);
+  const enveloped = protocol.wrap(msg.buf);
 
   expect(enveloped.slice(0, 4).int32).toBeGreaterThanOrEqual(payload.length);
   expect(enveloped.slice(0, 4).int32).toBeLessThan(payload.length + 16);
@@ -17,8 +17,8 @@ test('transport | intermediate padded short', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped.buf.slice(0, payload.length).hex).toEqual(payload.hex);
-  expect(unenveloped instanceof EncryptedMessage).toBeTruthy();
+  expect(unenveloped[1].slice(0, payload.length).hex).toEqual(payload.hex);
+  expect(unenveloped[0]).toBe('encrypted');
 });
 
 test('transport | intermediate padded long', () => {
@@ -28,7 +28,7 @@ test('transport | intermediate padded long', () => {
   payload.randomize();
 
   const msg = new EncryptedMessage(payload);
-  const enveloped = protocol.wrap(msg);
+  const enveloped = protocol.wrap(msg.buf);
 
   expect(enveloped.slice(0, 4).int32).toBeGreaterThanOrEqual(payload.length);
   expect(enveloped.slice(0, 4).int32).toBeLessThan(payload.length + 16);
@@ -36,7 +36,7 @@ test('transport | intermediate padded long', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped.buf.slice(0, payload.length).hex).toEqual(payload.hex);
+  expect(unenveloped[1].slice(0, payload.length).hex).toEqual(payload.hex);
 });
 
 test('transport | intermediate paddded plain', () => {
@@ -46,7 +46,7 @@ test('transport | intermediate paddded plain', () => {
   payload.slice(8).randomize();
 
   const msg = new PlainMessage(payload);
-  const enveloped = protocol.wrap(msg);
+  const enveloped = protocol.wrap(msg.buf);
 
   expect(enveloped.slice(0, 4).int32).toBeGreaterThanOrEqual(payload.length);
   expect(enveloped.slice(0, 4).int32).toBeLessThan(payload.length + 16);
@@ -54,5 +54,5 @@ test('transport | intermediate paddded plain', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped instanceof PlainMessage).toBeTruthy();
+  expect(unenveloped[0]).toBe('plain');
 });

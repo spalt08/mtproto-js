@@ -16,6 +16,9 @@ function async(task: 'factorize', payload: string, cb: (res: string[]) => void):
 function async(task: 'encrypt_pq', payload: [string, RSAKey], cb: (res: string) => void): void;
 function async(task: 'decrypt_dh', payload: string[], cb: (res: string) => void): void;
 function async(task: 'encrypt_dh', payload: string[], cb: (res: string) => void): void;
+function async(task: 'transport_init', payload: [number, string], cb: (res: string) => void): void;
+function async(task: 'transport_encrypt', payload: [number, string, string], cb: (res: string) => void): void;
+function async(task: 'transport_decrypt', payload: [number, string, string], cb: (res: [string, string]) => void): void;
 function async(task: string, payload: any, cb: ResponseResolver): void {
   const taskID = task + Date.now().toString(16);
 

@@ -18,10 +18,9 @@ export default class SchemaProvider {
     this.schema = [...MTProtoSchema.constructors, ...MTProtoSchema.methods];
 
     for (let i = 0; i < schemas.length; i += 1) {
-      const constrs = schemas[i].constructors;
-      const methods = schemas[i].constructors;
+      const { constructors, methods } = schemas[i];
 
-      if (constrs) this.schema.push(...constrs);
+      if (constructors) this.schema.push(...constructors);
       if (methods) this.schema.push(...methods);
     }
   }
@@ -32,7 +31,7 @@ export default class SchemaProvider {
    * @param {string | number} query Constructor predicate or ID
    * @returns {SchemaEntity} Schema Entity
    */
-  find(query: string | number): SchemaEntity {
+  find(query: string | number): SchemaEntity | null {
     for (let i = 0; i < this.schema.length; i += 1) {
       const s = this.schema[i];
 
@@ -56,11 +55,9 @@ export default class SchemaProvider {
         this.define(query);
         return parsed;
       }
-
-      throw new Error(`Unable to parse TL: ${query}`);
     }
 
-    throw new Error(`Unable to parse TL: ${query}`);
+    return null;
   }
 
   /**

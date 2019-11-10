@@ -6,5 +6,5 @@ test('Transort | constructor', () => {
   const tr = new Transport(tl, { APILayer: 1 });
 
   expect(tr.tl).toEqual(tl);
-  expect(tr.APILayer).toEqual(1);
+  expect(tr.layer).toEqual(1);
 });

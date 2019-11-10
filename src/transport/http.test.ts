@@ -4,7 +4,7 @@ import { hex } from '../serialization';
 import { TranportError } from './abstract';
 import { TLAbstract, TLConstructor } from '../tl';
 
-test('Transort | constructor', () => {
+test('Transort | http plain call', () => {
   const tl = new TypeLanguage();
   const nonce = hex('3E0549828CCA27E966B301A48FECE2FC').uint;
   const http = new Http(tl, { APILayer: 105 });

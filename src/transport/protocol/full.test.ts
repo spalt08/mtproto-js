@@ -10,7 +10,7 @@ test('transport | full', () => {
   payload.randomize();
 
   const msg = new EncryptedMessage(payload);
-  const enveloped = protocol.wrap(msg);
+  const enveloped = protocol.wrap(msg.buf);
 
   expect(enveloped.slice(0, 4).int32).toEqual(payload.length + 12);
   expect(enveloped.slice(4, 8).int32).toEqual(0);
@@ -19,10 +19,10 @@ test('transport | full', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped.buf.slice(0, payload.length).hex).toEqual(payload.hex);
-  expect(unenveloped instanceof EncryptedMessage).toBeTruthy();
+  expect(unenveloped[1].slice(0, payload.length).hex).toEqual(payload.hex);
+  expect(unenveloped[0]).toBe('encrypted');
 
-  const envelopedNext = protocol.wrap(msg);
+  const envelopedNext = protocol.wrap(msg.buf);
 
   expect(envelopedNext.slice(4, 8).int32).toEqual(1);
 });

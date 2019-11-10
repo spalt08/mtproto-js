@@ -11,8 +11,10 @@ test('SchemaProvider | find', () => {
 
   for (let i = 0; i < cases.length; i += 1) {
     const [req, res] = cases[i];
-    expect(schema.find(req).id).toBe(res);
+    const f = schema.find(req);
+    if (!f) throw new Error('INVALID');
+    expect(f.id).toBe(res);
   }
 
-  expect(schema.find(558156313).predicate).toBe('rpc_error');
+  expect(schema.find(558156313)!.predicate).toBe('rpc_error');
 });

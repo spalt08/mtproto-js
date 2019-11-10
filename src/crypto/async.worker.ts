@@ -1,14 +1,20 @@
 /* eslint-disable no-restricted-globals */
 import BigInt from 'big-integer';
 import { BrentPrime } from './pq';
-import { logs } from '../utils/log';
 import { Bytes, hex } from '../serialization';
 import RSAEncrypt from './rsa/encrypt';
 import { decrypt, encrypt } from './aes/ige';
+import { encryptMessage, decryptMessage } from './aes/message';
 import sha1 from './sha1';
+import {
+  Obfuscation, Intermediate, IntermediatePadded, Full, Abridged,
+} from '../transport/protocol';
+import { Message, EncryptedMessage } from '../message';
 
-const log = logs('worker');
 const ctx: Worker = self as any;
+
+const obfuscation: Record<number, Obfuscation> = {};
+const protocol: Record<number, Intermediate | IntermediatePadded | Full | Abridged> = {};
 
 // Resolve result
 function resolve(taskID: string, result: any) {
@@ -19,8 +25,6 @@ function resolve(taskID: string, result: any) {
 ctx.addEventListener('message', (event) => {
   if (event.data && event.data.id) {
     const { payload, task, id } = event.data;
-
-    const time = Date.now();
 
     switch (task) {
       case 'factorize': {
@@ -87,10 +91,51 @@ ctx.addEventListener('message', (event) => {
         break;
       }
 
+      case 'transport_init': {
+        const [dc, protocolName] = payload;
+
+        switch (protocolName) {
+          case 'abridged': protocol[dc] = new Abridged(); break;
+          case 'intermediate_padded': protocol[dc] = new IntermediatePadded(); break;
+          case 'full': protocol[dc] = new Full(); break;
+          default: protocol[dc] = new Intermediate();
+        }
+
+        obfuscation[dc] = new Obfuscation();
+
+        resolve(id, obfuscation[dc].init(protocol[dc].header).hex);
+        break;
+      }
+
+      case 'transport_encrypt': {
+        const [dc, data, authKey] = payload;
+
+        const msg = hex(data);
+
+        if (msg.slice(0, 8).uint.toString() === '0') {
+          resolve(id, obfuscation[dc].encode(protocol[dc].wrap(hex(data))).hex);
+        } else {
+          const encrypted = encryptMessage(authKey, new Message(msg));
+          resolve(id, obfuscation[dc].encode(protocol[dc].wrap(encrypted.buf)).hex);
+        }
+        break;
+      }
+
+      case 'transport_decrypt': {
+        const [dc, encrypted, authKey] = payload;
+        const [type, data] = protocol[dc].unWrap(obfuscation[dc].decode(hex(encrypted)));
+
+        if (type === 'plain') {
+          resolve(id, [type, data.hex]);
+        } else {
+          const decrypted = decryptMessage(authKey, new EncryptedMessage(data));
+          resolve(id, [type, decrypted.buf.hex]);
+        }
+        break;
+      }
+
       default:
     }
-
-    log('task', task, `${((Date.now() - time) / 1000).toFixed(2)}s`);
   }
 });
 

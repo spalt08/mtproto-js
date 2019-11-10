@@ -35,7 +35,11 @@ export default class TypeLanguage {
       const cID = src.slice(0, 4).int32;
       const schemaPredicate = this.schema.find(cID);
 
-      c = resolve(schemaPredicate.predicate || schemaPredicate.method || '', this.schema);
+      if (schemaPredicate) {
+        c = resolve(schemaPredicate.predicate || schemaPredicate.method || '', this.schema);
+      } else {
+        throw new Error('Unable to parse');
+      }
     }
 
     if (isBare) c.isBare = isBare;

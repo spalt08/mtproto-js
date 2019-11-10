@@ -9,14 +9,14 @@ test('transport | intermediate short', () => {
   payload.randomize();
 
   const msg = new EncryptedMessage(payload);
-  const enveloped = protocol.wrap(msg);
+  const enveloped = protocol.wrap(msg.buf);
 
   expect(enveloped.hex).toEqual(`28000000${payload.hex}`);
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped.buf.hex).toEqual(payload.hex);
-  expect(unenveloped instanceof EncryptedMessage).toBeTruthy();
+  expect(unenveloped[1].hex).toEqual(payload.hex);
+  expect(unenveloped[0]).toBe('encrypted');
 });
 
 test('transport | intermediate long', () => {
@@ -26,13 +26,13 @@ test('transport | intermediate long', () => {
   payload.randomize();
 
   const msg = new EncryptedMessage(payload);
-  const enveloped = protocol.wrap(msg);
+  const enveloped = protocol.wrap(msg.buf);
 
   expect(enveloped.hex).toEqual(`08040000${payload.hex}`);
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped.buf.hex).toEqual(payload.hex);
+  expect(unenveloped[1].hex).toEqual(payload.hex);
 });
 
 test('transport | intermediate plain', () => {
@@ -42,11 +42,11 @@ test('transport | intermediate plain', () => {
   payload.slice(8).randomize();
 
   const msg = new PlainMessage(payload);
-  const enveloped = protocol.wrap(msg);
+  const enveloped = protocol.wrap(msg.buf);
 
   expect(enveloped.hex).toEqual(`34000000${payload.hex}`);
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped instanceof PlainMessage).toBeTruthy();
+  expect(unenveloped[0]).toBe('plain');
 });

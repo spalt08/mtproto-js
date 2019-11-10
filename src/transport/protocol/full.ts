@@ -1,5 +1,4 @@
 import crc32 from '../../utils/crc32';
-import { PlainMessage, EncryptedMessage } from '../../message';
 import { Bytes } from '../../serialization';
 
 /**
@@ -25,15 +24,15 @@ export default class Full {
   /**
    * Wraps type language message at envelope
    */
-  wrap(payload: PlainMessage | EncryptedMessage): Bytes {
-    const len = payload.buf.length;
+  wrap(payload: Bytes): Bytes {
+    const len = payload.length;
     const tlen = len + 12;
 
     const enveloped = new Bytes(tlen);
 
     enveloped.slice(0, 4).int32 = tlen;
     enveloped.slice(4, 8).int32 = this.seqOut;
-    enveloped.slice(8, 8 + len).raw = payload.buf.raw;
+    enveloped.slice(8, 8 + len).raw = payload.raw;
     enveloped.slice(8 + len).hex = crc32(enveloped.slice(0, 8 + len).raw).toString(16);
 
     this.seqOut += 1;
@@ -44,7 +43,7 @@ export default class Full {
   /**
    * Unwraps incoming bytes to type language message
    */
-  unWrap(data: Bytes): PlainMessage | EncryptedMessage {
+  unWrap(data: Bytes): [string, Bytes] {
     const tlen = data.slice(0, 4).int32;
     const seq = data.slice(4, 8).int32;
     const crc = +`0x${data.slice(tlen - 4, tlen).hex}`;
@@ -57,12 +56,12 @@ export default class Full {
     if (len < 8) throw new Error(`Unexpected frame: ${data.hex}`);
 
     if (data.slice(8, 16).uint.toString() === '0') {
-      return new PlainMessage(data.slice(8, 8 + len));
+      return ['plain', data.slice(8, 8 + len)];
     }
 
     len = len % 16 === 8 ? len : len - 16 + (len % 16);
     len = len % 16 === 0 ? len + 8 : len;
 
-    return new EncryptedMessage(data.slice(8, 8 + len));
+    return ['encrypted', data.slice(8, 8 + len)];
   }
 }

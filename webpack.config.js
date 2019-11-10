@@ -34,9 +34,9 @@ module.exports = (env, argv) => {
 
     output: {
       path: path.resolve(__dirname, destinationDirectory),
-      filename: `${libraryName}.cjs.js`,
       library: libraryName,
-      libraryTarget: 'commonjs2',
+      filename: isProduction ? `${libraryName}.cjs.js` : `${libraryName}.umd.js`,
+      libraryTarget: isProduction ? 'commonjs2' : 'umd',
     },
 
     optimization: {

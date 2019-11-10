@@ -1,6 +1,5 @@
 /* eslint-disable class-methods-use-this */
 import { Bytes } from '../../serialization';
-import { PlainMessage, EncryptedMessage } from '../../message';
 
 /**
  * Abridged MTProto Transport Protocol
@@ -15,21 +14,21 @@ export default class Abridged {
   /**
    * Wraps type language message at envelope
    */
-  wrap(payload: PlainMessage | EncryptedMessage): Bytes {
-    const len = payload.buf.length >> 2;
+  wrap(payload: Bytes): Bytes {
+    const len = payload.length >> 2;
 
     if (len >= 0x7F) {
-      const enveloped = new Bytes(4 + payload.buf.length);
+      const enveloped = new Bytes(4 + payload.length);
       enveloped.slice(0, 1).uint = 0x7F;
       enveloped.slice(1, 4).uint = len;
-      enveloped.slice(4).raw = payload.buf.raw;
+      enveloped.slice(4).raw = payload.raw;
 
       return enveloped;
     }
 
-    const enveloped = new Bytes(1 + payload.buf.length);
+    const enveloped = new Bytes(1 + payload.length);
     enveloped.slice(0, 1).uint = len;
-    enveloped.slice(1).raw = payload.buf.raw;
+    enveloped.slice(1).raw = payload.raw;
 
     return enveloped;
   }
@@ -37,7 +36,7 @@ export default class Abridged {
   /**
    * Unwraps incoming bytes to type language message
    */
-  unWrap(data: Bytes): PlainMessage | EncryptedMessage {
+  unWrap(data: Bytes): [string, Bytes] {
     let len = data.buffer[0];
     let hlen = 1;
 
@@ -53,13 +52,13 @@ export default class Abridged {
     const authKeyID = data.slice(hlen, hlen + 8).uint;
 
     if (authKeyID.toString() === '0') {
-      return new PlainMessage(data.slice(hlen));
+      return ['plain', data.slice(hlen)];
     }
 
     // todo: quick ack
     len = len % 16 === 8 ? len : len - 16 + (len % 16);
     len = len % 16 === 0 ? len + 8 : len;
 
-    return new EncryptedMessage(data.slice(hlen, hlen + len));
+    return ['encrypted', data.slice(hlen, hlen + len)];
   }
 }

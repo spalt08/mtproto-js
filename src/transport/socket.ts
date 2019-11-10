@@ -1,116 +1,154 @@
 import TypeLanguage, { TLNumber } from '../tl';
 import TLConstructor from '../tl/constructor';
 import Transport, { GenericTranportConfig, ResponseCallback } from './abstract';
-import { PlainMessage, EncryptedMessage } from '../message';
+import { PlainMessage, Message } from '../message';
 import { logs } from '../utils/log';
-import {
-  Abridged,
-  IntermediatePadded,
-  Intermediate,
-  Full,
-  Obfuscation,
-} from './protocol';
-import { Bytes } from '../serialization';
+import { Bytes, hex } from '../serialization';
+import async from '../crypto/async';
 
 const log = logs('socket');
 
-type MTProtoTransport = Abridged | Intermediate | IntermediatePadded | Full;
+type MTProtoTransport = 'abridged' | 'intermediate' | 'intermediate_padded' | 'full';
 
 /** Configuration object for WebSocket transport */
 type SocketConfig = GenericTranportConfig & {
   ssl?: boolean,
-  protocol: MTProtoTransport,
+  test?: boolean,
+  protocol?: MTProtoTransport,
+  skipAuth?: boolean,
 };
 
-/** Default configuration for HTTP transport */
-const defaultConfig = {
-  APILayer: 105,
-  ssl: false,
-  protocol: new Intermediate(),
-};
+interface WebSocketWithDC extends WebSocket {
+  __dc: number;
+}
 
 export default class Socket extends Transport {
-  /** Web Socket Handler */
-  ws: WebSocket;
+  /** Establish ssl connection */
+  ssl: boolean;
+
+  /** Use test servers */
+  test: boolean;
+
+  /** Web Socket Handlers */
+  ws: Record<number, WebSocket>;
 
   /** MTProto Transport Protocol */
-  protocol: MTProtoTransport;
-
-  /** MTProto Transport Protocol */
-  obfuscation: Obfuscation;
+  protocol: string;
 
   /** Quene of reponse callbacks for plain requests */
   plainResolvers: Record<string, ResponseCallback> = {};
 
-  /** Event listeners */
-  events: Record<string, Array<() => void>> = {};
+  /** Pending Requests */
+  pending: Record<number, Array<PlainMessage | Message>> = {};
 
   /**
    * Creates new web socket handler
    */
-  constructor(tl: TypeLanguage, extCfg?: SocketConfig) {
-    super(tl, extCfg);
+  constructor(tl: TypeLanguage, cfg: SocketConfig = {}) {
+    super(tl, cfg);
 
-    const cfg: SocketConfig = { ...defaultConfig, ...extCfg };
+    this.protocol = cfg.protocol || 'intermediate';
+    this.ssl = cfg.ssl || true;
+    this.test = cfg.test || false;
+    this.ws = {};
 
-    this.protocol = cfg.protocol;
-    this.obfuscation = new Obfuscation();
-
-    this.ws = new WebSocket(`ws${cfg.ssl ? 's' : ''}://${this.dc.getHost()}/apiws_test`, 'binary');
-    this.ws.binaryType = 'arraybuffer';
-    this.ws.onopen = this.handleOpen;
-    this.ws.onclose = this.handleClose;
-    this.ws.onmessage = this.handleMessage;
+    this.connect(this.dc.default);
   }
+
+  /**
+   * Creates connection handler
+   */
+  connect = (dcID: number) => {
+    this.ws[dcID] = new WebSocket(`ws${this.ssl ? 's' : ''}://${this.dc.getHost()}/apiws${this.test ? '_test' : ''}`, 'binary');
+    (this.ws[dcID] as WebSocketWithDC).__dc = dcID;
+    this.ws[dcID].binaryType = 'arraybuffer';
+    this.ws[dcID].onopen = this.handleOpen;
+    this.ws[dcID].onclose = this.handleClose;
+    this.ws[dcID].onmessage = this.handleMessage;
+  };
 
   /**
    * Handles onopen event at websocket object
    */
-  handleOpen = () => {
-    log('opened');
+  handleOpen = (event: Event) => {
+    if (!(event.currentTarget instanceof WebSocket)) return;
 
-    const initPayload = this.obfuscation.init(this.protocol.header);
-    this.ws.send(initPayload.buffer.buffer);
+    const ws = event.currentTarget;
+    const dc = (ws as WebSocketWithDC).__dc;
 
-    log('ready');
+    log('opened', dc);
 
-    this.emit('ready');
+    async('transport_init', [dc, this.protocol], (initPayload: string) => {
+      ws.send(hex(initPayload).buffer.buffer);
+
+      log('ready', dc);
+
+      if (dc === this.dc.default) {
+        this.emit('connected');
+      }
+
+      if (this.pending[dc]) {
+        for (let i = 0; i < this.pending[dc].length; i += 1) {
+          const msg = this.pending[dc].shift();
+          if (msg) this.send(msg);
+        }
+      }
+    });
   };
 
   /**
    * Handles onclose event at websocket object
    */
-  handleClose = () => {
-    log('closed');
+  handleClose = (event: Event) => {
+    if (!(event.currentTarget instanceof WebSocket)) return;
 
-    this.emit('disconnected');
+    const ws = event.currentTarget;
+    const dc = (ws as WebSocketWithDC).__dc;
+
+    log('closed', dc);
+
+    if (dc === this.dc.default) {
+      this.emit('disconnected');
+    }
   };
 
   /**
    * Handles onmessage event at websocket object
    */
   handleMessage = (event: MessageEvent) => {
+    if (!(event.currentTarget instanceof WebSocket)) return;
+
+    const ws = event.currentTarget;
+    const dc = (ws as WebSocketWithDC).__dc;
+
     if (event.data instanceof ArrayBuffer) {
-      const msg = this.protocol.unWrap(this.obfuscation.decode(new Bytes(event.data)));
+      async('transport_decrypt', [dc, new Bytes(event.data).hex, this.auth.tempKey], (data: string[]) => {
+        const [type, payload] = data;
 
-      if (msg instanceof PlainMessage) {
-        const result = this.tl.parse(msg.data);
+        if (type === 'plain') {
+          const msg = new PlainMessage(hex(payload));
+          const result = this.tl.parse(msg.data);
 
-        if (result instanceof TLConstructor && result.params.nonce instanceof TLNumber && result.params.nonce.buf) {
-          msg.nonce = result.params.nonce.buf.hex;
+          if (result instanceof TLConstructor && result.params.nonce instanceof TLNumber && result.params.nonce.buf) {
+            msg.nonce = result.params.nonce.buf.hex;
+          }
+
+          if (msg.nonce && this.plainResolvers[msg.nonce]) {
+            this.plainResolvers[msg.nonce](null, result, {
+              msgID: msg.id,
+            });
+            delete this.plainResolvers[msg.nonce];
+          }
         }
 
-        if (msg.nonce && this.plainResolvers[msg.nonce]) {
-          this.plainResolvers[msg.nonce](null, result, {
-            msgID: msg.id,
-          });
-          delete this.plainResolvers[msg.nonce];
-        }
-      }
+        if (type === 'encrypted') {
+          const msg = new Message(hex(payload));
+          const result = this.tl.parse(msg.data);
+          const headers = { msgID: msg.id, dcID: dc };
 
-      if (msg instanceof EncryptedMessage) {
-        console.log(msg);
-      }
+          this.rpc.processMessage(result, headers);
+        }
+      });
     }
   };
 
@@ -118,34 +156,27 @@ export default class Socket extends Transport {
    * Method sends bytes to server via web socket.
    * @param {Message} msg Message interface
    */
-  send(msg: PlainMessage | EncryptedMessage, _headers: Record<string, any>, cb: ResponseCallback) {
-    if (msg instanceof PlainMessage) {
+  send(msg: PlainMessage | Message, headers: Record<string, any> = {}, cb?: ResponseCallback) {
+    if (msg instanceof PlainMessage && cb) {
       this.plainResolvers[msg.nonce] = cb;
     }
 
-    this.ws.send(
-      this.obfuscation.encode(
-        this.protocol.wrap(msg),
-      ).buffer.buffer,
-    );
-  }
+    const dc = headers.dcID || this.dc.default;
 
-  /**
-   * Subscribe to transport event
-   */
-  on(event: string, cb: () => {}): void {
-    if (!this.events[event]) this.events[event] = [];
-    this.events[event].push(cb);
-  }
+    if (this.ws[dc] && this.ws[dc].readyState === 1) {
+      const authKey = this.dc.getAuthKey(dc);
 
-  /**
-   * Emit transport event
-   */
-  emit(event: string): void {
-    if (this.events[event]) {
-      for (let i = 0; i < this.events[event].length; i += 1) {
-        this.events[event][i]();
-      }
+      async('transport_encrypt', [dc, msg.buf.hex, authKey ? authKey.key : ''], (data: string) => {
+        this.ws[dc].send(hex(data).buffer.buffer);
+      });
+
+      if (msg instanceof Message) this.rpc.subscribe(msg, headers, cb);
+      return;
     }
+
+    if (!this.pending[dc]) this.pending[dc] = [];
+    if (!this.ws[dc]) this.connect(dc);
+
+    this.pending[dc].push(msg);
   }
 }

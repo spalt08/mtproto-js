@@ -5,13 +5,25 @@ import TypeLanguage, { TLConstructor, TLVector } from '../tl';
 import { PredefinedKeys, RSAKey } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
 import { Bytes, hex } from '../serialization';
+import sha1 from '../crypto/sha1';
+import { MessageV1, PlainMessage } from '../message';
+import { encryptMessageV1 } from '../crypto/aes/message.v1';
 
 const log = logs('auth');
+
+export type AuthKey = {
+  key: string,
+  id: string,
+  expires?: number,
+  binded?: boolean,
+};
 
 /**
  * Service class helper for authorization stuff
  */
 export default class AuthService {
+  expireDefault = 3600 * 2;
+
   /** Type Language Handler */
   tl: TypeLanguage;
 
@@ -22,7 +34,9 @@ export default class AuthService {
    * Authorization keys
    * Ref: https://core.telegram.org/mtproto/auth_key
    */
-  keys: null = null;
+  keys: Record<number, AuthKey> = {};
+
+  tempKey: string = '';
 
   /** RSA Keys */
   RSAKeys: Array<RSAKey>;
@@ -41,8 +55,8 @@ export default class AuthService {
    * Creates AuthKey using DH-exchange
    * Ref: https://core.telegram.org/mtproto/auth_key
    */
-  createAuthKey(dcID: number, expiresAfter: number, cb: (key: string) => void) {
-    log(`creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key async`);
+  createAuthKey(dcID: number, expiresAfter: number, cb: (key: AuthKey) => void) {
+    log(dcID, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key`);
 
     const nonce = new Bytes(16).randomize();
     const newNonce = new Bytes(32).randomize();
@@ -114,7 +128,7 @@ export default class AuthService {
               const g = BigInt(serverDH.params.g.value);
               const ga = BigInt(serverDH.params.g_a.value, 16);
               const dhPrime = BigInt(serverDH.params.dh_prime.value, 16);
-              const b = BigInt.randBetween('-1e256', '1e256'); // BigInt(new Bytes(255).randomize().hex, 16);
+              const b = BigInt(new Bytes(255).randomize().hex, 16);
 
               const gb = g.modPow(b, dhPrime);
 
@@ -139,11 +153,22 @@ export default class AuthService {
                     throw new Error('Auth Service: Unexpected set_client_DH_params response');
                   }
 
-                  const authKey = ga.modPow(b, dhPrime).toString(16);
+                  const authKeyFull = ga.modPow(b, dhPrime).toString(16);
+                  const authKey: AuthKey = {
+                    id: sha1(hex(authKeyFull)).slice(12, 20).hex,
+                    key: authKeyFull,
+                  };
 
-                  // if (isTemporary) this.transport.session.serverSalt = Hex.xor(nnr.sliceBytes(0, 8), snr.sliceBytes(0, 8));
+                  if (expiresAfter > 0) {
+                    authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
+                    authKey.binded = false;
 
-                  log(`${expiresAfter > 0 ? 'temporary' : 'permanent'} key created`);
+                    this.transport.dc.setMeta(dcID, 'salt', Bytes.xor(newNonce.reverse().slice(0, 8), serverNonce.reverse().slice(0, 8)).hex);
+                  }
+
+                  this.transport.dc.setMeta(dcID, 'tempKey', authKey);
+
+                  log(dcID, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created`);
 
                   if (cb) cb(authKey);
                 });
@@ -152,6 +177,55 @@ export default class AuthService {
           });
         });
       });
+    });
+  }
+
+  /**
+   * Binds temp auth key to permenent
+   * Ref: https://core.telegram.org/method/auth.bindTempAuthKey
+   */
+  bindTempAuthKey(dc: number, permKey: AuthKey, tempKey: AuthKey) {
+    log(dc, 'binding temporary key');
+
+    this.tempKey = tempKey.key;
+
+    const permAuthKeyID = hex(permKey.id).uint;
+    const tempAuthKeyID = hex(tempKey.id).uint;
+
+    const nonce = new Bytes(8).randomize().uint;
+    const tmpSessionID = new Bytes(8).randomize();
+    const expiresAt = tempKey.expires;
+    const msgID = PlainMessage.GenerateID();
+
+    this.transport.dc.setMeta(dc, 'sessionID', tmpSessionID.hex);
+
+    const q = this.tl.create('bind_auth_key_inner', {
+      nonce,
+      temp_auth_key_id: tempAuthKeyID,
+      perm_auth_key_id: permAuthKeyID,
+      temp_session_id: tmpSessionID.uint,
+      expires_at: expiresAt,
+    });
+
+    const bindMsg = new MessageV1(q);
+
+    bindMsg.salt = new Bytes(8).randomize().hex;
+    bindMsg.sessionID = new Bytes(8).randomize().hex;
+    bindMsg.id = msgID;
+
+    const query = this.tl.create('auth.bindTempAuthKey', {
+      perm_auth_key_id: permAuthKeyID,
+      nonce,
+      expires_at: expiresAt,
+      encrypted_message: encryptMessageV1(permKey, bindMsg).buf.hex,
+    });
+
+    this.transport.call(query, { msgID }, (err, res) => {
+      if (!err && res && res.json() === true) {
+        log(dc, 'temporary key successfuly binded');
+      } else {
+        throw new Error('Auth: Binding temp auth key failed');
+      }
     });
   }
 }

@@ -988,4 +988,5 @@ util.hasWideChar = function (str) {
 
 forge.util = util;
 
-module.exports = forge;
+
+export default forge;

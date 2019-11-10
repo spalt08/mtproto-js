@@ -28,7 +28,7 @@ export default class Message {
     }
 
     if (src instanceof TLConstructor) {
-      this.plen = 32 - (src.byteSize % 16); // + Math.floor(Math.random() * 20) * 16;
+      this.plen = this.getPaddingLen(src.byteSize);
       this.buf = new Bytes(this.hlen + src.byteSize + this.plen);
       src.write(this.buf, this.hlen);
 
@@ -39,6 +39,11 @@ export default class Message {
     }
 
     throw new Error(`Unable to create message with ${src}`);
+  }
+
+  // eslint-disable-next-line
+  getPaddingLen(len: number) {
+    return 32 - (len % 16); // + Math.floor(Math.random() * 20) * 16;
   }
 
   /**
@@ -52,14 +57,18 @@ export default class Message {
    * Method gets message identificator from the 16-24 bytes
    */
   get id(): string {
-    return this.buf.slice(8, 16).lhex;
+    return this.buf.slice(16, 24).lhex;
   }
 
   /**
    * Method sets 28-32 bytes with message_data_length
    */
   len(): void {
-    this.buf.slice(28, 32).uint = this.buf.length - this.hlen - this.plen;
+    this.buf.slice(28, 32).int32 = this.buf.length - this.hlen - this.plen;
+  }
+
+  get dataLength(): number {
+    return this.buf.slice(28, 32).int32;
   }
 
   /**
@@ -81,6 +90,20 @@ export default class Message {
    */
   set seqNo(seq: number) {
     this.buf.slice(24, 28).uint = seq;
+  }
+
+  /**
+   * Method sets encrypted_data from 32 byte
+   */
+  set data(data: Bytes) {
+    this.buf.slice(32, 32 + this.dataLength).raw = data.raw;
+  }
+
+  /**
+   * Method gets encrypted_data starts 32 byte
+   */
+  get data(): Bytes {
+    return this.buf.slice(32, 32 + this.dataLength);
   }
 
   /**

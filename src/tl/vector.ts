@@ -169,7 +169,7 @@ export default class TLVector extends TLAbstract {
     this._byteSize = this.isBare ? 4 : 8;
 
     for (let i = 0; i < this.items.length; i += 1) {
-      this._byteSize = this.items[i].byteSize;
+      this._byteSize += this.items[i].byteSize;
     }
 
     return this._byteSize;

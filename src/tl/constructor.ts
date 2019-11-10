@@ -46,13 +46,13 @@ export default class TLConstructor extends TLAbstract {
   /**
    * Fetches type language schema
    */
-  fetch(declaration: SchemaEntity) {
+  fetch(declaration: SchemaEntity | null) {
     this.declaration = declaration;
-    this._ = declaration.predicate || declaration.method || '';
+    this._ = declaration ? (declaration.predicate || declaration.method || '') : '';
     this.params = {};
     this.flags = null;
 
-    if (this.declaration.params) {
+    if (this.declaration && this.declaration.params) {
       for (let i = 0; i < this.declaration.params.length; i += 1) {
         const param = this.declaration.params[i];
 
