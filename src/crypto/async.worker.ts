@@ -94,6 +94,7 @@ ctx.addEventListener('message', (event) => {
   }
 });
 
+/* For jest testing */
 export default class WorkerMock {
   onmessage: undefined | ((event: MessageEvent) => void);
 
