@@ -57,21 +57,21 @@ module.exports = (env, argv) => {
           loader: 'babel-loader',
         },
         {
-          test: /\.ts$/,
-          exclude: /node_modules/,
-          loader: 'ts-loader',
-          options: {
-            transpileOnly: true,
-          },
-        },
-        {
-          test: /\.worker\.js$/,
+          test: /\.worker\.[^.]+$/,
           use: {
             loader: 'worker-loader',
             options: {
               inline: true,
               fallback: false,
             },
+          },
+        },
+        {
+          test: /\.ts$/,
+          exclude: /node_modules/,
+          loader: 'ts-loader',
+          options: {
+            transpileOnly: true,
           },
         },
       ],

@@ -16,11 +16,3 @@ declare module '*.json' {
 }
 
 declare module 'aes-js'
-
-declare module 'src/crypto/async.worker' {
-  class WebpackWorker extends Worker {
-    constructor();
-  }
-
-  export = WebpackWorker;
-}

@@ -92,3 +92,5 @@ self.addEventListener('message', (event) => {
     log('task', task, `${((Date.now() - time) / 1000).toFixed(2)}s`);
   }
 });
+
+export default {} as {new (): Worker};
