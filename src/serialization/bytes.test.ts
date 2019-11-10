@@ -29,6 +29,9 @@ test('Bytes | hex', () => {
   buf.hex = 'a';
   expect(buf.hex).toBe('0a0000');
 
+  buf.hex = 'abcde';
+  expect(buf.hex).toBe('0abcde');
+
   buf.hex = 'ffffff';
   expect(buf.hex).toBe('ffffff');
 });
@@ -66,6 +69,13 @@ test('Bytes | uint', () => {
 
   buf.uint = 256;
   expect(buf.buffer).toEqual(new Uint8Array([0, 1, 0, 0]));
+});
+
+test('Bytes | uint write 255 at 3 bytes', () => {
+  const buf = new Bytes(3);
+
+  buf.uint = 255;
+  expect(buf.hex).toEqual('ff0000');
 });
 
 test('Bytes | big integer', () => {

@@ -29,7 +29,7 @@ export default class RPCService {
   }>;
 
   /** Pending message acknowlegments  */
-  pendingAcks: Array<string>;
+  pendingAcks: Record<number, Array<string>>;
 
   /**
    * Creates auth service object
@@ -47,8 +47,6 @@ export default class RPCService {
    */
   subscribe(msg: Message, headers: Record<string, any>, cb?: ResponseCallback) {
     const msgID = msg.id;
-
-    log('<- rpc_call', msgID);
 
     if (cb) {
       this.messages[msgID] = { msg, headers, cb };
@@ -69,12 +67,12 @@ export default class RPCService {
 
           const result = this.tl.parse(buf);
 
-          log('-> ', result._, msgID);
+          log(this.messages[msgID].headers.dcID, '-> ', result._, msgID);
 
           this.messages[msgID].cb(null, result, headers);
           delete this.messages[msgID];
         } else {
-          log('-> ', res._, msgID);
+          log(this.messages[msgID].headers.dcID, '-> ', res._, msgID);
           this.messages[msgID].cb(error, res, headers);
           delete this.messages[msgID];
         }
@@ -96,26 +94,30 @@ export default class RPCService {
       if (changeSeq) request.msg.seqNo = this.transport.dc.nextSeqNo(request.headers.dcID, true);
 
       this.transport.call(request.msg, request.headers, request.cb);
-      log('re-sent', msgID);
+      log(request.headers.dcID, '<- re-sent', msgID);
     }
   }
 
   /**
    * Adds message ID to ack pending list
    */
-  ackMsg(...msgIDs: string[]) {
+  ackMsg(dc: number, ...msgIDs: string[]) {
+    if (!this.pendingAcks[dc]) this.pendingAcks[dc] = [];
+
     for (let i = 0; i < msgIDs.length; i += 1) {
-      if (this.pendingAcks.indexOf(msgIDs[i]) === -1) this.pendingAcks.push(msgIDs[i]);
+      if (this.pendingAcks[dc].indexOf(msgIDs[i]) === -1) this.pendingAcks[dc].push(msgIDs[i]);
     }
   }
 
   /**
    * Sends message acks from pending list
    */
-  sendAcks() {
-    if (this.pendingAcks.length > 0) {
-      this.transport.call('msgs_ack', { msg_ids: this.pendingAcks.map((id) => uint(id)) });
-      this.pendingAcks = [];
+  sendAcks(dcID: number) {
+    if (!this.pendingAcks[dcID]) this.pendingAcks[dcID] = [];
+
+    if (this.pendingAcks[dcID].length > 0) {
+      this.transport.call('msgs_ack', { msg_ids: this.pendingAcks[dcID].map((id) => uint(id)) }, { dcID });
+      this.pendingAcks[dcID] = [];
     }
   }
 
@@ -137,14 +139,14 @@ export default class RPCService {
         //     this.transport.updates.process(result);
         //   }
         // } else {
-        log('unknown %s', result._, result);
+        log(headers.dcID, '-> unknown %s', result._, result);
         // }
 
-        if (headers.msgID) this.ackMsg(headers.msgID);
+        if (headers.msgID) this.ackMsg(headers.dcID, headers.msgID);
         break;
     }
 
-    if (ack) this.sendAcks();
+    if (ack) this.sendAcks(headers.dcID);
   }
 
   /**
@@ -156,7 +158,7 @@ export default class RPCService {
         const item = result.params.messages.items[i];
 
         if (item instanceof TLConstructor) {
-          this.ackMsg(item.params.msg_id.buf!.lhex);
+          this.ackMsg(headers.dcID, item.params.msg_id.buf!.lhex);
 
           this.processMessage(item.params.body, {
             ...headers,
@@ -172,9 +174,9 @@ export default class RPCService {
    * Processes: bad_server_salt
    */
   processBadServerSalt(result: TLAbstract, headers: Record<string, any>) {
-    log('-> bad_server_salt');
+    log(headers.dcID, '-> bad_server_salt');
 
-    if (headers.msgID) this.ackMsg(headers.msgID);
+    if (headers.msgID) this.ackMsg(headers.dcID, headers.msgID);
 
     if (result instanceof TLConstructor) {
       const msgID = result.params.bad_msg_id.buf!.lhex;
@@ -189,9 +191,9 @@ export default class RPCService {
    * Processes: new_session_created
    */
   processSessionCreated(result: TLAbstract, headers: Record<string, any>) {
-    log('-> new_session_created');
+    log(headers.dcID, '-> new_session_created');
 
-    if (headers.msgID) this.ackMsg(headers.msgID);
+    if (headers.msgID) this.ackMsg(headers.dcID, headers.msgID);
 
     if (result instanceof TLConstructor) {
       const newSalt = result.params.server_salt.buf!.hex;
@@ -204,7 +206,7 @@ export default class RPCService {
    */
   processBadMsgNotification(result: TLAbstract, headers: Record<string, any>) {
     if (result instanceof TLConstructor) {
-      log('-> bad_msg_notification', result.params.bad_msg_id.buf!.hex, result.params.error_code.value);
+      log(headers.dcID, '-> bad_msg_notification', result.params.bad_msg_id.buf!.hex, result.params.error_code.value);
 
       if (result.params.error_code.value === 32) {
         this.resend(result.params.bad_msg_id.buf!.lhex, true);
@@ -212,7 +214,7 @@ export default class RPCService {
 
       // To Do: sync server time
 
-      if (headers.msgID) this.ackMsg(headers.msgID);
+      if (headers.msgID) this.ackMsg(headers.dcID, headers.msgID);
     }
   }
 
@@ -224,9 +226,9 @@ export default class RPCService {
       const { result } = res.params;
       const reqMsgID = res.params.req_msg_id.buf!.lhex;
 
-      log('-> rpc_result', reqMsgID);
+      log(headers.dcID, '-> rpc_result', reqMsgID);
 
-      if (headers.msgID) this.ackMsg(headers.msgID);
+      if (headers.msgID) this.ackMsg(headers.dcID, headers.msgID);
 
       switch (result._) {
         case 'rpc_error':
@@ -237,6 +239,7 @@ export default class RPCService {
               message: result.params.error_message.value,
             });
           }
+          console.log('rpc err', this.messages[reqMsgID]);
           break;
 
         default:

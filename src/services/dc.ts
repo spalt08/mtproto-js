@@ -19,6 +19,7 @@ export default class DCService {
 
   /** Datacenter meta data */
   meta: Record<number, {
+    permKey?: AuthKey,
     tempKey?: AuthKey,
     salt?: string,
     sessionID?: string,
@@ -38,7 +39,7 @@ export default class DCService {
   }
 
   setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;
-  setMeta(dc: number, param: 'tempKey', value: AuthKey): void;
+  setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey): void;
   setMeta(dc: number, param: string, value: any) {
     if (!this.meta[dc]) this.meta[dc] = {};
 

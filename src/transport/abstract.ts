@@ -66,6 +66,8 @@ export default class Transport {
 
   public call(method: string, data: Record<string, any>, cb: ResponseCallback): void;
 
+  public call(method: string, data: Record<string, any>, headers: Record<string, any>): void;
+
   public call(method: string, data: Record<string, any>, headers: Record<string, any>, cb: ResponseCallback): void;
 
   public call(src: TLConstructor | Message | string, ...args: unknown[]): void {

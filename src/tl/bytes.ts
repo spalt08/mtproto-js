@@ -42,7 +42,7 @@ export default class TLBytes extends TLAbstract {
     if (this._ === 'string') {
       len = this.value.length;
     } else {
-      len = this.value.length / 2;
+      len = Math.ceil(this.value.length / 2);
     }
 
     if (len < 0xFE) {
@@ -112,7 +112,7 @@ export default class TLBytes extends TLAbstract {
     if (this._ === 'string') {
       len = this.value.length;
     } else {
-      len = this.value.length / 2;
+      len = Math.ceil(this.value.length / 2);
     }
 
     if (len < 0xFE) {

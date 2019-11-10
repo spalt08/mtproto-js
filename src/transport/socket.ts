@@ -59,7 +59,7 @@ export default class Socket extends Transport {
    * Creates connection handler
    */
   connect = (dcID: number) => {
-    this.ws[dcID] = new WebSocket(`ws${this.ssl ? 's' : ''}://${this.dc.getHost()}/apiws${this.test ? '_test' : ''}`, 'binary');
+    this.ws[dcID] = new WebSocket(`ws${this.ssl ? 's' : ''}://${this.dc.getHost(dcID)}/apiws${this.test ? '_test' : ''}`, 'binary');
     (this.ws[dcID] as WebSocketWithDC).__dc = dcID;
     this.ws[dcID].binaryType = 'arraybuffer';
     this.ws[dcID].onopen = this.handleOpen;
@@ -90,7 +90,7 @@ export default class Socket extends Transport {
       if (this.pending[dc]) {
         for (let i = 0; i < this.pending[dc].length; i += 1) {
           const msg = this.pending[dc].shift();
-          if (msg) this.send(msg);
+          if (msg) this.send(msg, { dcID: dc });
         }
       }
     });
@@ -120,9 +120,10 @@ export default class Socket extends Transport {
 
     const ws = event.currentTarget;
     const dc = (ws as WebSocketWithDC).__dc;
+    const authKey = this.dc.getAuthKey(dc);
 
     if (event.data instanceof ArrayBuffer) {
-      async('transport_decrypt', [dc, new Bytes(event.data).hex, this.auth.tempKey], (data: string[]) => {
+      async('transport_decrypt', [dc, new Bytes(event.data).hex, authKey ? authKey.key : ''], (data: string[]) => {
         const [type, payload] = data;
 
         if (type === 'plain') {

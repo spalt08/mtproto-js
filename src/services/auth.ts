@@ -166,7 +166,8 @@ export default class AuthService {
                     this.transport.dc.setMeta(dcID, 'salt', Bytes.xor(newNonce.reverse().slice(0, 8), serverNonce.reverse().slice(0, 8)).hex);
                   }
 
-                  this.transport.dc.setMeta(dcID, 'tempKey', authKey);
+                  if (expiresAfter > 0) this.transport.dc.setMeta(dcID, 'tempKey', authKey);
+                  else this.transport.dc.setMeta(dcID, 'permKey', authKey);
 
                   log(dcID, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created`);
 
@@ -220,9 +221,11 @@ export default class AuthService {
       encrypted_message: encryptMessageV1(permKey, bindMsg).buf.hex,
     });
 
-    this.transport.call(query, { msgID }, (err, res) => {
+    this.transport.call(query, { msgID, dcID: dc }, (err, res) => {
       if (!err && res && res.json() === true) {
         log(dc, 'temporary key successfuly binded');
+
+        this.transport.dc.setMeta(dc, 'tempKey', tempKey);
       } else {
         throw new Error('Auth: Binding temp auth key failed');
       }

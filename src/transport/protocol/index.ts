@@ -3,3 +3,5 @@ export { default as Intermediate } from './intermediate';
 export { default as Abridged } from './abridged';
 export { default as Full } from './full';
 export { default as Obfuscation } from './obfuscation';
+
+export type MTProtoTransport = 'abridged' | 'intermediate' | 'intermediate_padded' | 'full';
