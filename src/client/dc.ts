@@ -1,21 +1,23 @@
-/* eslint-disable no-dupe-class-members, lines-between-class-members */
-import { AuthKey } from './auth';
+/* eslint-disable no-dupe-class-members, lines-between-class-members, class-methods-use-this */
+import { AuthKey } from '../services/auth';
 import { Bytes } from '../serialization';
+
+type DCConfig = {
+  host: string,
+  media: boolean,
+};
 
 /**
  * Helper class for managing datacenters
  */
 export default class DCService {
-  static Alias: Record<number, string> = {
-    1: 'pluto',
-    2: 'venus',
-    3: 'aurora',
-    4: 'vesta',
-    5: 'flora',
+  static Config: Record<number, DCConfig> = {
+    1: { host: 'pluto', media: true },
+    2: { host: 'venus', media: true },
+    3: { host: 'aurora', media: true },
+    4: { host: 'vesta', media: true },
+    5: { host: 'flora', media: true },
   };
-
-  /** Default datacenter */
-  default: number = 2;
 
   /** Datacenter meta data */
   meta: Record<number, {
@@ -29,13 +31,9 @@ export default class DCService {
     [key: string]: any,
   }> = {};
 
-  constructor(base?: number) {
-    if (base) this.default = base;
-  }
-
   /** Resolve hostname by dc id */
-  getHost(dc: number = this.default, isCDN: boolean = false) {
-    return `${DCService.Alias[dc]}${isCDN ? '' : '-1'}.web.telegram.org`;
+  getHost(dc: number) {
+    return `${DCService.Config[dc].host}${DCService.Config[dc].host ? '-1' : ''}.web.telegram.org`;
   }
 
   setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;

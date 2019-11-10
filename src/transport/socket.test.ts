@@ -1,21 +1,24 @@
-// import Socket from './socket';
-// import { TypeLanguage } from '..';
-// import { hex } from '../serialization';
-// import { TranportError } from './abstract';
-// import { TLAbstract, TLConstructor } from '../tl';
+import Socket from './socket';
+import { TypeLanguage } from '..';
+import { hex } from '../serialization';
+import { DCService } from '../client';
+import { PlainMessage, Message } from '../message';
 
-// test('Transort | socket plain call', () => {
-//   const tl = new TypeLanguage();
-//   const nonce = hex('3E0549828CCA27E966B301A48FECE2FC').uint;
-//   const socket = new Socket(tl, { APILayer: 105 });
+test('Transort | socket plain call', () => {
+  const tl = new TypeLanguage();
+  const nonce = hex('3E0549828CCA27E966B301A48FECE2FC').uint;
+  const query = tl.create('req_pq', { nonce });
+  const msg = new PlainMessage(query.serialize());
 
-//   socket.on('ready', () => {
-//     socket.plainCall('req_pq', { nonce }, (error: TranportError | null, result?: TLAbstract) => {
-//       expect(error).toEqual(null);
+  const resolve = (_dc: number, _thread: number, res?: PlainMessage | Message) => {
+    if (res instanceof PlainMessage) {
+      expect(tl.parse(res.data).json().nonce).toEqual(nonce);
+    } else throw new Error('FAIL');
+  };
 
-//       if (result instanceof TLConstructor) {
-//         expect(result.json().nonce).toEqual(nonce);
-//       } else throw new Error('FAIL');
-//     });
-//   });
-// });
+  const socket = new Socket(new DCService(), {
+    test: true, ssl: true, dc: 1, thread: 1, protocol: 'intermediate', resolve,
+  });
+
+  socket.send(msg);
+});

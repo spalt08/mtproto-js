@@ -15,7 +15,7 @@ test('transport | full', () => {
   expect(enveloped.slice(0, 4).int32).toEqual(payload.length + 12);
   expect(enveloped.slice(4, 8).int32).toEqual(0);
   expect(enveloped.slice(8, 8 + payload.length).hex).toEqual(payload.hex);
-  expect(enveloped.slice(8 + payload.length).hex).toEqual(crc32(enveloped.slice(0, 8 + payload.length).raw).toString(16));
+  expect(enveloped.slice(8 + payload.length).hex).toEqual(`0${crc32(enveloped.slice(0, 8 + payload.length).raw).toString(16)}`.slice(-8));
 
   const unenveloped = protocol.unWrap(enveloped);
 

@@ -1,10 +1,12 @@
+
+import { DCService } from '../client';
 import Transport from './abstract';
-import { TypeLanguage } from '..';
 
 test('Transort | constructor', () => {
-  const tl = new TypeLanguage();
-  const tr = new Transport(tl, { APILayer: 1 });
+  const tr = new Transport(new DCService(), {
+    test: true, ssl: true, dc: 1, thread: 1,
+  });
 
-  expect(tr.tl).toEqual(tl);
-  expect(tr.layer).toEqual(1);
+  expect(tr.cfg.dc).toEqual(1);
+  expect(tr.cfg.thread).toEqual(1);
 });

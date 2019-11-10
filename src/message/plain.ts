@@ -25,6 +25,7 @@ export default class PlainMessage {
   constructor(src: Bytes | TLConstructor) {
     if (src instanceof Bytes) {
       this.buf = src;
+      this.nonce = this.buf.slice(24, 40).hex;
       return;
     }
 
