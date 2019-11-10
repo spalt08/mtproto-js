@@ -34,6 +34,7 @@
     "babel-loader": "^8.0.6",
     "clean-webpack-plugin": "^3.0.0",
     "cross-env": "^6.0.3",
+    "declaration-bundler-webpack-plugin": "https://github.com/smol/declaration-bundler-webpack-plugin#91bbfa5feb9136c4d91c443df63cee9a8439421b",
     "eslint": "^6.6.0",
     "eslint-config-airbnb-typescript": "^6.0.0",
     "eslint-import-resolver-webpack": "^0.11.1",
@@ -53,7 +54,8 @@
     "worker-loader": "^2.0.0"
   },
   "license": "GPL-3.0-or-later",
-  "main": "dist/lib.js",
+  "main": "dist/mtproto-js.cjs.js",
+  "types": "dist/mtproto-js.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/spalt08/mtproto-js.git"

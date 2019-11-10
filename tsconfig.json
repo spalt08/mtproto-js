@@ -11,6 +11,7 @@
     "module": "esnext",
     "moduleResolution": "node",
     "sourceMap": true,
+    "declaration": true,
     "esModuleInterop": true,
     "allowJs": true
   },

@@ -2,6 +2,8 @@ const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const DeclarationBundlerPlugin = require('declaration-bundler-webpack-plugin');
+const { name: libraryName } = require('./package.json');
 
 const sourceDirectory = 'src';
 const destinationDirectory = 'dist';
@@ -19,6 +21,10 @@ module.exports = (env, argv) => {
 
     plugins: [
       new CleanWebpackPlugin(),
+      new DeclarationBundlerPlugin({
+        moduleName: `'${libraryName}'`,
+        out: `${libraryName}.d.ts`,
+      }),
       ...(analyze ? [
         new BundleAnalyzerPlugin({
           analyzerPort: 3001,
@@ -28,10 +34,9 @@ module.exports = (env, argv) => {
 
     output: {
       path: path.resolve(__dirname, destinationDirectory),
-      filename: 'lib.js',
-      publicPath: '/',
-      library: 'mtproto-js',
-      libraryTarget: 'umd',
+      filename: `${libraryName}.cjs.js`,
+      library: libraryName,
+      libraryTarget: 'commonjs2',
     },
 
     optimization: {
@@ -51,12 +56,6 @@ module.exports = (env, argv) => {
     module: {
       rules: [
         {
-          test: /\.js$/,
-          include: path.resolve(__dirname, 'src'),
-          exclude: /node_modules/,
-          loader: 'babel-loader',
-        },
-        {
           test: /\.worker\.[^.]+$/,
           use: {
             loader: 'worker-loader',
@@ -67,12 +66,15 @@ module.exports = (env, argv) => {
           },
         },
         {
+          test: /\.js$/,
+          include: path.resolve(__dirname, 'src'),
+          exclude: /node_modules/,
+          loader: 'babel-loader',
+        },
+        {
           test: /\.ts$/,
           exclude: /node_modules/,
           loader: 'ts-loader',
-          options: {
-            transpileOnly: true,
-          },
         },
       ],
     },
