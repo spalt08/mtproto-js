@@ -1,6 +1,7 @@
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 const sourceDirectory = 'src';
 const destinationDirectory = 'dist';
@@ -17,6 +18,7 @@ module.exports = (env, argv) => {
     devtool: isProduction ? undefined : 'inline-source-map',
 
     plugins: [
+      new CleanWebpackPlugin(),
       ...(analyze ? [
         new BundleAnalyzerPlugin({
           analyzerPort: 3001,
@@ -33,7 +35,6 @@ module.exports = (env, argv) => {
     },
 
     optimization: {
-      minimize: true,
       minimizer: [
         new TerserPlugin({
           // sourceMap: true, // For source maps in production (may be required depending on the contest rules)
