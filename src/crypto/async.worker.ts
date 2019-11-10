@@ -8,14 +8,15 @@ import { decrypt, encrypt } from './aes/ige';
 import sha1 from './sha1';
 
 const log = logs('worker');
+const ctx: Worker = self as any;
 
 // Resolve result
-function resolve(taskID, result) {
-  self.postMessage({ id: taskID, result });
+function resolve(taskID: string, result: any) {
+  ctx.postMessage({ id: taskID, result });
 }
 
 // Respond to message from parent thread
-self.addEventListener('message', (event) => {
+ctx.addEventListener('message', (event) => {
   if (event.data && event.data.id) {
     const { payload, task, id } = event.data;
 
@@ -93,4 +94,12 @@ self.addEventListener('message', (event) => {
   }
 });
 
-export default {} as {new (): Worker};
+export default class WorkerMock {
+  onmessage: undefined | ((event: MessageEvent) => void);
+
+  // eslint-disable-next-line
+  constructor() {}
+
+  // eslint-disable-next-line
+  postMessage(_msg: any): void {};
+}

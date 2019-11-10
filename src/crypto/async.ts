@@ -1,4 +1,4 @@
-import Worker from './async.worker';
+import AsyncWorker from './async.worker';
 import { RSAKey } from './rsa/keys';
 
 /**
@@ -6,7 +6,7 @@ import { RSAKey } from './rsa/keys';
  */
 type ResponseResolver = (res: any) => void;
 
-const worker = new Worker();
+const worker = new AsyncWorker();
 const quene: Record<string, ResponseResolver> = {};
 
 /**

@@ -56,7 +56,7 @@ export default class Socket extends Transport {
     this.protocol = cfg.protocol;
     this.obfuscation = new Obfuscation();
 
-    this.ws = new WebSocket(`ws${cfg.ssl ? 's' : ''}://${this.dc.getHost()}/apiws`, 'binary');
+    this.ws = new WebSocket(`ws${cfg.ssl ? 's' : ''}://${this.dc.getHost()}/apiws_test`, 'binary');
     this.ws.binaryType = 'arraybuffer';
     this.ws.onopen = this.handleOpen;
     this.ws.onclose = this.handleClose;
@@ -118,7 +118,7 @@ export default class Socket extends Transport {
    * Method sends bytes to server via web socket.
    * @param {Message} msg Message interface
    */
-  send(msg: PlainMessage | EncryptedMessage, cb: ResponseCallback) {
+  send(msg: PlainMessage | EncryptedMessage, _headers: Record<string, any>, cb: ResponseCallback) {
     if (msg instanceof PlainMessage) {
       this.plainResolvers[msg.nonce] = cb;
     }
