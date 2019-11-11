@@ -7,8 +7,8 @@ import { logs } from '../utils/log';
 import { Message } from '../message';
 import { Bytes, uint } from '../serialization';
 import { Client } from '.';
-import { RequestCallback, ClientError } from './client';
-import { RPCHeaders } from './rpc.types';
+import { RequestCallback } from './client';
+import { RPCHeaders, ClientError } from './rpc.types';
 
 const log = logs('rpc');
 
@@ -137,13 +137,13 @@ export default class RPCService {
       case 'rpc_result': this.processRPCResult(result, headers); break;
 
       default:
-        // if (result instanceof TLConstructor && result.declaration) {
-        //   if (result.declaration.type === 'Updates') {
-        //     this.transport.updates.process(result);
-        //   }
-        // } else {
-        log(headers.dc, '-> unknown %s', result._, result);
-        // }
+        if (result instanceof TLConstructor && result.declaration) {
+          if (result.declaration.type === 'Updates') {
+            this.client.updates.process(result);
+          }
+        } else {
+          log(headers.dc, '-> unknown %s', result._, result);
+        }
 
         if (headers.msgID) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.msgID);
         break;

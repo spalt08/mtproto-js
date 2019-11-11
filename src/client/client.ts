@@ -7,14 +7,8 @@ import DCService from './dc';
 import { Message, PlainMessage } from '../message';
 import { createAuthKey, bindTempAuthKey, initConnection } from './auth';
 import RPCService from './rpc';
-import { RPCHeaders } from './rpc.types';
-
-/** Generic error for mtproto transport */
-export type ClientError = {
-  type: 'rpc' | 'network';
-  code: number,
-  message?: string,
-};
+import { RPCHeaders, ClientError } from './rpc.types';
+import UpdatesService from './updates';
 
 /** Client inner callback */
 export type ClientCallback = (error: ClientError | null, result?: Message | PlainMessage) => void;
@@ -74,6 +68,9 @@ export default class Client {
   // todo: Client interface to RPC to avoid cycle
   rpc: RPCService;
 
+  /** Updates service */
+  updates: UpdatesService;
+
   /** Connection handlers */
   instances: Transport[];
 
@@ -93,6 +90,7 @@ export default class Client {
 
     this.svc = new DCService();
     this.rpc = new RPCService(this);
+    this.updates = new UpdatesService(this);
 
     this.pending = {};
     this.state = {};
@@ -147,12 +145,12 @@ export default class Client {
   createInstance(transport: string, dc: number, thread: number): Transport {
     if (transport === 'websocket') {
       return new Socket(this.svc, {
-        ...this.cfg, dc, thread, resolve: this.resolve,
+        ...this.cfg, dc, thread, resolve: this.resolve, resolveError: this.resolveError,
       });
     }
 
     return new Http(this.svc, {
-      ...this.cfg, dc, thread, resolve: this.resolve,
+      ...this.cfg, dc, thread, resolve: this.resolve, resolveError: this.resolveError,
     });
   }
 
@@ -184,6 +182,11 @@ export default class Client {
     }
 
     this.rpc.processMessage(result, headers);
+  };
+
+  /** Resolve transport error */
+  resolveError = (dc: number, thread: number, transport: string, nonce: string) => {
+    console.log(dc, thread, transport, nonce);
   };
 
   /** Create plain message and send it to the server */

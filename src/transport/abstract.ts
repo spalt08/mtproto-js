@@ -10,6 +10,7 @@ export type TransportConfig = {
   test: boolean,
   ssl: boolean,
   resolve: (res: Message | PlainMessage, headers: RPCHeaders) => void,
+  resolveError: (dc: number, thread: number, transport: string, nonce: string) => void,
 };
 
 /**

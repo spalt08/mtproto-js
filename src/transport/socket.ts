@@ -28,6 +28,9 @@ export default class Socket extends Transport {
   /** Instance transport */
   transport = 'websocket';
 
+  /** Last plain message nonce */
+  lastNonce: string | null = null;
+
   /**
    * Creates new web socket handler
    */
@@ -44,6 +47,7 @@ export default class Socket extends Transport {
     this.ws.binaryType = 'arraybuffer';
     this.ws.onopen = this.handleOpen;
     this.ws.onclose = this.handleClose;
+    this.ws.onerror = this.handleError;
     this.ws.onmessage = this.handleMessage;
     this.isConnecting = true;
   };
@@ -80,10 +84,20 @@ export default class Socket extends Transport {
   /**
    * Handles onclose event at websocket object
    */
-  handleClose = () => {
+  handleClose = (event: Event) => {
     log(this.cfg.dc, 'closed');
     this.emit('disconnected');
+    console.log(event);
+    this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '');
   };
+
+  /**
+   * Handles error event at websocket object
+   */
+  handleError = (event: Event) => {
+    this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '');
+    console.log(event);
+  }
 
   /**
    * Handles onmessage event at websocket object
@@ -98,6 +112,7 @@ export default class Socket extends Transport {
     if (!event.data) return;
 
     async('transport_decrypt', payload, (msg: Message | PlainMessage | Bytes) => {
+      if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
       if (msg instanceof Message || msg instanceof PlainMessage) {
         this.cfg.resolve(msg, {
           dc: this.cfg.dc,
@@ -115,6 +130,8 @@ export default class Socket extends Transport {
    * Method sends bytes to server via web socket.
    */
   send(msg: PlainMessage | Message) {
+    if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
+
     if (this.ws && this.ws.readyState === 1) {
       const authKey = this.svc.getAuthKey(this.cfg.dc);
       const { dc, thread } = this.cfg;
