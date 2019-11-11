@@ -84,11 +84,10 @@ export default class Socket extends Transport {
   /**
    * Handles onclose event at websocket object
    */
-  handleClose = (event: Event) => {
+  handleClose = (event: CloseEvent) => {
     log(this.cfg.dc, 'closed');
     this.emit('disconnected');
-    console.log(event);
-    this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '');
+    this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '', event.code, event.reason);
   };
 
   /**

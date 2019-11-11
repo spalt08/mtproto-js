@@ -54,12 +54,12 @@ export default class RPCService {
   /**
    * Call callback due to message id
    */
-  emitResponse(msgID: string, error: ClientError | null, res?: TLAbstract) {
+  emitResponse(msgID: string, error: ClientError | null, res?: TLAbstract, headers?: RPCHeaders) {
     if (this.messages[msgID]) {
       // Call callback with error
       if (error) this.messages[msgID].cb(error);
 
-      if (res) {
+      if (res && res instanceof TLConstructor) {
         if (res instanceof TLConstructor && res._ === 'gzip_packed') {
           const gzData = res.params.packed_data.value;
           const buf = new Bytes(pako.inflate(gzData).buffer);
@@ -69,13 +69,38 @@ export default class RPCService {
           log(this.messages[msgID].headers.dc, '-> ', result._, msgID);
 
           this.messages[msgID].cb(null, result);
+          this.watchResult(res, headers);
         } else {
           log(this.messages[msgID].headers.dc, '-> ', res._, msgID);
           this.messages[msgID].cb(null, res);
+          this.watchResult(res, headers);
         }
       }
 
       delete this.messages[msgID];
+    }
+  }
+
+  emitError(dc: number, thread: number, transport: string, code?: number, message?: string) {
+    const msgIDs = Object.keys(this.messages);
+
+    for (let i = 0; i < msgIDs.length; i += 1) {
+      const msg = this.messages[msgIDs[i]];
+
+      if (msg.headers.dc === dc && msg.headers.thread === thread && msg.headers.transport === transport) {
+        msg.cb({
+          type: 'network',
+          code: code || 1,
+          message,
+        });
+      }
+    }
+  }
+
+  watchResult = (res: TLConstructor, headers?: RPCHeaders) => {
+    if (res._ === 'auth.authorization') {
+      const user = res.json().user;
+      this.client.svc.setMeta(headers ? headers.dc : this.client.cfg.dc, 'userID', user.id);
     }
   }
 
@@ -245,7 +270,7 @@ export default class RPCService {
           break;
 
         default:
-          this.emitResponse(reqMsgID, null, result);
+          this.emitResponse(reqMsgID, null, result, headers);
       }
     }
   }

@@ -246,3 +246,24 @@ export function initConnection(client: Client, dc: number, cb?: (result: boolean
     }
   });
 }
+
+export function transferAuthorization(client: Client, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
+  console.log('transfer');
+  client.call('auth.exportAuthorization', { dc_id: dcTo }, { dc: dcFrom }, (err, res) => {
+    if (err || !(res instanceof TLConstructor) || res._ !== 'auth.exportedAuthorization') {
+      if (cb) cb(false);
+      return;
+    } 
+
+    const bytes = res.params.bytes.value;
+
+    client.call('auth.importAuthorization', { id: userID, bytes }, { dc: dcTo }, (err, res2) => {
+      if (err || !(res2 instanceof TLConstructor) || res2._ !== 'auth.authorization') {
+        if (cb) cb(false);
+        return;
+      }
+
+      if (cb) cb(true);
+    });
+  })
+}

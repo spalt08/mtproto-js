@@ -28,6 +28,7 @@ export default class DCService {
     sessionExpire?: number,
     connectionInited?: boolean,
     seqNo?: number,
+    userID?: number,
     [key: string]: any,
   }> = {};
 
@@ -46,6 +47,7 @@ export default class DCService {
     return `${DCService.Config[dc].host}${DCService.Config[dc].host ? '-1' : ''}.web.telegram.org`;
   }
 
+  setMeta(dc: number, param: 'userID', value: number): void;
   setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;
   setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey): void;
   setMeta(dc: number, param: 'connectionInited', value: boolean): void;
@@ -81,6 +83,13 @@ export default class DCService {
     if (!this.meta[dc].permKey) return null;
 
     return this.meta[dc].permKey as AuthKey;
+  }
+
+  getUserID(dc: number): number | null {
+    if (!this.meta[dc]) return null;
+    if (!this.meta[dc].userID) return null;
+
+    return this.meta[dc].userID as number;
   }
 
   getConnectionStatus(dc: number): boolean {

@@ -5,7 +5,7 @@ import Transport from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
 import { Message, PlainMessage } from '../message';
-import { createAuthKey, bindTempAuthKey, initConnection } from './auth';
+import { createAuthKey, bindTempAuthKey, initConnection, transferAuthorization } from './auth';
 import RPCService from './rpc';
 import { RPCHeaders, ClientError } from './rpc.types';
 import UpdatesService from './updates';
@@ -135,6 +135,11 @@ export default class Client {
       return;
     }
 
+    if (dc != this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
+      transferAuthorization(this, this.svc.getUserID(this.cfg.dc) as number, this.cfg.dc, dc, () => this.authorize(dc, cb));
+      return;
+    }
+
     // Unlock dc state to perform user requests
     this.state[dc] = 2;
     this.resendPending(dc);
@@ -185,8 +190,9 @@ export default class Client {
   };
 
   /** Resolve transport error */
-  resolveError = (dc: number, thread: number, transport: string, nonce: string) => {
-    console.log(dc, thread, transport, nonce);
+  resolveError = (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => {
+    if (nonce && this.plainResolvers[nonce]) this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
+    this.rpc.emitError(dc, thread, transport, code, message);
   };
 
   /** Create plain message and send it to the server */
