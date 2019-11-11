@@ -25,6 +25,9 @@ export default class Socket extends Transport {
   /** WebSocket connecting flag */
   isConnecting = false;
 
+  /** Instance transport */
+  transport = 'websocket';
+
   /**
    * Creates new web socket handler
    */
@@ -53,7 +56,7 @@ export default class Socket extends Transport {
 
     const { dc, thread, protocol } = this.cfg;
     const payload = {
-      dc, thread, protocol, transport: 'websocket',
+      dc, thread, protocol, transport: this.transport,
     };
 
     async('transport_init', payload, (initPayload: Bytes) => {
@@ -89,14 +92,19 @@ export default class Socket extends Transport {
     const authKey = this.svc.getAuthKey(this.cfg.dc);
     const { dc, thread } = this.cfg;
     const payload = {
-      dc, thread, transport: 'websocket', authKey: authKey ? authKey.key : '', msg: new Bytes(event.data),
+      dc, thread, transport: this.transport, authKey: authKey ? authKey.key : '', msg: new Bytes(event.data),
     };
 
     if (!event.data) return;
 
     async('transport_decrypt', payload, (msg: Message | PlainMessage | Bytes) => {
       if (msg instanceof Message || msg instanceof PlainMessage) {
-        this.cfg.resolve(this.cfg.dc, this.cfg.thread, msg);
+        this.cfg.resolve(msg, {
+          dc: this.cfg.dc,
+          thread: this.cfg.thread,
+          transport: this.transport,
+          msgID: msg.id,
+        });
       } else {
         throw new Error(`Unexpected answer: ${msg.hex}`);
       }
@@ -111,7 +119,7 @@ export default class Socket extends Transport {
       const authKey = this.svc.getAuthKey(this.cfg.dc);
       const { dc, thread } = this.cfg;
       const payload = {
-        msg, dc, thread, transport: 'websocket', authKey: authKey ? authKey.key : '',
+        msg, dc, thread, transport: this.transport, authKey: authKey ? authKey.key : '',
       };
 
       async('transport_encrypt', payload, (data: Bytes) => {

@@ -1,11 +1,13 @@
-/* eslint-disable lines-between-class-members, no-dupe-class-members */
-import TypeLanguage, { TLConstructor, TLAbstract } from 'tl';
-import { MTProtoTransport } from 'transport/protocol';
-import Transport from 'transport/abstract';
-import { Http, Socket } from 'transport';
-import { DCService } from 'services';
-import { Message, PlainMessage } from 'message';
+/* eslint-disable lines-between-class-members, no-dupe-class-members, import/no-cycle */
+import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
+import { MTProtoTransport } from '../transport/protocol';
+import Transport from '../transport/abstract';
+import { Http, Socket } from '../transport';
+import DCService from './dc';
+import { Message, PlainMessage } from '../message';
 import { createAuthKey } from './auth';
+import RPCService from './rpc';
+import { RPCHeaders } from './rpc.types';
 
 /** Generic error for mtproto transport */
 export type ClientError = {
@@ -59,6 +61,10 @@ export default class Client {
   /** Datacenter service */
   svc: DCService;
 
+  /** RPC service */
+  // todo: Client interface to RPC to avoid cycle
+  rpc: RPCService;
+
   /** Connection handlers */
   instances: Transport[];
 
@@ -71,9 +77,10 @@ export default class Client {
     this.cfg = { ...defaultClientConfig, ...cfg };
 
     this.svc = new DCService();
+    this.rpc = new RPCService(this);
 
     this.instances = [
-      this.createInstance(cfg.dc, 1),
+      this.createInstance(this.cfg.transport, cfg.dc, 1),
     ];
 
     const now = Date.now() / 1000;
@@ -83,7 +90,7 @@ export default class Client {
   }
 
   /** Create new connection instance */
-  createInstance(dc: number, thread: number, transport: string = this.cfg.transport): Transport {
+  createInstance(transport: string, dc: number, thread: number): Transport {
     if (transport === 'websocket') {
       return new Socket(this.svc, {
         ...this.cfg, dc, thread, resolve: this.resolve,
@@ -96,12 +103,14 @@ export default class Client {
   }
 
   /** Gets connection instance */
-  getInstance(dc: number, thread: number): Transport {
+  getInstance(transport: string, dc: number, thread: number): Transport {
     for (let i = 0; i < this.instances.length; i += 1) {
-      if (this.instances[i].cfg.dc === dc && this.instances[i].cfg.thread === thread) return this.instances[i];
+      if (this.instances[i].cfg.dc === dc && this.instances[i].cfg.thread === thread && this.instances[i].transport === transport) {
+        return this.instances[i];
+      }
     }
 
-    const newi = this.createInstance(dc, thread);
+    const newi = this.createInstance(transport, dc, thread);
 
     this.instances.push(newi);
 
@@ -109,12 +118,15 @@ export default class Client {
   }
 
   /** Resolve response message */
-  resolve = (dc: number, thread: number, msg: Message | PlainMessage) => {
+  resolve = (msg: Message | PlainMessage, headers: RPCHeaders) => {
     const result = this.tl.parse(msg.data);
 
     if (msg instanceof PlainMessage) {
       if (msg.nonce && this.plainResolvers[msg.nonce]) this.plainResolvers[msg.nonce](null, result);
+      return;
     }
+
+    this.rpc.processMessage(result, headers);
   };
 
   /** Create plain message and send it to the server */
@@ -158,13 +170,14 @@ export default class Client {
 
     const dc = headers.dc || this.cfg.dc;
     const thread = headers.thread || 1;
+    const transport = headers.transport || this.cfg.transport;
 
     // Resolve plain message
     if (msg instanceof PlainMessage && cb!) {
       this.plainResolvers[msg.nonce] = cb!;
     }
 
-    this.getInstance(dc, thread).send(msg);
+    this.getInstance(transport, dc, thread).send(msg);
   }
 
   /** Create message, encrypt it and send it to the server */
@@ -172,10 +185,11 @@ export default class Client {
   public call(src: TLConstructor | Message, headers: Record<string, any>, cb: RequestCallback): void;
   public call(method: string, data: Record<string, any>): void;
   public call(method: string, data: Record<string, any>, cb: RequestCallback): void;
+  public call(method: string, data: Record<string, any>, headers: Record<string, any>): void;
   public call(method: string, data: Record<string, any>, headers: Record<string, any>, cb: RequestCallback): void;
   public call(src: TLConstructor | Message | string, ...args: unknown[]): void {
     let msg: Message;
-    let cb: RequestCallback;
+    let cb: RequestCallback | undefined;
     let headers: Record<string, any> = {};
     let isc = true;
 
@@ -212,11 +226,16 @@ export default class Client {
 
     const dc = headers.dc || this.cfg.dc;
     const thread = headers.thread || 1;
+    const transport = headers.transport || this.cfg.transport;
 
     msg.salt = this.svc.getSalt(dc);
     msg.sessionID = this.svc.getSessionID(dc);
     msg.seqNo = this.svc.nextSeqNo(dc, isc);
 
-    this.getInstance(dc, thread).send(msg);
+    this.rpc.subscribe(msg, {
+      dc, thread, transport, msgID: msg.id,
+    }, cb);
+
+    this.getInstance(transport, dc, thread).send(msg);
   }
 }

@@ -10,9 +10,10 @@ test('Transort | socket plain call', () => {
   const query = tl.create('req_pq', { nonce });
   const msg = new PlainMessage(query.serialize());
 
-  const resolve = (_dc: number, _thread: number, res?: PlainMessage | Message) => {
+  const resolve = (res: PlainMessage | Message, headers: any) => {
     if (res instanceof PlainMessage) {
       expect(tl.parse(res.data).json().nonce).toEqual(nonce);
+      expect(headers.dc).toEqual(1);
     } else throw new Error('FAIL');
   };
 

@@ -1,6 +1,6 @@
 import BigInt from 'big-integer';
-import { Client } from 'client';
-import { TLConstructor, TLVector } from 'tl';
+import { Client } from '.';
+import { TLConstructor, TLVector } from '../tl';
 import async from '../crypto/async';
 import { PredefinedKeys, RSAKey } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';

@@ -1,6 +1,7 @@
 /* eslint-disable class-methods-use-this, @typescript-eslint/no-unused-vars */
 import { Message, PlainMessage } from '../message';
 import { DCService, ClientCallback } from '../client';
+import { RPCHeaders } from '../client/rpc.types';
 
 /** Generic config for mtproto transport classes */
 export type TransportConfig = {
@@ -8,13 +9,16 @@ export type TransportConfig = {
   thread: number,
   test: boolean,
   ssl: boolean,
-  resolve: (dc: number, thread: number, res: Message | PlainMessage) => void,
+  resolve: (res: Message | PlainMessage, headers: RPCHeaders) => void,
 };
 
 /**
  * Abstract class for all mtproto transport classes
  */
 export default class Transport {
+  /** Instance transport */
+  transport = '';
+
   /** Datacenter service */
   svc: DCService;
 
