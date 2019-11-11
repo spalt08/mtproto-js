@@ -89,7 +89,14 @@ export default class Message {
    * Method sets 24-28 bytes with seq_no header
    */
   set seqNo(seq: number) {
-    this.buf.slice(24, 28).uint = seq;
+    this.buf.slice(24, 28).int32 = seq;
+  }
+
+  /**
+   * Method gets 24-28 bytes with seq_no header
+   */
+  get seqNo(): number {
+    return this.buf.slice(24, 28).int32;
   }
 
   /**

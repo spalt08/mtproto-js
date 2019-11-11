@@ -197,7 +197,7 @@ export default class TLConstructor extends TLAbstract {
           paramHandler.value = data[param.name];
         }
 
-        if (this.flags !== null && paramHandler.hasValue()) this.flags.set(paramHandler.flagIndex);
+        if (paramHandler.isOptional && this.flags !== null && paramHandler.hasValue()) this.flags.set(paramHandler.flagIndex);
       }
     }
   }

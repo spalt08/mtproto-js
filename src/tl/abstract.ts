@@ -69,7 +69,7 @@ export default class TLAbstract {
    * Checks if constructor has any value
    */
   hasValue(): boolean {
-    return this.value !== '';
+    return this.value && this.value !== '';
   }
 
   /**

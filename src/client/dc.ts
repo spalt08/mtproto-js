@@ -25,8 +25,8 @@ export default class DCService {
     tempKey?: AuthKey,
     salt?: string,
     sessionID?: string,
-    sessionInited?: boolean,
     sessionExpire?: number,
+    connectionInited?: boolean,
     seqNo?: number,
     [key: string]: any,
   }> = {};
@@ -38,6 +38,7 @@ export default class DCService {
 
   setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;
   setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey): void;
+  setMeta(dc: number, param: 'connectionInited', value: boolean): void;
   setMeta(dc: number, param: string, value: any) {
     if (!this.meta[dc]) this.meta[dc] = {};
 
@@ -63,6 +64,20 @@ export default class DCService {
     if (!this.meta[dc].tempKey) return null;
 
     return this.meta[dc].tempKey as AuthKey;
+  }
+
+  getPermKey(dc: number): AuthKey | null {
+    if (!this.meta[dc]) return null;
+    if (!this.meta[dc].permKey) return null;
+
+    return this.meta[dc].permKey as AuthKey;
+  }
+
+  getConnectionStatus(dc: number): boolean {
+    if (!this.meta[dc]) return false;
+    if (!this.meta[dc].connectionInited) return false;
+
+    return this.meta[dc].connectionInited as boolean;
   }
 
   nextSeqNo(dc: number, isContentRelated: boolean = false): number {

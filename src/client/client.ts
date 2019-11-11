@@ -5,7 +5,7 @@ import Transport from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
 import { Message, PlainMessage } from '../message';
-import { createAuthKey } from './auth';
+import { createAuthKey, bindTempAuthKey, initConnection } from './auth';
 import RPCService from './rpc';
 import { RPCHeaders } from './rpc.types';
 
@@ -35,6 +35,11 @@ export type ClientConfig = {
   APILayer: number,
   APIID?: string,
   APIHash?: string,
+
+  deviceModel: string,
+  systemVersion: string,
+  appVersion: string,
+  langCode: string,
 };
 
 /** Default client configuration */
@@ -46,6 +51,10 @@ const defaultClientConfig = {
   transport: 'websocket' as Transports,
 
   APILayer: 105,
+  deviceModel: 'Unknown',
+  systemVersion: 'Unknown',
+  appVersion: '1.0.0',
+  langCode: 'en',
 };
 
 /**
@@ -71,6 +80,12 @@ export default class Client {
   /** Quene of response callbacks for plain requests */
   plainResolvers: Record<string, RequestCallback> = {};
 
+  /** Pending requests */
+  pending: Record<number, Message[]>;
+
+  /** DC state. 0 - attached, 1 - authorizing, 2 - ready */
+  state: Record<number, number>;
+
   /** Creates new client handler */
   constructor(tl: TypeLanguage, cfg: Record<string, any> = {}) {
     this.tl = tl;
@@ -79,14 +94,53 @@ export default class Client {
     this.svc = new DCService();
     this.rpc = new RPCService(this);
 
+    this.pending = {};
+    this.state = {};
+
     this.instances = [
       this.createInstance(this.cfg.transport, cfg.dc, 1),
     ];
 
-    const now = Date.now() / 1000;
+    this.authorize(cfg.dc);
+  }
 
-    createAuthKey(this, cfg.dc, 1, 0, () => console.log((Date.now() / 1000 - now).toFixed(2), 's'));
-    // createAuthKey(this, cfg.dc, 2, 3600 * 5, () => console.log((Date.now() / 1000 - now).toFixed(2), 's'));
+  /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */
+  authorize(dc: number, cb?: () => void): void {
+    // Change state to block user requests
+    if (!this.state[dc] || this.state[dc] !== 1) this.state[dc] = 1;
+
+    const expiresAfter = 3600 * 5;
+    const permKey = this.svc.getPermKey(dc);
+    let tempKey = this.svc.getAuthKey(dc);
+
+    if (permKey === null) {
+      createAuthKey(this, dc, 1, 0, () => {
+        if (this.svc.getAuthKey(dc) !== null) this.authorize(dc, cb);
+      });
+      tempKey = null;
+    }
+
+    if (tempKey === null) { // || (tempKey.expires && tempKey.expires < Date.now())
+      createAuthKey(this, dc, 2, expiresAfter, () => {
+        if (this.svc.getPermKey(dc) !== null) this.authorize(dc, cb);
+      });
+      return;
+    }
+
+    if (permKey && tempKey.binded === false) {
+      bindTempAuthKey(this, dc, permKey, tempKey, () => this.authorize(dc, cb));
+      return;
+    }
+
+    if (this.svc.getConnectionStatus(dc) === false) {
+      initConnection(this, dc, () => this.authorize(dc, cb));
+      return;
+    }
+
+    // Unlock dc state to perform user requests
+    this.state[dc] = 2;
+    this.resendPending(dc);
+    if (cb) cb();
   }
 
   /** Create new connection instance */
@@ -111,8 +165,11 @@ export default class Client {
     }
 
     const newi = this.createInstance(transport, dc, thread);
-
     this.instances.push(newi);
+
+    if (this.state[dc] !== 1 && this.state[dc] !== 2) {
+      this.authorize(dc);
+    }
 
     return newi;
   }
@@ -182,6 +239,7 @@ export default class Client {
 
   /** Create message, encrypt it and send it to the server */
   public call(src: TLConstructor | Message, cb: RequestCallback): void;
+  public call(src: TLConstructor | Message, headers: Record<string, any>): void;
   public call(src: TLConstructor | Message, headers: Record<string, any>, cb: RequestCallback): void;
   public call(method: string, data: Record<string, any>): void;
   public call(method: string, data: Record<string, any>, cb: RequestCallback): void;
@@ -216,13 +274,24 @@ export default class Client {
         this.tl.create(src, data),
       );
 
+      if (src === 'msgs_ack' || src === 'http_wait') isc = false;
+
       if (typeof args[1] === 'object') headers = args[1] as Record<string, any>;
       if (typeof args[1] === 'function') cb = args[1] as RequestCallback;
       if (typeof args[2] === 'function') cb = args[2] as RequestCallback;
     } else throw new Error(`Unable to create request with ${src}`);
 
-    if (headers.msgID) msg.id = headers.msgID;
-    if (!msg.id) msg.id = PlainMessage.GenerateID();
+    if (headers.msgID) {
+      msg.id = headers.msgID;
+    } else {
+      // refetch callback
+      if (msg.id && this.rpc.messages[msg.id]) {
+        if (this.rpc.messages[msg.id].cb) cb = this.rpc.messages[msg.id].cb;
+        delete this.rpc.messages[msg.id];
+      }
+
+      msg.id = PlainMessage.GenerateID();
+    }
 
     const dc = headers.dc || this.cfg.dc;
     const thread = headers.thread || 1;
@@ -230,12 +299,45 @@ export default class Client {
 
     msg.salt = this.svc.getSalt(dc);
     msg.sessionID = this.svc.getSessionID(dc);
-    msg.seqNo = this.svc.nextSeqNo(dc, isc);
 
-    this.rpc.subscribe(msg, {
-      dc, thread, transport, msgID: msg.id,
-    }, cb);
+    if (cb) {
+      this.rpc.subscribe(msg, {
+        dc, thread, transport, msgID: msg.id,
+      }, cb);
+    }
 
-    this.getInstance(transport, dc, thread).send(msg);
+    const inst = this.getInstance(transport, dc, thread);
+
+    if (this.state[dc] === 2 || headers.force === true) {
+      msg.seqNo = this.svc.nextSeqNo(dc, isc);
+      inst.send(msg);
+    } else {
+      this.addPendingMsg(transport, dc, thread, msg);
+    }
+  }
+
+  /** Adds message to pending quence */
+  addPendingMsg(transport: string, dc: number, thread: number, msg: Message) {
+    const key = thread * 10 + dc + (transport === 'websocket' ? 1000 : 0);
+    if (!this.pending[key]) this.pending[key] = [];
+    this.pending[key].push(msg);
+  }
+
+  /** Resends messages from pending quence */
+  resendPending(dc: number) {
+    const keys = Object.keys(this.pending);
+
+    for (let i = 0; i < keys.length; i += 1) {
+      const key = +keys[i];
+      if (key % 10 === dc) {
+        const thread = key >= 1000 ? Math.floor((key - 1000) / 10) : Math.floor(key / 10);
+        const transport = key >= 1000 ? 'websocket' : 'http';
+        for (let j = 0; j < this.pending[key].length; j += 1) {
+          console.log('resend', this.pending[key][j]);
+          this.call(this.pending[key][j], { dc, thread, transport });
+        }
+        this.pending[key] = [];
+      }
+    }
   }
 }

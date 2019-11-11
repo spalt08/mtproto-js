@@ -23,12 +23,14 @@ export type AuthKey = {
  * Ref: https://core.telegram.org/mtproto/auth_key
  */
 export function createAuthKey(client: Client, dc: number, thread: number, expiresAfter: number, cb?: (err: boolean, key?: AuthKey) => void) {
-  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key`);
-
+  // transport for handshaking
+  const transport = 'websocket';
   const nonce = new Bytes(16).randomize();
   const newNonce = new Bytes(32).randomize();
 
-  client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: nonce.uint }, { dc, thread }, (err, resPQ) => {
+  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key (${transport}, thread: ${thread})`);
+
+  client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: nonce.uint }, { dc, thread, transport }, (err, resPQ) => {
     if (err || !(resPQ instanceof TLConstructor) || resPQ._ !== 'resPQ') {
       log(dc, 'Unexpected resPQ response');
       if (cb) cb(true);
@@ -86,7 +88,7 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
           encrypted_data: encryptedPQ,
         };
 
-        client.plainCall('req_DH_params', dhParams, { dc, thread }, (errd, resDH) => {
+        client.plainCall('req_DH_params', dhParams, { dc, thread, transport }, (errd, resDH) => {
           if (errd || !(resDH instanceof TLConstructor) || resDH._ !== 'server_DH_params_ok') {
             log('Unexpected req_DH_params response');
             if (cb) cb(true);
@@ -127,7 +129,7 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
                 encrypted_data: encryptedDH,
               };
 
-              client.plainCall('set_client_DH_params', clientDHParams, { dc, thread }, (errc, sDH) => {
+              client.plainCall('set_client_DH_params', clientDHParams, { dc, thread, transport }, (errc, sDH) => {
                 if (errc || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
                   log('Unexpected set_client_DH_params response');
                   if (cb) cb(true);
@@ -144,13 +146,13 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
                   authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
                   authKey.binded = false;
 
-                  client.svc.setMeta(dc, 'salt', Bytes.xor(newNonce.reverse().slice(0, 8), serverNonce.reverse().slice(0, 8)).hex);
+                  client.svc.setMeta(dc, 'salt', Bytes.xor(newNonce.slice(0, 8), serverNonce.slice(0, 8)).hex);
                 }
 
                 if (expiresAfter > 0) client.svc.setMeta(dc, 'tempKey', authKey);
                 else client.svc.setMeta(dc, 'permKey', authKey);
 
-                log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created`);
+                log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${transport}, thread: ${thread})`);
 
                 if (cb) cb(false, authKey);
               });
@@ -166,7 +168,7 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
  * Binds temp auth key to permenent
  * Ref: https://core.telegram.org/method/auth.bindTempAuthKey
  */
-export function bindTempAuthKey(client: Client, dc: number, thread: number, permKey: AuthKey, tempKey: AuthKey, cb?: (result: boolean) => void) {
+export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, tempKey: AuthKey, cb?: (result: boolean) => void) {
   log(dc, 'binding temporary key');
 
   const permAuthKeyID = hex(permKey.id).uint;
@@ -200,13 +202,47 @@ export function bindTempAuthKey(client: Client, dc: number, thread: number, perm
     encrypted_message: encryptMessageV1(permKey, bindMsg).buf.hex,
   });
 
-  client.call(query, { msgID, dc, thread }, (err, res) => {
+  client.call(query, { msgID, dc, force: true }, (err, res) => {
     if (!err && res && res.json() === true) {
       log(dc, 'temporary key successfuly binded');
-      client.svc.setMeta(dc, 'tempKey', tempKey);
+      client.svc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
       if (cb) cb(true);
     } else {
       throw new Error('Auth: Binding temp auth key failed');
+    }
+  });
+}
+
+/**
+ * Calls initConnection method invoked with layer
+ */
+export function initConnection(client: Client, dc: number, cb?: (result: boolean) => void) {
+  const query = client.tl.create('help.getNearestDc');
+
+  const connectionWrapper = client.tl.create('initConnection', {
+    api_id: client.cfg.APIID,
+    device_model: client.cfg.deviceModel,
+    system_version: client.cfg.systemVersion,
+    app_version: client.cfg.appVersion,
+    system_lang_code: client.cfg.langCode,
+    lang_pack: '',
+    lang_code: client.cfg.langCode,
+    query,
+  });
+
+  const invokeWrapper = client.tl.create('invokeWithLayer', {
+    layer: client.cfg.APILayer,
+    query: connectionWrapper,
+  });
+
+  client.call(invokeWrapper, { dc, force: true }, (err, res) => {
+    if (err || !res || !(res instanceof TLConstructor)) {
+      log('Unexpected initConnection response');
+      if (cb) cb(false);
+    } else {
+      client.svc.setMeta(dc, 'connectionInited', true);
+      log('session successfuly inited');
+      if (cb) cb(true);
     }
   });
 }
