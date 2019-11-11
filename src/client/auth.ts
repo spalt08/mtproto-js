@@ -76,9 +76,7 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
 
       if (expiresAfter > 0) pqInner.params.expires_in.value = expiresAfter;
 
-      const data = pqInner.serialize().hex;
-
-      async('encrypt_pq', [data, publicKey], (encryptedPQ: string) => {
+      async('encrypt_pq', [pqInner.serialize(), publicKey], (encryptedPQ: string) => {
         const dhParams = {
           nonce: nonce.uint,
           server_nonce: serverNonce.uint,
@@ -95,8 +93,8 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
             return;
           }
 
-          async('decrypt_dh', [resDH.params.encrypted_answer.value, newNonce.hex, serverNonce.hex], (decryptedDH: string) => {
-            const serverDH = client.tl.parse(hex(decryptedDH).slice(20));
+          async('decrypt_dh', [resDH.params.encrypted_answer.value, newNonce, serverNonce], (decryptedDH: Bytes) => {
+            const serverDH = client.tl.parse(decryptedDH.slice(20));
 
             if (!(serverDH instanceof TLConstructor) || serverDH._ !== 'server_DH_inner_data') {
               log('Unable to decrypt aes-256-ige');
@@ -122,7 +120,7 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
               g_b: gb.toString(16),
             }).serialize();
 
-            async('encrypt_dh', [clientDH.hex, newNonce.hex, serverNonce.hex], (encryptedDH: string) => {
+            async('encrypt_dh', [clientDH, newNonce, serverNonce], (encryptedDH: string) => {
               const clientDHParams = {
                 nonce: nonce.uint,
                 server_nonce: serverNonce.uint,

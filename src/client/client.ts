@@ -41,7 +41,7 @@ const defaultClientConfig = {
   ssl: true,
   dc: 2,
   protocol: 'intermediate' as MTProtoTransport,
-  transport: 'http' as Transports,
+  transport: 'websocket' as Transports,
 
   APILayer: 105,
 };
@@ -79,7 +79,7 @@ export default class Client {
     const now = Date.now() / 1000;
 
     createAuthKey(this, cfg.dc, 1, 0, () => console.log((Date.now() / 1000 - now).toFixed(2), 's'));
-    createAuthKey(this, cfg.dc, 2, 3600 * 5, () => console.log((Date.now() / 1000 - now).toFixed(2), 's'));
+    // createAuthKey(this, cfg.dc, 2, 3600 * 5, () => console.log((Date.now() / 1000 - now).toFixed(2), 's'));
   }
 
   /** Create new connection instance */

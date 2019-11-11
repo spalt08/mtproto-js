@@ -1,24 +1,21 @@
 /* eslint-disable no-restricted-globals */
-import BigInt from 'big-integer';
-import { BrentPrime } from './pq';
-import { Bytes, hex } from '../serialization';
-import RSAEncrypt from './rsa/encrypt';
-import { decrypt, encrypt } from './aes/ige';
-import { encryptMessage, decryptMessage } from './aes/message';
-import sha1 from './sha1';
+import { hex } from '../serialization';
 import {
-  Obfuscation, Intermediate, IntermediatePadded, Full, Abridged,
-} from '../transport/protocol';
-import { Message, EncryptedMessage } from '../message';
+  factorize,
+  ecnryptPQ,
+  decryptDH,
+  encryptDH,
+  transportInit,
+  transportEncrypt,
+  transportDecrypt,
+} from './async.tasks';
+import { PlainMessage, Message } from '../message';
 
 const ctx: Worker = self as any;
 
-const obfuscation: Record<number, Obfuscation> = {};
-const protocol: Record<number, Intermediate | IntermediatePadded | Full | Abridged> = {};
-
 // Resolve result
-function resolve(taskID: string, result: any) {
-  ctx.postMessage({ id: taskID, result });
+function resolve(task: string, id: string, result: any) {
+  ctx.postMessage({ task, id, result });
 }
 
 // Respond to message from parent thread
@@ -28,108 +25,71 @@ ctx.addEventListener('message', (event) => {
 
     switch (task) {
       case 'factorize': {
-        const [p, q] = BrentPrime(BigInt(payload, 16));
-        resolve(id, [p.toString(16), q.toString(16)]);
+        const result = factorize(payload);
+        resolve(task, id, result);
         break;
       }
 
       case 'encrypt_pq': {
         const [inner, publicKey] = payload;
-        const encryptedPQ = new Bytes(255);
         const data = hex(inner);
+        const result = ecnryptPQ(data, publicKey);
 
-        encryptedPQ.slice(0, 20).raw = sha1(data).raw;
-        encryptedPQ.slice(20, 20 + data.length).raw = data.raw;
-        encryptedPQ.slice(20 + data.length).randomize();
-
-        resolve(id, RSAEncrypt(encryptedPQ.hex, publicKey.n, publicKey.e));
+        resolve(task, id, result);
         break;
       }
 
       case 'decrypt_dh': {
-        const [data, newnonce, srvnonce] = payload;
+        const [datahex, nnhex, snhex] = payload;
+        const data = hex(datahex);
+        const nn = hex(nnhex);
+        const sn = hex(snhex);
+        const result = decryptDH(data, nn, sn);
 
-        const tmpAesKey = new Bytes(32);
-        const tmpAesIv = new Bytes(32);
-
-        tmpAesKey.slice(0, 20).raw = sha1(hex(newnonce + srvnonce)).raw;
-        tmpAesKey.slice(20, 32).raw = sha1(hex(srvnonce + newnonce)).slice(0, 12).raw;
-
-        tmpAesIv.slice(0, 8).raw = sha1(hex(srvnonce + newnonce)).slice(12, 20).raw;
-        tmpAesIv.slice(8, 28).raw = sha1(hex(newnonce + newnonce)).raw;
-        tmpAesIv.slice(28, 32).raw = hex(newnonce).slice(0, 4).raw;
-
-
-        resolve(id, decrypt(hex(data), tmpAesKey, tmpAesIv).hex);
+        resolve(task, id, result.hex);
         break;
       }
 
       case 'encrypt_dh': {
-        const [data, newnonce, srvnonce] = payload;
+        const [datahex, nnhex, snhex] = payload;
+        const data = hex(datahex);
+        const nn = hex(nnhex);
+        const sn = hex(snhex);
+        const result = encryptDH(data, nn, sn);
 
-        const tmpAesKey = new Bytes(32);
-        const tmpAesIv = new Bytes(32);
-
-        tmpAesKey.slice(0, 20).raw = sha1(hex(newnonce + srvnonce)).raw;
-        tmpAesKey.slice(20, 32).raw = sha1(hex(srvnonce + newnonce)).slice(0, 12).raw;
-
-        tmpAesIv.slice(0, 8).raw = sha1(hex(srvnonce + newnonce)).slice(12, 20).raw;
-        tmpAesIv.slice(8, 28).raw = sha1(hex(newnonce + newnonce)).raw;
-        tmpAesIv.slice(28, 32).raw = hex(newnonce).slice(0, 4).raw;
-
-
-        let len = 20 + data.length / 2;
-        len += 16 - (len % 16);
-
-        const plain = new Bytes(len);
-
-        plain.slice(0, 20).raw = sha1(hex(data)).raw;
-        plain.slice(20, 20 + data.length / 2).hex = data;
-        plain.slice(20 + data.length / 2).randomize();
-
-        resolve(id, encrypt(plain, tmpAesKey, tmpAesIv).hex);
+        resolve(task, id, result.hex);
         break;
       }
 
       case 'transport_init': {
-        const [dc, protocolName] = payload;
-
-        switch (protocolName) {
-          case 'abridged': protocol[dc] = new Abridged(); break;
-          case 'intermediate_padded': protocol[dc] = new IntermediatePadded(); break;
-          case 'full': protocol[dc] = new Full(); break;
-          default: protocol[dc] = new Intermediate();
-        }
-
-        obfuscation[dc] = new Obfuscation();
-
-        resolve(id, obfuscation[dc].init(protocol[dc].header).hex);
+        const result = transportInit(payload.dc, payload.thread, payload.transport, payload.protocol);
+        resolve(task, id, result.hex);
         break;
       }
 
       case 'transport_encrypt': {
-        const [dc, data, authKey] = payload;
+        const buf = hex(payload.msg);
+        let msg;
 
-        const msg = hex(data);
-
-        if (msg.slice(0, 8).uint.toString() === '0') {
-          resolve(id, obfuscation[dc].encode(protocol[dc].wrap(hex(data))).hex);
+        if (buf.slice(0, 8).uint.toString() === '0') {
+          msg = new PlainMessage(buf);
         } else {
-          const encrypted = encryptMessage(authKey, new Message(msg));
-          resolve(id, obfuscation[dc].encode(protocol[dc].wrap(encrypted.buf)).hex);
+          msg = new Message(buf);
         }
+
+        const result = transportEncrypt(payload.dc, payload.thread, msg, payload.transport, payload.authKey);
+        resolve(task, id, result.hex);
         break;
       }
 
       case 'transport_decrypt': {
-        const [dc, encrypted, authKey] = payload;
-        const [type, data] = protocol[dc].unWrap(obfuscation[dc].decode(hex(encrypted)));
+        const buf = hex(payload.msg);
+        const result = transportDecrypt(payload.dc, payload.thread, buf, payload.transport, payload.authKey);
 
-        if (type === 'plain') {
-          resolve(id, [type, data.hex]);
+        if (result instanceof Message || result instanceof PlainMessage) {
+          resolve(task, id, result.buf.hex);
         } else {
-          const decrypted = decryptMessage(authKey, new EncryptedMessage(data));
-          resolve(id, [type, decrypted.buf.hex]);
+          resolve(task, id, result.hex);
         }
         break;
       }

@@ -1,16 +1,15 @@
 import Transport, { TransportConfig } from './abstract';
 import { PlainMessage, Message } from '../message';
 import { logs } from '../utils/log';
-import { Bytes, hex } from '../serialization';
+import { Bytes } from '../serialization';
 import async from '../crypto/async';
-import { MTProtoTransport } from './protocol';
 import { DCService } from '../client';
 
 const log = logs('socket');
 
 /** Configuration object for WebSocket transport */
 type SocketConfig = TransportConfig & {
-  protocol: MTProtoTransport,
+  protocol: string,
 };
 
 export default class Socket extends Transport {
@@ -52,10 +51,15 @@ export default class Socket extends Transport {
   handleOpen = () => {
     log(this.cfg.dc, 'opened');
 
-    async('transport_init', [this.cfg.dc, this.cfg.protocol], (initPayload: string) => {
+    const { dc, thread, protocol } = this.cfg;
+    const payload = {
+      dc, thread, protocol, transport: 'websocket',
+    };
+
+    async('transport_init', payload, (initPayload: Bytes) => {
       if (!this.ws) return;
 
-      this.ws.send(hex(initPayload).buffer.buffer);
+      this.ws.send(initPayload.buffer.buffer);
 
       this.isConnecting = false;
 
@@ -83,20 +87,18 @@ export default class Socket extends Transport {
    */
   handleMessage = (event: MessageEvent) => {
     const authKey = this.svc.getAuthKey(this.cfg.dc);
+    const { dc, thread } = this.cfg;
+    const payload = {
+      dc, thread, transport: 'websocket', authKey: authKey ? authKey.key : '', msg: new Bytes(event.data),
+    };
 
     if (!event.data) return;
 
-    async('transport_decrypt', [this.cfg.dc, new Bytes(event.data).hex, authKey ? authKey.key : ''], (data: string[]) => {
-      const [type, payload] = data;
-
-      if (type === 'plain') {
-        const msg = new PlainMessage(hex(payload));
+    async('transport_decrypt', payload, (msg: Message | PlainMessage | Bytes) => {
+      if (msg instanceof Message || msg instanceof PlainMessage) {
         this.cfg.resolve(this.cfg.dc, this.cfg.thread, msg);
-      }
-
-      if (type === 'encrypted') {
-        const msg = new Message(hex(payload));
-        this.cfg.resolve(this.cfg.dc, this.cfg.thread, msg);
+      } else {
+        throw new Error(`Unexpected answer: ${msg.hex}`);
       }
     });
   };
@@ -107,9 +109,13 @@ export default class Socket extends Transport {
   send(msg: PlainMessage | Message) {
     if (this.ws && this.ws.readyState === 1) {
       const authKey = this.svc.getAuthKey(this.cfg.dc);
+      const { dc, thread } = this.cfg;
+      const payload = {
+        msg, dc, thread, transport: 'websocket', authKey: authKey ? authKey.key : '',
+      };
 
-      async('transport_encrypt', [this.cfg.dc, msg.buf.hex, authKey ? authKey.key : ''], (data: string) => {
-        if (this.ws) this.ws.send(hex(data).buffer.buffer);
+      async('transport_encrypt', payload, (data: Bytes) => {
+        if (this.ws) this.ws.send(data.buffer.buffer);
       });
 
       return;

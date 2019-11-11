@@ -1,5 +1,5 @@
 /* eslint-disable no-dupe-class-members, lines-between-class-members, class-methods-use-this */
-import { AuthKey } from '../services/auth';
+import { AuthKey } from './auth';
 import { Bytes } from '../serialization';
 
 type DCConfig = {
