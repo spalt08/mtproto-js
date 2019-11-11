@@ -9,6 +9,8 @@
     "target": "es5",
     "baseUrl": "./src",
     "module": "esnext",
+    "outDir": "dist",
+    "declaration": true,
     "moduleResolution": "node",
     "sourceMap": true,
     "esModuleInterop": true,
