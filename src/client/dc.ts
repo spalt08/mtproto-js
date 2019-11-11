@@ -31,6 +31,16 @@ export default class DCService {
     [key: string]: any,
   }> = {};
 
+  constructor() {
+    const cached = sessionStorage.getItem('dc');
+
+    if (cached) this.meta = JSON.parse(cached) || {};
+
+    window.addEventListener('beforeunload', () => {
+      sessionStorage.setItem('dc', JSON.stringify(this.meta));
+    });
+  }
+
   /** Resolve hostname by dc id */
   getHost(dc: number) {
     return `${DCService.Config[dc].host}${DCService.Config[dc].host ? '-1' : ''}.web.telegram.org`;
