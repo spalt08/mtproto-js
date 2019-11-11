@@ -6,8 +6,8 @@
   "scripts": {
     "prepare": "npm run build",
     "lint": "eslint --ext .ts ./src",
-    "build": "webpack --mode=production",
-    "start": "webpack --watch",
+    "build": "rm -rf dist/* && webpack --mode=production",
+    "start": "rm -rf dist/* && webpack --watch",
     "analyze": "npm run build -- --analyze",
     "test": "jest"
   },
@@ -33,9 +33,7 @@
     "@typescript-eslint/parser": "^2.6.1",
     "babel-eslint": "^10.0.3",
     "babel-loader": "^8.0.6",
-    "clean-webpack-plugin": "^3.0.0",
     "cross-env": "^6.0.3",
-    "declaration-bundler-webpack-plugin": "https://github.com/smol/declaration-bundler-webpack-plugin#91bbfa5feb9136c4d91c443df63cee9a8439421b",
     "eslint": "^6.6.0",
     "eslint-config-airbnb-typescript": "^6.0.0",
     "eslint-import-resolver-webpack": "^0.11.1",

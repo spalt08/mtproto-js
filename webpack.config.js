@@ -1,42 +1,32 @@
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const DeclarationBundlerPlugin = require('declaration-bundler-webpack-plugin');
-const { name: libraryName } = require('./package.json');
+const { name: libraryName, dependencies } = require('./package.json');
 
 const sourceDirectory = 'src';
 const destinationDirectory = 'dist';
+
+const cjsExternals = {};
+Object.keys(dependencies).forEach((name) => { cjsExternals[name] = name; });
 
 module.exports = (env, argv) => {
   const { analyze, mode } = argv;
   const isProduction = mode === 'production';
 
-  return {
+  const commonConfig = {
     entry: './src/index',
 
     mode: isProduction ? 'production' : 'development',
 
     devtool: isProduction ? undefined : 'inline-source-map',
 
-    plugins: [
-      new CleanWebpackPlugin(),
-      new DeclarationBundlerPlugin({
-        moduleName: `'${libraryName}'`,
-        out: `${libraryName}.d.ts`,
-      }),
-      ...(analyze ? [
-        new BundleAnalyzerPlugin({
-          analyzerPort: 3001,
-        }),
-      ] : []),
-    ],
+    plugins: [],
+
+    externals: {},
 
     output: {
       path: path.resolve(__dirname, destinationDirectory),
       library: libraryName,
-      filename: isProduction ? `${libraryName}.cjs.js` : `${libraryName}.umd.js`,
-      libraryTarget: isProduction ? 'commonjs2' : 'umd',
     },
 
     optimization: {
@@ -88,4 +78,46 @@ module.exports = (env, argv) => {
       fs: 'empty',
     },
   };
+
+  return [
+    {
+      // UMD
+      ...commonConfig,
+
+      plugins: [
+        ...commonConfig.plugins,
+        ...(analyze ? [
+          new BundleAnalyzerPlugin({
+            analyzerPort: 3001,
+          }),
+        ] : []),
+      ],
+
+      output: {
+        ...commonConfig.output,
+        filename: `${libraryName}.umd.js`,
+        libraryTarget: 'umd',
+      },
+    },
+    {
+      // CJS
+      ...commonConfig,
+
+      externals: {
+        ...commonConfig.externals,
+        ...cjsExternals,
+      },
+
+      optimization: {
+        ...commonConfig.optimization,
+        minimize: false,
+      },
+
+      output: {
+        ...commonConfig.output,
+        filename: `${libraryName}.cjs.js`,
+        libraryTarget: 'commonjs2',
+      },
+    },
+  ];
 };
