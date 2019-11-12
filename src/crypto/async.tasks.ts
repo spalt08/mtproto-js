@@ -14,6 +14,7 @@ import {
 } from '../transport/protocol';
 import { Message, PlainMessage, EncryptedMessage } from '../message';
 import { encryptMessage, decryptMessage } from './aes/message';
+import sha256 from './sha256';
 
 /** Factorization PQ */
 export function factorize(pq: string): string[] {
@@ -24,7 +25,7 @@ export function factorize(pq: string): string[] {
 export function ecnryptPQ(data: Bytes, pk: RSAKey): string {
   const dataToEncrypt = new Bytes(255);
 
-  dataToEncrypt.slice(0, 20).raw = sha1(data).raw;
+  dataToEncrypt.slice(0, 20).raw = sha1(data.raw).raw;
   dataToEncrypt.slice(20, 20 + data.length).raw = data.raw;
   dataToEncrypt.slice(20 + data.length).randomize();
 
@@ -36,11 +37,11 @@ export function decryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
   const tmpAesKey = new Bytes(32);
   const tmpAesIv = new Bytes(32);
 
-  tmpAesKey.slice(0, 20).raw = sha1(hex(nn.hex + sn.hex)).raw;
-  tmpAesKey.slice(20, 32).raw = sha1(hex(sn.hex + nn.hex)).slice(0, 12).raw;
+  tmpAesKey.slice(0, 20).raw = sha1(nn.raw + sn.raw).raw;
+  tmpAesKey.slice(20, 32).raw = sha1(sn.raw + nn.raw).slice(0, 12).raw;
 
-  tmpAesIv.slice(0, 8).raw = sha1(hex(sn.hex + nn.hex)).slice(12, 20).raw;
-  tmpAesIv.slice(8, 28).raw = sha1(hex(nn.hex + nn.hex)).raw;
+  tmpAesIv.slice(0, 8).raw = sha1(sn.raw + nn.raw).slice(12, 20).raw;
+  tmpAesIv.slice(8, 28).raw = sha1(nn.raw + nn.raw).raw;
   tmpAesIv.slice(28, 32).raw = nn.slice(0, 4).raw;
 
   return decrypt(data, tmpAesKey, tmpAesIv);
@@ -51,11 +52,11 @@ export function encryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
   const tmpAesKey = new Bytes(32);
   const tmpAesIv = new Bytes(32);
 
-  tmpAesKey.slice(0, 20).raw = sha1(hex(nn.hex + sn.hex)).raw;
-  tmpAesKey.slice(20, 32).raw = sha1(hex(sn.hex + nn.hex)).slice(0, 12).raw;
+  tmpAesKey.slice(0, 20).raw = sha1(nn.raw + sn.raw).raw;
+  tmpAesKey.slice(20, 32).raw = sha1(sn.raw + nn.raw).slice(0, 12).raw;
 
-  tmpAesIv.slice(0, 8).raw = sha1(hex(sn.hex + nn.hex)).slice(12, 20).raw;
-  tmpAesIv.slice(8, 28).raw = sha1(hex(nn.hex + nn.hex)).raw;
+  tmpAesIv.slice(0, 8).raw = sha1(sn.raw + nn.raw).slice(12, 20).raw;
+  tmpAesIv.slice(8, 28).raw = sha1(nn.raw + nn.raw).raw;
   tmpAesIv.slice(28, 32).raw = nn.slice(0, 4).raw;
 
   let len = 20 + data.length;
@@ -63,7 +64,7 @@ export function encryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
 
   const plain = new Bytes(len);
 
-  plain.slice(0, 20).raw = sha1(data).raw;
+  plain.slice(0, 20).raw = sha1(data.raw).raw;
   plain.slice(20, 20 + data.length).raw = data.raw;
   plain.slice(20 + data.length).randomize();
 
@@ -150,3 +151,26 @@ export function transportDecrypt(dc: number, thread: number, data: Bytes, transp
     return msg;
   }
 }
+
+// export function getPassword(cfg: any, password: string): any {
+//   if (password === '' || !cfg.current_algo || cfg.current_algo._ === 'passwordKdfAlgoUnknown') {
+//     return { _: 'passwordKdfAlgoUnknown' };
+//   }
+
+//   const clientSalt = hex(cfg.current_algo.salt1 as string);
+//   const serverSalt = hex(cfg.current_algo.salt2 as string);
+//   const g = cfg.current_algo.g as number;
+//   const p = BigInt(cfg.current_algo.p, 16);
+
+//   const b = cfg.srp_B ? BigInt(cfg.srp_B, 16) : BigInt(0);
+//   const id = cfg.srp_id || BigInt(0);
+
+//   const buf = sha256(hex(clientSalt.hex + str))
+
+//   $buf = $this->hashSha256($password, $client_salt);
+//       $buf = $this->hashSha256($buf, $server_salt);
+//         $hash = \hash_pbkdf2('sha512', $buf, $client_salt, 100000, 0, true);
+//         return $this->hashSha256($hash, $server_salt);
+//   const x = BigInt($this->hashPassword($password, $client_salt, $server_salt), 256);
+  
+// }

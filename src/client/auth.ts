@@ -138,7 +138,7 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
 
                 const authKeyFull = ga.modPow(b, dhPrime).toString(16);
                 const authKey: AuthKey = {
-                  id: sha1(hex(authKeyFull)).slice(12, 20).hex,
+                  id: sha1(hex(authKeyFull).raw).slice(12, 20).hex,
                   key: authKeyFull,
                 };
 

@@ -6,9 +6,9 @@ import { Bytes } from '../serialization';
  * Benchmark: https://dominictarr.github.io/crypto-bench/
  */
 
-export default function sha256(data: Bytes): Bytes {
+export default function sha256(data: string): Bytes {
   const buf = new Bytes(32);
-  buf.raw = (forge as any).md.sha256.create().update(data.raw).digest().data;
+  buf.raw = (forge as any).md.sha256.create().update(data).digest().data;
 
   return buf;
 }
