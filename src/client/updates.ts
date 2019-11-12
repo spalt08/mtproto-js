@@ -76,6 +76,10 @@ export default class UpdatesService {
         }
         break;
 
+      case 'updateShortMessage':
+        this.emit(updateMsg);
+        break;
+
       default:
         log('unknown', updateMsg._, updateMsg.json());
     }

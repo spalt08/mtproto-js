@@ -18,7 +18,7 @@ test('Transort | socket plain call', () => {
   };
 
   const socket = new Socket(new DCService(), {
-    test: true, ssl: true, dc: 1, thread: 1, protocol: 'intermediate', resolve,
+    test: true, ssl: true, dc: 1, thread: 1, protocol: 'intermediate', resolve, resolveError: () => {},
   });
 
   socket.send(msg);

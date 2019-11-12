@@ -11,6 +11,9 @@ export default class Http extends Transport {
   /** Instance transport */
   transport = 'http';
 
+  /** Last plain message nonce */
+  lastNonce: string | null = null;
+
   /**
    * Method sends bytes to server via http.
    */
@@ -21,15 +24,19 @@ export default class Http extends Transport {
       msg, dc, thread, transport: this.transport, authKey: authKey ? authKey.key : '',
     };
 
+    if (msg instanceof PlainMessage) {
+      this.lastNonce = msg.nonce;
+    }
+
     async('transport_encrypt', payload, (data: Bytes) => {
       const req = new XMLHttpRequest();
 
       req.open('POST', `http${this.cfg.ssl ? 's' : ''}://${this.svc.getHost(this.cfg.dc)}/apiw1${this.cfg.test ? '_test' : ''}`);
       req.responseType = 'arraybuffer';
 
-      // req.addEventListener('error', (error: ProgressEvent) => {
-      //   // todo something
-      // });
+      req.addEventListener('error', () => {
+        this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '', 0);
+      });
 
       req.onreadystatechange = () => {
         if (req.readyState !== 4) return;
@@ -40,6 +47,10 @@ export default class Http extends Transport {
           };
 
           async('transport_decrypt', payloadDec, (resMsg: Message | PlainMessage | Bytes) => {
+            if (msg instanceof PlainMessage) {
+              this.lastNonce = msg.nonce;
+            }
+
             if (resMsg instanceof Message || resMsg instanceof PlainMessage) {
               this.cfg.resolve(resMsg, {
                 dc: this.cfg.dc,
@@ -51,8 +62,6 @@ export default class Http extends Transport {
               throw new Error(`Unexpected answer: ${resMsg.hex}`);
             }
           });
-        } else {
-          // todo something
         }
       };
 

@@ -93,6 +93,8 @@ export default class RPCService {
           code: code || 1,
           message,
         });
+
+        delete this.messages[msgIDs[i]];
       }
     }
   }

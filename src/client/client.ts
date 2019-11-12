@@ -112,16 +112,21 @@ export default class Client {
     let tempKey = this.svc.getAuthKey(dc);
 
     if (permKey === null) {
-      createAuthKey(this, dc, 1, 0, () => {
-        if (this.svc.getAuthKey(dc) !== null) this.authorize(dc, cb);
-      });
-      tempKey = null;
+      this.svc.setMeta(dc, 'tempKey', null);
+
+      let calls = 0;
+      const onKeyCreated = () => {
+        calls++;
+        if (calls === 2) this.authorize(dc, cb);
+      }
+
+      createAuthKey(this, dc, 1, 0, onKeyCreated);
+      createAuthKey(this, dc, 2, expiresAfter, onKeyCreated);
+      return;
     }
 
     if (tempKey === null) { // || (tempKey.expires && tempKey.expires < Date.now())
-      createAuthKey(this, dc, 2, expiresAfter, () => {
-        if (this.svc.getPermKey(dc) !== null) this.authorize(dc, cb);
-      });
+      createAuthKey(this, dc, 2, expiresAfter, () => this.authorize(dc, cb));
       return;
     }
 
@@ -133,6 +138,16 @@ export default class Client {
     if (this.svc.getConnectionStatus(dc) === false) {
       initConnection(this, dc, () => this.authorize(dc, cb));
       return;
+    }
+
+    if (this.svc.getUserID(dc) === null) {
+      for (let i = 1; i <= 5; i += 1) {
+        if (this.svc.getUserID(i) !== null && dc != i) {
+          const uid = this.svc.getUserID(i);
+          transferAuthorization(this, uid as number, i, dc, () => this.authorize(dc, cb));
+          return
+        }
+      }
     }
 
     if (dc != this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
@@ -182,7 +197,10 @@ export default class Client {
     const result = this.tl.parse(msg.data);
 
     if (msg instanceof PlainMessage) {
-      if (msg.nonce && this.plainResolvers[msg.nonce]) this.plainResolvers[msg.nonce](null, result);
+      if (msg.nonce && this.plainResolvers[msg.nonce]) {
+        this.plainResolvers[msg.nonce](null, result);
+        delete this.plainResolvers[msg.nonce];
+      }
       return;
     }
 
@@ -191,7 +209,11 @@ export default class Client {
 
   /** Resolve transport error */
   resolveError = (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => {
-    if (nonce && this.plainResolvers[nonce]) this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
+    if (nonce && this.plainResolvers[nonce]) {
+      this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
+      delete this.plainResolvers[nonce];
+    }
+
     this.rpc.emitError(dc, thread, transport, code, message);
   };
 

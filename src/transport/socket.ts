@@ -47,7 +47,6 @@ export default class Socket extends Transport {
     this.ws.binaryType = 'arraybuffer';
     this.ws.onopen = this.handleOpen;
     this.ws.onclose = this.handleClose;
-    this.ws.onerror = this.handleError;
     this.ws.onmessage = this.handleMessage;
     this.isConnecting = true;
   };
@@ -87,16 +86,10 @@ export default class Socket extends Transport {
   handleClose = (event: CloseEvent) => {
     log(this.cfg.dc, 'closed');
     this.emit('disconnected');
+    this.pending = [];
+    this.isConnecting = false;
     this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '', event.code, event.reason);
   };
-
-  /**
-   * Handles error event at websocket object
-   */
-  handleError = (event: Event) => {
-    this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '');
-    console.log(event);
-  }
 
   /**
    * Handles onmessage event at websocket object

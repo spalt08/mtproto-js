@@ -49,7 +49,7 @@ export default class DCService {
 
   setMeta(dc: number, param: 'userID', value: number): void;
   setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;
-  setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey): void;
+  setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey | null): void;
   setMeta(dc: number, param: 'connectionInited', value: boolean): void;
   setMeta(dc: number, param: string, value: any) {
     if (!this.meta[dc]) this.meta[dc] = {};
