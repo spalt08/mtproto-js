@@ -1,14 +1,18 @@
 /* eslint-disable lines-between-class-members, no-dupe-class-members, import/no-cycle */
+import BigInt from 'big-integer';
 import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
 import { MTProtoTransport } from '../transport/protocol';
 import Transport from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
 import { Message, PlainMessage } from '../message';
-import { createAuthKey, bindTempAuthKey, initConnection, transferAuthorization } from './auth';
+import {
+  createAuthKey, bindTempAuthKey, initConnection, transferAuthorization,
+} from './auth';
 import RPCService from './rpc';
 import { RPCHeaders, ClientError } from './rpc.types';
 import UpdatesService from './updates';
+import async from '../crypto/async';
 
 /** Client inner callback */
 export type ClientCallback = (error: ClientError | null, result?: Message | PlainMessage) => void;
@@ -102,6 +106,21 @@ export default class Client {
     this.authorize(cfg.dc);
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  getPasswordKdfAsync(conf: any, password: string, cb: (result: object) => void): void {
+    const payload = {
+      salt1: conf.current_algo.salt1,
+      salt2: conf.current_algo.salt2,
+      g: conf.current_algo.g,
+      p: conf.current_algo.p.toString(),
+      srpB: conf.srp_B,
+      srpId: conf.srp_id.toString(),
+      password,
+    };
+
+    async('password_kdf', payload, (res: any) => cb({ ...res, srp_id: BigInt(res.srp_id) }));
+  }
+
   /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */
   authorize(dc: number, cb?: () => void): void {
     // Change state to block user requests
@@ -109,16 +128,16 @@ export default class Client {
 
     const expiresAfter = 3600 * 5;
     const permKey = this.svc.getPermKey(dc);
-    let tempKey = this.svc.getAuthKey(dc);
+    const tempKey = this.svc.getAuthKey(dc);
 
     if (permKey === null) {
       this.svc.setMeta(dc, 'tempKey', null);
 
       let calls = 0;
       const onKeyCreated = () => {
-        calls++;
+        calls += 1;
         if (calls === 2) this.authorize(dc, cb);
-      }
+      };
 
       createAuthKey(this, dc, 1, 0, onKeyCreated);
       createAuthKey(this, dc, 2, expiresAfter, onKeyCreated);
@@ -142,15 +161,15 @@ export default class Client {
 
     if (this.svc.getUserID(dc) === null) {
       for (let i = 1; i <= 5; i += 1) {
-        if (this.svc.getUserID(i) !== null && dc != i) {
+        if (this.svc.getUserID(i) !== null && dc !== i) {
           const uid = this.svc.getUserID(i);
           transferAuthorization(this, uid as number, i, dc, () => this.authorize(dc, cb));
-          return
+          return;
         }
       }
     }
 
-    if (dc != this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
+    if (dc !== this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
       transferAuthorization(this, this.svc.getUserID(this.cfg.dc) as number, this.cfg.dc, dc, () => this.authorize(dc, cb));
       return;
     }

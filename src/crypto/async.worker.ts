@@ -8,6 +8,7 @@ import {
   transportInit,
   transportEncrypt,
   transportDecrypt,
+  getPasswordKdf,
 } from './async.tasks';
 import { PlainMessage, Message } from '../message';
 
@@ -91,6 +92,16 @@ ctx.addEventListener('message', (event) => {
         } else {
           resolve(task, id, result.hex);
         }
+        break;
+      }
+
+      case 'password_kdf': {
+        const {
+          salt1, salt2, g, p, srpId, srpB, password,
+        } = payload;
+        const result = getPasswordKdf(salt1, salt2, g, p, srpId, srpB, password);
+
+        resolve(task, id, result);
         break;
       }
 

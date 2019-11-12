@@ -9,6 +9,7 @@ import {
   transportInit,
   transportEncrypt,
   transportDecrypt,
+  getPasswordKdf,
 } from './async.tasks';
 import { Message, PlainMessage } from '../message';
 
@@ -23,6 +24,7 @@ const quene: Record<string, TaskResolver> = {};
 type TranportInitPayload = { dc: number, thread: number, transport: string, protocol: string };
 type TranportEncryptPayload = { dc: number, thread: number, msg: Message | PlainMessage, transport: string, authKey: string };
 type TranportDecryptPayload = { dc: number, thread: number, msg: Bytes, transport: string, authKey: string };
+type PasswordKDFPayload = { salt1: string, salt2: string, g: number, p: string, srpId: string, srpB: string, password: string };
 /**
  * Task register
  */
@@ -33,6 +35,7 @@ function async(task: 'encrypt_dh', payload: Bytes[], cb: (res: string) => void):
 function async(task: 'transport_init', payload: TranportInitPayload, cb: (res: Bytes) => void): void;
 function async(task: 'transport_encrypt', payload: TranportEncryptPayload, cb: (res: Bytes) => void): void;
 function async(task: 'transport_decrypt', payload: TranportDecryptPayload, cb: (res: Message | PlainMessage | Bytes) => void): void;
+function async(taks: 'password_kdf', payload: PasswordKDFPayload, cb: (res: object) => void): void;
 function async(task: string, payload: any, cb: TaskResolver): void {
   const id = task + Date.now().toString(16);
 
@@ -109,6 +112,16 @@ function async(task: string, payload: any, cb: TaskResolver): void {
           },
         });
       }
+      break;
+    }
+
+    case 'password_kdf': {
+      const {
+        salt1, salt2, g, p, srpId, srpB, password,
+      } = payload;
+
+      if (!window.Worker) cb(getPasswordKdf(salt1, salt2, g, p, srpId, srpB, password));
+      else worker.postMessage({ id, task, payload });
       break;
     }
 

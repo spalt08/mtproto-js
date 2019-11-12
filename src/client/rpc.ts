@@ -5,7 +5,7 @@ import TLConstructor from '../tl/constructor';
 import TLVector from '../tl/vector';
 import { logs } from '../utils/log';
 import { Message } from '../message';
-import { Bytes, uint } from '../serialization';
+import { Bytes, uint, hex } from '../serialization';
 import { Client } from '.';
 import { RequestCallback } from './client';
 import { RPCHeaders, ClientError } from './rpc.types';
@@ -61,8 +61,8 @@ export default class RPCService {
 
       if (res && res instanceof TLConstructor) {
         if (res instanceof TLConstructor && res._ === 'gzip_packed') {
-          const gzData = res.params.packed_data.value;
-          const buf = new Bytes(pako.inflate(gzData).buffer);
+          const gzData = hex(res.params.packed_data.value);
+          const buf = new Bytes(pako.inflate(gzData.buffer).buffer);
 
           const result = this.client.tl.parse(buf);
 
@@ -101,10 +101,10 @@ export default class RPCService {
 
   watchResult = (res: TLConstructor, headers?: RPCHeaders) => {
     if (res._ === 'auth.authorization') {
-      const user = res.json().user;
+      const { user } = res.json();
       this.client.svc.setMeta(headers ? headers.dc : this.client.cfg.dc, 'userID', user.id);
     }
-  }
+  };
 
   /**
    * Resends request message by id

@@ -1,4 +1,5 @@
 import BigInt from 'big-integer';
+import { Pbkdf2HmacSha512 } from 'asmcrypto.js';
 import { Bytes, hex } from '../serialization';
 import { BrentPrime } from './pq';
 import { RSAKey } from './rsa/keys';
@@ -152,25 +153,67 @@ export function transportDecrypt(dc: number, thread: number, data: Bytes, transp
   }
 }
 
-// export function getPassword(cfg: any, password: string): any {
-//   if (password === '' || !cfg.current_algo || cfg.current_algo._ === 'passwordKdfAlgoUnknown') {
-//     return { _: 'passwordKdfAlgoUnknown' };
-//   }
+function phex(size: number, value: string): Bytes {
+  let str = '';
+  for (let i = 0; i < size - value.length / 2; i += 1) {
+    str += '00';
+  }
 
-//   const clientSalt = hex(cfg.current_algo.salt1 as string);
-//   const serverSalt = hex(cfg.current_algo.salt2 as string);
-//   const g = cfg.current_algo.g as number;
-//   const p = BigInt(cfg.current_algo.p, 16);
+  return hex((str + value).slice(-size * 2));
+}
 
-//   const b = cfg.srp_B ? BigInt(cfg.srp_B, 16) : BigInt(0);
-//   const id = cfg.srp_id || BigInt(0);
+export function getPasswordKdf(
+  salt1: string, salt2: string, cg: number, cp: string, srpId: string, csrpB: string, password: string, rand?: string,
+): any {
+  const clientSalt = hex(salt1);
+  const serverSalt = hex(salt2);
+  const g = BigInt(cg);
+  const p = BigInt(cp, 16);
 
-//   const buf = sha256(hex(clientSalt.hex + str))
+  const gBuf = phex(256, g.toString(16));
+  const pBuf = phex(256, cp);
 
-//   $buf = $this->hashSha256($password, $client_salt);
-//       $buf = $this->hashSha256($buf, $server_salt);
-//         $hash = \hash_pbkdf2('sha512', $buf, $client_salt, 100000, 0, true);
-//         return $this->hashSha256($hash, $server_salt);
-//   const x = BigInt($this->hashPassword($password, $client_salt, $server_salt), 256);
-  
-// }
+  const srpB = BigInt(csrpB, 16);
+  const srpBBuf = phex(256, csrpB);
+
+  let pwdhash;
+  pwdhash = sha256(clientSalt.raw + password + clientSalt.raw);
+  pwdhash = sha256(serverSalt.raw + pwdhash.raw + serverSalt.raw);
+  pwdhash = new Bytes(Pbkdf2HmacSha512(pwdhash.buffer, clientSalt.buffer, 100000, 64));
+  pwdhash = sha256(serverSalt.raw + pwdhash.raw + serverSalt.raw);
+
+  const x = BigInt(pwdhash.hex, 16);
+  const gx = g.modPow(x, p);
+
+  const k = BigInt(sha256(pBuf.raw + gBuf.raw).hex, 16);
+  const kgx = k.multiply(gx).mod(p);
+
+  const aBuf = rand ? hex(rand) : new Bytes(256).randomize();
+  const a = BigInt(aBuf.hex, 16);
+  const Ac = g.modPow(a, p);
+  const AcBuf = phex(256, Ac.toString(16));
+
+  let bkgx = srpB.subtract(kgx);
+  if (bkgx.lesser(BigInt.zero)) bkgx = bkgx.add(p);
+
+  const u = BigInt(sha256(AcBuf.raw + srpBBuf.raw).hex, 16);
+  const ux = u.multiply(x);
+  const uxa = ux.add(a);
+
+  const S = bkgx.modPow(uxa, p);
+  const SBuf = phex(256, S.toString(16));
+
+  const K = sha256(SBuf.raw);
+  const h1 = sha256(pBuf.raw);
+  const h2 = sha256(gBuf.raw);
+  const h12 = Bytes.xor(h1, h2);
+
+  const M1 = sha256(h12.raw + sha256(clientSalt.raw).raw + sha256(serverSalt.raw).raw + AcBuf.raw + srpBBuf.raw + K.raw);
+
+  return {
+    _: 'inputCheckPasswordSRP',
+    srp_id: srpId,
+    A: AcBuf.hex,
+    M1: M1.hex,
+  };
+}
