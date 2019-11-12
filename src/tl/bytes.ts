@@ -40,9 +40,9 @@ export default class TLBytes extends TLAbstract {
     let len = 0;
 
     if (this._ === 'string') {
-      len = this.value.length;
+      len = this.value.length || 0;
     } else {
-      len = Math.ceil(this.value.length / 2);
+      len = Math.ceil((this.value.length || 0) / 2);
     }
 
     if (len < 0xFE) {
@@ -110,9 +110,9 @@ export default class TLBytes extends TLAbstract {
     let len = 0;
 
     if (this._ === 'string') {
-      len = this.value.length;
+      len = this.value.length || 0;
     } else {
-      len = Math.ceil(this.value.length / 2);
+      len = Math.ceil((this.value.length || 0) / 2);
     }
 
     if (len < 0xFE) {
