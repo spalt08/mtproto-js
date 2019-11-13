@@ -122,6 +122,8 @@ export default class Socket extends Transport {
    * Method sends bytes to server via web socket.
    */
   send(msg: PlainMessage | Message) {
+    log('<-', msg.id, `(dc: ${this.cfg.dc}, thread: ${this.cfg.thread})`);
+
     if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
 
     if (this.ws && this.ws.readyState === 1) {

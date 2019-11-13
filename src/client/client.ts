@@ -288,13 +288,10 @@ export default class Client {
   }
 
   /** Create message, encrypt it and send it to the server */
-  public call(src: TLConstructor | Message, cb: RequestCallback): void;
-  public call(src: TLConstructor | Message, headers: Record<string, any>): void;
-  public call(src: TLConstructor | Message, headers: Record<string, any>, cb: RequestCallback): void;
-  public call(method: string, data: Record<string, any>): void;
-  public call(method: string, data: Record<string, any>, cb: RequestCallback): void;
-  public call(method: string, data: Record<string, any>, headers: Record<string, any>): void;
-  public call(method: string, data: Record<string, any>, headers: Record<string, any>, cb: RequestCallback): void;
+  public call(src: TLConstructor | Message, cb?: RequestCallback): void;
+  public call(src: TLConstructor | Message, headers: Record<string, any>, cb?: RequestCallback): void;
+  public call(method: string, data: Record<string, any>, cb?: RequestCallback): void;
+  public call(method: string, data: Record<string, any>, headers: Record<string, any>, cb?: RequestCallback): void;
   public call(src: TLConstructor | Message | string, ...args: unknown[]): void {
     let msg: Message;
     let cb: RequestCallback | undefined;
