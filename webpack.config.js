@@ -108,11 +108,6 @@ module.exports = (env, argv) => {
         ...cjsExternals,
       },
 
-      optimization: {
-        ...commonConfig.optimization,
-        minimize: false,
-      },
-
       output: {
         ...commonConfig.output,
         filename: `${libraryName}.cjs.js`,
