@@ -1,5 +1,5 @@
 /* eslint-disable import/no-cycle */
-import { inflate } from 'pako';
+import { inflate } from 'pako/lib/inflate';
 import TLAbstract from '../tl/abstract';
 import TLConstructor from '../tl/constructor';
 import TLVector from '../tl/vector';

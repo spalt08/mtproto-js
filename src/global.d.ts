@@ -16,3 +16,10 @@ declare module '*.json' {
 }
 
 declare module 'aes-js'
+
+declare module 'pako/lib/deflate' {
+  export { deflate, Deflate, deflateRaw, gzip } from 'pako';
+}
+declare module 'pako/lib/inflate' {
+  export { inflate, Inflate, inflateRaw, ungzip } from 'pako';
+}
