@@ -144,7 +144,7 @@ export default class Client {
       return;
     }
 
-    if (tempKey === null) { // || (tempKey.expires && tempKey.expires < Date.now())
+    if (tempKey === null || (tempKey.expires && tempKey.expires < Date.now() / 1000)) {
       createAuthKey(this, dc, 2, expiresAfter, () => this.authorize(dc, cb));
       return;
     }
