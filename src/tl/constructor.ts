@@ -213,7 +213,14 @@ export default class TLConstructor extends TLAbstract {
 
       for (let i = 0; i < this.declaration.params.length; i += 1) {
         const param = this.declaration.params[i];
-        if (this.params[param.name]) output[param.name] = this.params[param.name].value;
+        if (this.params[param.name]) {
+          // skip optional constructors
+          if (this.params[param.name] instanceof TLConstructor && this.params[param.name].isOptional && !this.params[param.name].hasValue()) {
+            continue;
+          }
+
+          output[param.name] = this.params[param.name].value;
+        }
       }
     }
 
