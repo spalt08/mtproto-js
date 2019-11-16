@@ -71,12 +71,7 @@ export default class Socket extends Transport {
 
       log(this.cfg.dc, 'ready');
 
-      if (this.pending) {
-        for (let i = 0; i < this.pending.length; i += 1) {
-          const msg = this.pending.shift();
-          if (msg) this.send(msg);
-        }
-      }
+      this.releasePending();
     });
   };
 
@@ -137,10 +132,20 @@ export default class Socket extends Transport {
         if (this.ws) this.ws.send(data.buffer.buffer);
       });
 
+      this.releasePending();
       return;
     }
 
     if (this.isConnecting === false) this.connect();
     this.pending.push(msg);
+  }
+
+  releasePending() {
+    if (this.pending) {
+      for (let i = 0; i < this.pending.length; i += 1) {
+        const msg = this.pending.shift();
+        if (msg) this.send(msg);
+      }
+    }
   }
 }

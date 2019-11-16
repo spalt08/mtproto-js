@@ -159,15 +159,15 @@ export default class Client {
       return;
     }
 
-    if (this.svc.getUserID(dc) === null) {
-      for (let i = 1; i <= 5; i += 1) {
-        if (this.svc.getUserID(i) !== null && dc !== i) {
-          const uid = this.svc.getUserID(i);
-          transferAuthorization(this, uid as number, i, dc, () => this.authorize(dc, cb));
-          return;
-        }
-      }
-    }
+    // if (this.svc.getUserID(dc) === null) {
+    //   for (let i = 1; i <= 5; i += 1) {
+    //     if (this.svc.getUserID(i) !== null && dc !== i) {
+    //       const uid = this.svc.getUserID(i);
+    //       transferAuthorization(this, uid as number, i, dc, () => this.authorize(dc, cb));
+    //       return;
+    //     }
+    //   }
+    // }
 
     if (dc !== this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
       transferAuthorization(this, this.svc.getUserID(this.cfg.dc) as number, this.cfg.dc, dc, () => this.authorize(dc, cb));

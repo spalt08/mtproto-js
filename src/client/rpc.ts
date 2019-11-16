@@ -61,6 +61,7 @@ export default class RPCService {
       // Call callback with error
       if (error) {
         if (reqMsg.cb) reqMsg.cb(error);
+        delete this.messages[msgID];
         return;
       }
 
@@ -278,7 +279,7 @@ export default class RPCService {
               message: result.params.error_message.value,
             }, result, headers);
           }
-          console.log('rpc err', this.messages[reqMsgID], `(${headers.transport}, thread: ${headers.thread})`);
+          console.log('rpc err', this.messages[reqMsgID], `(${headers.transport}, thread: ${headers.thread})`, result.json());
           break;
 
         default:
