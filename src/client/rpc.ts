@@ -1,5 +1,5 @@
 /* eslint-disable import/no-cycle */
-import pako from 'pako';
+import { inflate } from 'pako/lib/inflate';
 import TLAbstract from '../tl/abstract';
 import TLConstructor from '../tl/constructor';
 import TLVector from '../tl/vector';
@@ -68,7 +68,7 @@ export default class RPCService {
       if (res && res instanceof TLConstructor) {
         if (res instanceof TLConstructor && res._ === 'gzip_packed') {
           const gzData = hex(res.params.packed_data.value);
-          const buf = new Bytes(pako.inflate(gzData.buffer).buffer);
+          const buf = new Bytes(inflate(gzData.buffer).buffer);
 
           const result = this.client.tl.parse(buf);
 
