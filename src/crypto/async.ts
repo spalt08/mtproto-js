@@ -10,6 +10,7 @@ import {
   transportEncrypt,
   transportDecrypt,
   getPasswordKdf,
+  genKey,
 } from './async.tasks';
 import { Message, PlainMessage } from '../message';
 
@@ -32,6 +33,7 @@ function async(task: 'factorize', payload: string, cb: (res: string[]) => void):
 function async(task: 'encrypt_pq', payload: [Bytes, RSAKey], cb: (res: string) => void): void;
 function async(task: 'decrypt_dh', payload: [string, Bytes, Bytes], cb: (res: Bytes) => void): void;
 function async(task: 'encrypt_dh', payload: Bytes[], cb: (res: string) => void): void;
+function async(task: 'gen_key', payload: [number, string, string], cb: (res: [string, string]) => void): void;
 function async(task: 'transport_init', payload: TranportInitPayload, cb: (res: Bytes) => void): void;
 function async(task: 'transport_encrypt', payload: TranportEncryptPayload, cb: (res: Bytes) => void): void;
 function async(task: 'transport_decrypt', payload: TranportDecryptPayload, cb: (res: Message | PlainMessage | Bytes) => void): void;
@@ -66,6 +68,13 @@ function async(task: string, payload: any, cb: TaskResolver): void {
 
       if (!window.Worker) cb(encryptDH(data, nn, sn).hex);
       else worker.postMessage({ id, task, payload: [data.hex, nn.hex, sn.hex] });
+      break;
+    }
+
+    case 'gen_key': {
+      const [g, ga, dh] = payload;
+      if (!window.Worker) cb(genKey(g, ga, dh));
+      else worker.postMessage({ id, task, payload });
       break;
     }
 

@@ -48,6 +48,17 @@ export function decryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
   return decrypt(data, tmpAesKey, tmpAesIv);
 }
 
+export function genKey(cg: number, cga: string, cdh: string): [string, string] {
+  const g = BigInt(cg);
+  const ga = BigInt(cga, 16);
+  const dhPrime = BigInt(cdh, 16);
+  const b = BigInt(new Bytes(255).randomize().hex, 16);
+  const gb = g.modPow(b, dhPrime).toString(16);
+  const authKey = ga.modPow(b, dhPrime).toString(16);
+
+  return [gb, authKey];
+}
+
 /** Encrypting client_DH_inner_data */
 export function encryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
   const tmpAesKey = new Bytes(32);

@@ -1,4 +1,3 @@
-import BigInt from 'big-integer';
 import { Client } from '.';
 import { TLConstructor, TLVector } from '../tl';
 import async from '../crypto/async';
@@ -105,56 +104,52 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
             }
 
             // todo: server time sync
-
-            const g = BigInt(serverDH.params.g.value);
-            const ga = BigInt(serverDH.params.g_a.value, 16);
-            const dhPrime = BigInt(serverDH.params.dh_prime.value, 16);
-            const b = BigInt(new Bytes(255).randomize().hex, 16);
-
-            const gb = g.modPow(b, dhPrime);
-
+            const g = serverDH.params.g.value;
+            const ga = serverDH.params.g_a.value;
+            const dhPrime = serverDH.params.dh_prime.value;
             // todo: check dh prime, ga, gb
 
-            const clientDH = client.tl.create('client_DH_inner_data', {
-              nonce: nonce.uint,
-              server_nonce: serverNonce.uint,
-              retry_id: 0,
-              g_b: gb.toString(16),
-            }).serialize();
-
-            async('encrypt_dh', [clientDH, newNonce, serverNonce], (encryptedDH: string) => {
-              const clientDHParams = {
+            async('gen_key', [g, ga, dhPrime], ([gb, authKeyFull]: string[]) => {
+              const clientDH = client.tl.create('client_DH_inner_data', {
                 nonce: nonce.uint,
                 server_nonce: serverNonce.uint,
-                encrypted_data: encryptedDH,
-              };
+                retry_id: 0,
+                g_b: gb,
+              }).serialize();
 
-              client.plainCall('set_client_DH_params', clientDHParams, { dc, thread, transport }, (errc, sDH) => {
-                if (errc || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
-                  log('Unexpected set_client_DH_params response');
-                  if (cb) cb(true);
-                  return;
-                }
-
-                const authKeyFull = ga.modPow(b, dhPrime).toString(16);
-                const authKey: AuthKey = {
-                  id: sha1(hex(authKeyFull).raw).slice(12, 20).hex,
-                  key: authKeyFull,
+              async('encrypt_dh', [clientDH, newNonce, serverNonce], (encryptedDH: string) => {
+                const clientDHParams = {
+                  nonce: nonce.uint,
+                  server_nonce: serverNonce.uint,
+                  encrypted_data: encryptedDH,
                 };
 
-                if (expiresAfter > 0) {
-                  authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
-                  authKey.binded = false;
+                client.plainCall('set_client_DH_params', clientDHParams, { dc, thread, transport }, (errc, sDH) => {
+                  if (errc || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
+                    log('Unexpected set_client_DH_params response');
+                    if (cb) cb(true);
+                    return;
+                  }
 
-                  client.svc.setMeta(dc, 'salt', Bytes.xor(newNonce.slice(0, 8), serverNonce.slice(0, 8)).hex);
-                }
+                  const authKey: AuthKey = {
+                    id: sha1(hex(authKeyFull).raw).slice(12, 20).hex,
+                    key: authKeyFull,
+                  };
 
-                if (expiresAfter > 0) client.svc.setMeta(dc, 'tempKey', authKey);
-                else client.svc.setMeta(dc, 'permKey', authKey);
+                  if (expiresAfter > 0) {
+                    authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
+                    authKey.binded = false;
 
-                log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${transport}, thread: ${thread})`);
+                    client.svc.setMeta(dc, 'salt', Bytes.xor(newNonce.slice(0, 8), serverNonce.slice(0, 8)).hex);
+                  }
 
-                if (cb) cb(false, authKey);
+                  if (expiresAfter > 0) client.svc.setMeta(dc, 'tempKey', authKey);
+                  else client.svc.setMeta(dc, 'permKey', authKey);
+
+                  log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${transport}, thread: ${thread})`);
+
+                  if (cb) cb(false, authKey);
+                });
               });
             });
           });
@@ -249,6 +244,7 @@ export function initConnection(client: Client, dc: number, cb?: (result: boolean
 
 export function transferAuthorization(client: Client, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
   client.call('auth.exportAuthorization', { dc_id: dcTo }, { dc: dcFrom, force: true }, (err, res) => {
+    console.log(err, { dc_id: dcTo }, { dc: dcFrom, force: true });
     if (err || !(res instanceof TLConstructor) || res._ !== 'auth.exportedAuthorization') {
       if (cb) cb(false);
       return;
@@ -257,6 +253,7 @@ export function transferAuthorization(client: Client, userID: number, dcFrom: nu
     const bytes = res.params.bytes.value;
 
     client.call('auth.importAuthorization', { id: userID, bytes }, { dc: dcTo, force: true }, (err2, res2) => {
+      console.log(err2, { id: userID, bytes }, { dc: dcTo, force: true });
       if (err2 || !(res2 instanceof TLConstructor) || res2._ !== 'auth.authorization') {
         if (cb) cb(false);
         return;

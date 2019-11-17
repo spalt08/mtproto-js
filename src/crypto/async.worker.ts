@@ -9,6 +9,7 @@ import {
   transportEncrypt,
   transportDecrypt,
   getPasswordKdf,
+  genKey,
 } from './async.tasks';
 import { PlainMessage, Message } from '../message';
 
@@ -59,6 +60,13 @@ ctx.addEventListener('message', (event) => {
         const result = encryptDH(data, nn, sn);
 
         resolve(task, id, result.hex);
+        break;
+      }
+
+      case 'gen_key': {
+        const [g, ga, dh] = payload;
+        const res = genKey(g, ga, dh);
+        resolve(task, id, res);
         break;
       }
 

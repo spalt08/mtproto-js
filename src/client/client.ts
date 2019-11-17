@@ -172,6 +172,7 @@ export default class Client {
     // }
 
     if (dc !== this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
+      console.log(dc, this.cfg.dc, this.svc.getUserID(this.cfg.dc), this.svc.getUserID(dc));
       transferAuthorization(this, this.svc.getUserID(this.cfg.dc) as number, this.cfg.dc, dc, () => this.authorize(dc, cb));
       return;
     }
