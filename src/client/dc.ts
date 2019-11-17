@@ -1,4 +1,5 @@
 /* eslint-disable no-dupe-class-members, lines-between-class-members, class-methods-use-this */
+import { Client } from 'client';
 import { AuthKey } from './auth';
 import { Bytes } from '../serialization';
 
@@ -32,13 +33,13 @@ export default class DCService {
     [key: string]: any,
   }> = {};
 
-  constructor() {
-    const cached = sessionStorage.getItem('dc');
+  constructor(client: Client) {
+    const cached = sessionStorage.getItem('meta');
 
     if (cached) this.meta = JSON.parse(cached) || {};
 
     window.addEventListener('beforeunload', () => {
-      sessionStorage.setItem('dc', JSON.stringify(this.meta));
+      client.cfg.storage.setItem('meta', JSON.stringify(this.meta));
     });
   }
 

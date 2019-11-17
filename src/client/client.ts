@@ -29,6 +29,7 @@ export type ClientConfig = {
   dc: number,
   protocol: MTProtoTransport,
   transport: Transports,
+  storage: Storage,
 
   APILayer: number,
   APIID?: string,
@@ -47,6 +48,7 @@ const defaultClientConfig = {
   dc: 2,
   protocol: 'intermediate' as MTProtoTransport,
   transport: 'websocket' as Transports,
+  storage: window.localStorage,
 
   APILayer: 105,
   deviceModel: 'Unknown',
@@ -92,7 +94,7 @@ export default class Client {
     this.tl = tl;
     this.cfg = { ...defaultClientConfig, ...cfg };
 
-    this.svc = new DCService();
+    this.svc = new DCService(this);
     this.rpc = new RPCService(this);
     this.updates = new UpdatesService(this);
 
