@@ -33,13 +33,18 @@ export default class DCService {
     [key: string]: any,
   }> = {};
 
+  storage: Storage;
+
   constructor(client?: Client) {
-    const cached = sessionStorage.getItem('meta');
+    if (client) this.storage = client.cfg.storage;
+    else this.storage = window.localStorage;
+
+    const cached = this.storage.getItem('meta');
 
     if (cached) this.meta = JSON.parse(cached) || {};
 
     window.addEventListener('beforeunload', () => {
-      if (client) client.cfg.storage.setItem('meta', JSON.stringify(this.meta));
+      this.storage.setItem('meta', JSON.stringify(this.meta));
     });
   }
 
