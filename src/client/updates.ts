@@ -52,7 +52,7 @@ export default class UpdatesService {
   process(updateMsg: TLConstructor) {
     switch (updateMsg._) {
       case 'updateShort':
-        log(updateMsg.params.update._)
+        log(updateMsg.params.update._);
         this.emit(updateMsg.params.update as TLConstructor);
         break;
 
