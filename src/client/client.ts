@@ -89,6 +89,8 @@ export default class Client {
   /** DC state. 0 - attached, 1 - authorizing, 2 - ready */
   state: Record<number, number>;
 
+  retries: Record<number, number> = {};
+
   /** Creates new client handler */
   constructor(tl: TypeLanguage, cfg: Record<string, any> = {}) {
     this.tl = tl;
@@ -127,6 +129,15 @@ export default class Client {
   authorize(dc: number, cb?: () => void): void {
     // Change state to block user requests
     if (!this.state[dc] || this.state[dc] !== 1) this.state[dc] = 1;
+    if (!this.retries[dc]) this.retries[dc] = 0;
+
+    this.retries[dc] += 1;
+
+    if (this.retries[dc] > 12) {
+      this.state[dc] = 0;
+      this.retries[dc] = 0;
+      return;
+    }
 
     const expiresAfter = 3600 * 5;
     const permKey = this.svc.getPermKey(dc);
@@ -172,7 +183,6 @@ export default class Client {
     // }
 
     if (dc !== this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
-      console.log(dc, this.cfg.dc, this.svc.getUserID(this.cfg.dc), this.svc.getUserID(dc));
       transferAuthorization(this, this.svc.getUserID(this.cfg.dc) as number, this.cfg.dc, dc, () => this.authorize(dc, cb));
       return;
     }
