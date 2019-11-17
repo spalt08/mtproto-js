@@ -80,6 +80,10 @@ export default class UpdatesService {
         this.emit(updateMsg);
         break;
 
+      case 'updateShortChatMessage':
+        this.emit(updateMsg);
+        break;
+
       default:
         log('unknown', updateMsg._, updateMsg.json());
     }
