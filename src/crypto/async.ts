@@ -1,18 +1,7 @@
 import AsyncWorker from './async.worker';
 import { RSAKey } from './rsa/keys';
 import { Bytes, hex } from '../serialization';
-import {
-  factorize,
-  ecnryptPQ,
-  decryptDH,
-  encryptDH,
-  transportInit,
-  transportEncrypt,
-  transportDecrypt,
-  getPasswordKdf,
-  genKey,
-} from './async.tasks';
-import { Message, PlainMessage } from '../message';
+import { Message, PlainMessage, MessageV1 } from '../message';
 
 /**
  * Worker task callback
@@ -24,6 +13,7 @@ const quene: Record<string, TaskResolver> = {};
 
 type TranportInitPayload = { dc: number, thread: number, transport: string, protocol: string };
 type TranportEncryptPayload = { dc: number, thread: number, msg: Message | PlainMessage, transport: string, authKey: string };
+type TranportEncryptV1Payload = { msg: MessageV1, authKey: string };
 type TranportDecryptPayload = { dc: number, thread: number, msg: Bytes, transport: string, authKey: string };
 type PasswordKDFPayload = { salt1: string, salt2: string, g: number, p: string, srpId: string, srpB: string, password: string };
 /**
@@ -36,6 +26,7 @@ function async(task: 'encrypt_dh', payload: Bytes[], cb: (res: string) => void):
 function async(task: 'gen_key', payload: [number, string, string], cb: (res: [string, string]) => void): void;
 function async(task: 'transport_init', payload: TranportInitPayload, cb: (res: Bytes) => void): void;
 function async(task: 'transport_encrypt', payload: TranportEncryptPayload, cb: (res: Bytes) => void): void;
+function async(task: 'transport_encrypt_v1', payload: TranportEncryptV1Payload, cb: (res: Bytes) => void): void;
 function async(task: 'transport_decrypt', payload: TranportDecryptPayload, cb: (res: Message | PlainMessage | Bytes) => void): void;
 function async(taks: 'password_kdf', payload: PasswordKDFPayload, cb: (res: object) => void): void;
 function async(task: string, payload: any, cb: TaskResolver): void {
@@ -43,48 +34,37 @@ function async(task: string, payload: any, cb: TaskResolver): void {
 
   switch (task) {
     case 'factorize':
-      if (!window.Worker) cb(factorize(payload));
-      else worker.postMessage({ id, task, payload });
+      worker.postMessage({ id, task, payload });
       break;
 
     case 'encrypt_pq': {
       const [data, publicKey] = payload;
 
-      if (!window.Worker) cb(ecnryptPQ(data, publicKey));
-      else worker.postMessage({ id, task, payload: [data.hex, publicKey] });
+      worker.postMessage({ id, task, payload: [data.hex, publicKey] });
       break;
     }
 
     case 'decrypt_dh': {
       const [data, nn, sn] = payload;
 
-      if (!window.Worker) cb(decryptDH(hex(data), nn, sn));
-      else worker.postMessage({ id, task, payload: [data, nn.hex, sn.hex] });
+      worker.postMessage({ id, task, payload: [data, nn.hex, sn.hex] });
       break;
     }
 
     case 'encrypt_dh': {
       const [data, nn, sn] = payload;
 
-      if (!window.Worker) cb(encryptDH(data, nn, sn).hex);
-      else worker.postMessage({ id, task, payload: [data.hex, nn.hex, sn.hex] });
+      worker.postMessage({ id, task, payload: [data.hex, nn.hex, sn.hex] });
       break;
     }
 
     case 'gen_key': {
-      const [g, ga, dh] = payload;
-      if (!window.Worker) cb(genKey(g, ga, dh));
-      else worker.postMessage({ id, task, payload });
+      worker.postMessage({ id, task, payload });
       break;
     }
 
     case 'transport_init': {
-      const {
-        dc, thread, transport, protocol,
-      } = payload;
-
-      if (!window.Worker) cb(transportInit(dc, thread, transport, protocol));
-      else worker.postMessage({ id, task, payload });
+      worker.postMessage({ id, task, payload });
       break;
     }
 
@@ -93,16 +73,28 @@ function async(task: string, payload: any, cb: TaskResolver): void {
         dc, thread, msg, transport, authKey,
       } = payload;
 
-      if (!window.Worker) cb(transportEncrypt(dc, thread, msg, transport, authKey));
-      else {
-        worker.postMessage({
-          id,
-          task,
-          payload: {
-            dc, thread, msg: msg.buf.hex, transport, authKey,
-          },
-        });
-      }
+      worker.postMessage({
+        id,
+        task,
+        payload: {
+          dc, thread, msg: msg.buf.hex, transport, authKey,
+        },
+      });
+      break;
+    }
+
+    case 'transport_encrypt_v1': {
+      const {
+        msg, authKey,
+      } = payload;
+
+      worker.postMessage({
+        id,
+        task,
+        payload: {
+          msg: msg.buf.hex, authKey,
+        },
+      });
       break;
     }
 
@@ -111,26 +103,18 @@ function async(task: string, payload: any, cb: TaskResolver): void {
         dc, thread, msg, transport, authKey,
       } = payload;
 
-      if (!window.Worker) cb(transportDecrypt(dc, thread, msg, transport, authKey));
-      else {
-        worker.postMessage({
-          id,
-          task,
-          payload: {
-            dc, thread, msg: msg.hex, transport, authKey,
-          },
-        });
-      }
+      worker.postMessage({
+        id,
+        task,
+        payload: {
+          dc, thread, msg: msg.hex, transport, authKey,
+        },
+      });
       break;
     }
 
     case 'password_kdf': {
-      const {
-        salt1, salt2, g, p, srpId, srpB, password,
-      } = payload;
-
-      if (!window.Worker) cb(getPasswordKdf(salt1, salt2, g, p, srpId, srpB, password));
-      else worker.postMessage({ id, task, payload });
+      worker.postMessage({ id, task, payload });
       break;
     }
 
@@ -165,6 +149,10 @@ worker.onmessage = (event: MessageEvent) => {
     case 'decrypt_dh':
     case 'transport_init':
     case 'transport_encrypt':
+      quene[data.id](hex(data.result));
+      return;
+
+    case 'transport_encrypt_v1':
       quene[data.id](hex(data.result));
       return;
 

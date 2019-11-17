@@ -10,8 +10,9 @@ import {
   transportDecrypt,
   getPasswordKdf,
   genKey,
+  transportEncryptv1,
 } from './async.tasks';
-import { PlainMessage, Message } from '../message';
+import { PlainMessage, Message, MessageV1 } from '../message';
 
 const ctx: Worker = self as any;
 
@@ -87,6 +88,14 @@ ctx.addEventListener('message', (event) => {
         }
 
         const result = transportEncrypt(payload.dc, payload.thread, msg, payload.transport, payload.authKey);
+        resolve(task, id, result.hex);
+        break;
+      }
+
+      case 'transport_encrypt_v1': {
+        const buf = hex(payload.msg);
+        const msg = new MessageV1(buf);
+        const result = transportEncryptv1(msg, payload.authKey);
         resolve(task, id, result.hex);
         break;
       }

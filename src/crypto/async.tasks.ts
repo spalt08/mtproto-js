@@ -13,9 +13,12 @@ import {
   Intermediate,
   Obfuscation,
 } from '../transport/protocol';
-import { Message, PlainMessage, EncryptedMessage } from '../message';
+import {
+  Message, PlainMessage, EncryptedMessage, MessageV1,
+} from '../message';
 import { encryptMessage, decryptMessage } from './aes/message';
 import sha256 from './sha256';
+import { encryptMessageV1 } from './aes/message.v1';
 
 /** Factorization PQ */
 export function factorize(pq: string): string[] {
@@ -131,6 +134,14 @@ export function transportEncrypt(dc: number, thread: number, msg: Message | Plai
     return obfuscation[key].encode(protocol[key].wrap(encrypted.buf));
   }
 
+  return encrypted.buf;
+}
+
+/**
+ * Encrypt, envelope and obfuscate outgoint message
+ */
+export function transportEncryptv1(msg: MessageV1, authKey: string) {
+  const encrypted = encryptMessageV1(authKey, msg);
   return encrypted.buf;
 }
 
