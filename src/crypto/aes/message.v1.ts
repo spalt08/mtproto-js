@@ -8,12 +8,12 @@ import { hex } from '../../serialization';
  * Encrypts MessageData object with AES-256-IGE mode.
  * https://core.telegram.org/mtproto/description_v1
  */
-export function encryptMessageV1(authKey: { key: string, id: string }, msg: MessageV1): EncryptedMessage {
+export function encryptMessageV1(authKey: string, msg: MessageV1): EncryptedMessage {
   const data = msg.buf;
-  const key = hex(authKey.key);
+  const key = hex(authKey);
 
   const msgKey = sha1(data.slice(0, msg.hlen + msg.dataLength).raw).slice(4, 20);
-  const sha1a = sha1(msgKey.raw + key.slice(0, 32).raw );
+  const sha1a = sha1(msgKey.raw + key.slice(0, 32).raw);
   const sha1b = sha1(key.slice(32, 48).raw + msgKey.raw + key.slice(48, 64).raw);
   const sha1c = sha1(key.slice(64, 96).raw + msgKey.raw);
   const sha1d = sha1(msgKey.raw + key.slice(96, 128).raw);
@@ -24,7 +24,7 @@ export function encryptMessageV1(authKey: { key: string, id: string }, msg: Mess
 
   const encMsg = new EncryptedMessage(encryptedData.length);
 
-  encMsg.authKey = authKey.id;
+  encMsg.authKey = sha1(key.raw).slice(12, 20).hex;
   encMsg.key = msgKey.hex;
   encMsg.data = encryptedData;
 

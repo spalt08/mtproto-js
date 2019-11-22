@@ -6,7 +6,6 @@ import { logs } from '../utils/log';
 import { Bytes, hex } from '../serialization';
 import sha1 from '../crypto/sha1';
 import { MessageV1, PlainMessage } from '../message';
-import { encryptMessageV1 } from '../crypto/aes/message.v1';
 
 const log = logs('auth');
 
@@ -190,21 +189,23 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
   bindMsg.sessionID = new Bytes(8).randomize().hex;
   bindMsg.id = msgID;
 
-  const query = client.tl.create('auth.bindTempAuthKey', {
-    perm_auth_key_id: permAuthKeyID,
-    nonce,
-    expires_at: expiresAt,
-    encrypted_message: encryptMessageV1(permKey, bindMsg).buf.hex,
-  });
+  async('transport_encrypt_v1', { msg: bindMsg, authKey: permKey.key }, (encryptedMsg: Bytes) => {
+    const query = client.tl.create('auth.bindTempAuthKey', {
+      perm_auth_key_id: permAuthKeyID,
+      nonce,
+      expires_at: expiresAt,
+      encrypted_message: encryptedMsg.hex,
+    });
 
-  client.call(query, { msgID, dc, force: true }, (err, res) => {
-    if (!err && res && res.json() === true) {
-      log(dc, 'temporary key successfuly binded');
-      client.svc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
-      if (cb) cb(true);
-    } else {
-      throw new Error('Auth: Binding temp auth key failed');
-    }
+    client.call(query, { msgID, dc, force: true }, (err, res) => {
+      if (!err && res && res.json() === true) {
+        log(dc, 'temporary key successfuly binded');
+        client.svc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
+        if (cb) cb(true);
+      } else {
+        throw new Error('Auth: Binding temp auth key failed');
+      }
+    });
   });
 }
 
