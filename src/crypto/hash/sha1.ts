@@ -19,7 +19,7 @@ function update(state: number[], data: string) {
   // consume 512 bit (64 byte) chunks
   for (let p = 0; p < data.length - (data.length % 64); p += 64) {
     // Array to use to store words.
-    const words = new Array(64);
+    const words = new Array(80);
 
     // initialize hash value for this chunk
     let a = nextState[0];

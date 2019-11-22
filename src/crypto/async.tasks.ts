@@ -1,5 +1,4 @@
 import BigInt from 'big-integer';
-import sjcl from '../vendor/sjcl';
 import { Bytes, hex } from '../serialization';
 import { BrentPrime } from './pq';
 import { RSAKey } from './rsa/keys';
@@ -19,6 +18,7 @@ import {
 import { encryptMessage, decryptMessage } from './aes/message';
 import sha256 from './hash/sha256';
 import { encryptMessageV1 } from './aes/message.v1';
+import pbkdf2 from './pbkdf2/pbkdf2';
 
 /** Factorization PQ */
 export function factorize(pq: string): string[] {
@@ -184,8 +184,6 @@ function phex(size: number, value: string): Bytes {
   return hex((str + value).slice(-size * 2));
 }
 
-const hmac512 = (key: any) => new (sjcl.misc as any).hmac(key, (sjcl.hash as any).sha512); // eslint-disable-line
-
 export function getPasswordKdf(
   salt1: string, salt2: string, cg: number, cp: string, srpId: string, csrpB: string, password: string, rand?: string,
 ): any {
@@ -203,11 +201,7 @@ export function getPasswordKdf(
   let pwdhash;
   pwdhash = sha256(clientSalt.raw + password + clientSalt.raw);
   pwdhash = sha256(serverSalt.raw + pwdhash.raw + serverSalt.raw);
-  pwdhash = hex(
-    (sjcl.codec as any).hex.fromBits(
-      (sjcl.misc as any).pbkdf2((sjcl.codec as any).hex.toBits(pwdhash.hex), (sjcl.codec as any).hex.toBits(clientSalt.hex), 100000, 512, hmac512),
-    ),
-  );
+  pwdhash = pbkdf2(pwdhash.raw, clientSalt.raw, 100000, 64);
   pwdhash = sha256(serverSalt.raw + pwdhash.raw + serverSalt.raw);
 
   const x = BigInt(pwdhash.hex, 16);
