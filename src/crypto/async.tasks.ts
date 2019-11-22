@@ -4,7 +4,7 @@ import { Bytes, hex } from '../serialization';
 import { BrentPrime } from './pq';
 import { RSAKey } from './rsa/keys';
 import RSAEncrypt from './rsa/encrypt';
-import sha1 from './sha1';
+import sha1 from './hash/sha1';
 import { decrypt, encrypt } from './aes/ige';
 import {
   Abridged,
@@ -17,7 +17,7 @@ import {
   Message, PlainMessage, EncryptedMessage, MessageV1,
 } from '../message';
 import { encryptMessage, decryptMessage } from './aes/message';
-import sha256 from './sha256';
+import sha256 from './hash/sha256';
 import { encryptMessageV1 } from './aes/message.v1';
 
 /** Factorization PQ */

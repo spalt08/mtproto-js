@@ -14,8 +14,7 @@
   "dependencies": {
     "aes-js": "^3.1.2",
     "big-integer": "^1.6.46",
-    "pako": "^1.0.10",
-    "rusha": "^0.8.13"
+    "pako": "^1.0.10"
   },
   "devDependencies": {
     "@babel/core": "^7.6.2",

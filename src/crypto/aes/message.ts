@@ -1,8 +1,8 @@
-import sha256 from '../sha256';
+import sha256 from '../hash/sha256';
 import { encrypt, decrypt } from './ige';
 import { Message, EncryptedMessage } from '../../message';
 import { hex } from '../../serialization';
-import sha1 from '../sha1';
+import sha1 from '../hash/sha1';
 
 /**
  * Encrypts MessageData object with AES-256-IGE mode.

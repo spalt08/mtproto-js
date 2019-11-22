@@ -1,26 +1,10 @@
+import { Bytes } from '../../serialization';
+import { strToInt32, int32ToStr } from './utils';
+
 /**
  * Rewritten from forge sha256
+ * https://github.com/digitalbazaar/forge/blob/master/lib/sha256.js
  */
-
-/** Gets a uint32 from string in big-endian order order */
-function strToUint32(str: string, pos: number) {
-  return (
-    str.charCodeAt(pos) << 24
-    ^ str.charCodeAt(pos + 1) << 16
-    ^ str.charCodeAt(pos + 2) << 8
-    ^ str.charCodeAt(pos + 3)
-  );
-}
-
-/** Returns a uint32 as a string in big-endian order order */
-function uint32ToStr(data: number) {
-  return (
-    String.fromCharCode((data >> 24) & 0xFF)
-    + String.fromCharCode((data >> 16) & 0xFF)
-    + String.fromCharCode((data >> 8) & 0xFF)
-    + String.fromCharCode(data & 0xFF)
-  );
-}
 
 // K table for SHA-256
 const _k = [
@@ -56,18 +40,15 @@ function update(state: number[], data: string) {
 
   const nextState = state.slice(0, 8);
 
-  // Array to use to store words.
-  const words = new Array(64);
+  for (let p = 0; p < data.length - (data.length % 64); p += 64) {
+    // Array to use to store words.
+    const words = new Array(64);
 
-  let len = data.length;
-  let p = 0;
-
-  while (len >= 64) {
     let i = 0;
     // the w array will be populated with sixteen 32-bit big-endian words
     // and then extended into 64 32-bit words according to SHA-256
     for (; i < 16; i += 1) {
-      words[i] = strToUint32(data, p + i * 4);
+      words[i] = strToInt32(data, p + i * 4);
     }
 
     for (; i < 64; i += 1) {
@@ -88,14 +69,14 @@ function update(state: number[], data: string) {
     }
 
     // initialize hash value for this chunk
-    let a = state[0];
-    let b = state[1];
-    let c = state[2];
-    let d = state[3];
-    let e = state[4];
-    let f = state[5];
-    let g = state[6];
-    let h = state[7];
+    let a = nextState[0];
+    let b = nextState[1];
+    let c = nextState[2];
+    let d = nextState[3];
+    let e = nextState[4];
+    let f = nextState[5];
+    let g = nextState[6];
+    let h = nextState[7];
 
     // round function
     for (i = 0; i < 64; i += 1) {
@@ -129,17 +110,14 @@ function update(state: number[], data: string) {
     }
 
     // update hash state
-    nextState[0] = (state[0] + a) | 0;
-    nextState[1] = (state[1] + b) | 0;
-    nextState[2] = (state[2] + c) | 0;
-    nextState[3] = (state[3] + d) | 0;
-    nextState[4] = (state[4] + e) | 0;
-    nextState[5] = (state[5] + f) | 0;
-    nextState[6] = (state[6] + g) | 0;
-    nextState[7] = (state[7] + h) | 0;
-
-    p += 64;
-    len -= 64;
+    nextState[0] = (nextState[0] + a) | 0;
+    nextState[1] = (nextState[1] + b) | 0;
+    nextState[2] = (nextState[2] + c) | 0;
+    nextState[3] = (nextState[3] + d) | 0;
+    nextState[4] = (nextState[4] + e) | 0;
+    nextState[5] = (nextState[5] + f) | 0;
+    nextState[6] = (nextState[6] + g) | 0;
+    nextState[7] = (nextState[7] + h) | 0;
   }
 
   return nextState;
@@ -148,19 +126,7 @@ function update(state: number[], data: string) {
 /**
  * Calculates sha256 hash from string
  */
-export default function sha256(message: string): string {
-  /* This is an optimization for V8-based browsers. When V8 concatenates
-  a string, the strings are only joined logically using a "cons string" or
-  "constructed/concatenated string". These containers keep references to one
-  another and can result in very large memory usage. For example, if a 2MB
-  string is constructed by concatenating 4 bytes together at a time, the
-  memory usage will be ~44MB; so ~22x increase. The strings are only joined
-  together when an operation requiring their joining takes place, such as
-  substr(). This function is called when adding data to this buffer to ensure
-  these types of strings are periodically joined to reduce the memory
-  footprint */
-  if (message.length > 4096) message.substr(0, 1);
-
+export default function sha256(message: string): Bytes {
   // 56-bit length of message so far (does not including padding)
   const len = message.length;
 
@@ -179,23 +145,23 @@ export default function sha256(message: string): string {
     0x5BE0CD19,
   ];
 
-  state = update(state, message);
-
   const pad = message
     + _padding.substr(0, 64 - ((len64[1] + 8) & 0x3F))
-    + uint32ToStr((len64[0] << 3) | (len64[0] >>> 28))
-    + uint32ToStr(len64[1] << 3);
+    + int32ToStr((len64[0] << 3) | (len64[0] >>> 28))
+    + int32ToStr(len64[1] << 3);
 
   state = update(state, pad);
 
-  return (
-    uint32ToStr(state[0])
-    + uint32ToStr(state[1])
-    + uint32ToStr(state[2])
-    + uint32ToStr(state[3])
-    + uint32ToStr(state[4])
-    + uint32ToStr(state[5])
-    + uint32ToStr(state[6])
-    + uint32ToStr(state[7])
-  );
+  const buf = new Bytes(32);
+
+  buf.raw = int32ToStr(state[0])
+    + int32ToStr(state[1])
+    + int32ToStr(state[2])
+    + int32ToStr(state[3])
+    + int32ToStr(state[4])
+    + int32ToStr(state[5])
+    + int32ToStr(state[6])
+    + int32ToStr(state[7]);
+
+  return buf;
 }

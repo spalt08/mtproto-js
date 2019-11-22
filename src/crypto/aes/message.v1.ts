@@ -1,4 +1,4 @@
-import sha1 from '../sha1';
+import sha1 from '../hash/sha1';
 import { encrypt, decrypt } from './ige';
 import { MessageV1, EncryptedMessage } from '../../message';
 import { hex } from '../../serialization';

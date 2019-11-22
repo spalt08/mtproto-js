@@ -4,7 +4,7 @@ import async from '../crypto/async';
 import { PredefinedKeys, RSAKey } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
 import { Bytes, hex } from '../serialization';
-import sha1 from '../crypto/sha1';
+import sha1 from '../crypto/hash/sha1';
 import { MessageV1, PlainMessage } from '../message';
 
 const log = logs('auth');

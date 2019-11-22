@@ -1,7 +1,7 @@
 import { Bytes } from '../../serialization';
 import TLConstructor from '../../tl/constructor';
 import SchemaProvider from '../../schema/provider';
-import sha1 from '../sha1';
+import sha1 from '../hash/sha1';
 
 export type RSAKey = {
   fingerprint: string,
