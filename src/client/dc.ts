@@ -1,4 +1,5 @@
 /* eslint-disable no-dupe-class-members, lines-between-class-members, class-methods-use-this */
+import { Client } from 'client';
 import { AuthKey } from './auth';
 import { Bytes } from '../serialization';
 
@@ -28,16 +29,22 @@ export default class DCService {
     sessionExpire?: number,
     connectionInited?: boolean,
     seqNo?: number,
+    userID?: number,
     [key: string]: any,
   }> = {};
 
-  constructor() {
-    const cached = sessionStorage.getItem('dc');
+  storage: Storage;
+
+  constructor(client?: Client) {
+    if (client) this.storage = client.cfg.storage;
+    else this.storage = window.localStorage;
+
+    const cached = this.storage.getItem('meta');
 
     if (cached) this.meta = JSON.parse(cached) || {};
 
     window.addEventListener('beforeunload', () => {
-      sessionStorage.setItem('dc', JSON.stringify(this.meta));
+      this.storage.setItem('meta', JSON.stringify(this.meta));
     });
   }
 
@@ -46,8 +53,9 @@ export default class DCService {
     return `${DCService.Config[dc].host}${DCService.Config[dc].host ? '-1' : ''}.web.telegram.org`;
   }
 
+  setMeta(dc: number, param: 'userID', value: number): void;
   setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;
-  setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey): void;
+  setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey | null): void;
   setMeta(dc: number, param: 'connectionInited', value: boolean): void;
   setMeta(dc: number, param: string, value: any) {
     if (!this.meta[dc]) this.meta[dc] = {};
@@ -81,6 +89,13 @@ export default class DCService {
     if (!this.meta[dc].permKey) return null;
 
     return this.meta[dc].permKey as AuthKey;
+  }
+
+  getUserID(dc: number): number | null {
+    if (!this.meta[dc]) return null;
+    if (!this.meta[dc].userID) return null;
+
+    return this.meta[dc].userID as number;
   }
 
   getConnectionStatus(dc: number): boolean {

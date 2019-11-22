@@ -9,7 +9,7 @@
     "build": "rm -rf dist/* && webpack --mode=production",
     "start": "rm -rf dist/* && webpack --watch",
     "analyze": "npm run build -- --analyze",
-    "test": "jest"
+    "test": "jest"    
   },
   "dependencies": {
     "aes-js": "^3.1.2",
@@ -54,7 +54,7 @@
   },
   "license": "GPL-3.0-or-later",
   "main": "dist/mtproto-js.cjs.js",
-  "types": "dist/mtproto-js.d.ts",
+  "types": "dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/spalt08/mtproto-js.git"
@@ -74,5 +74,9 @@
   "bugs": {
     "url": "https://github.com/spalt08/mtproto-js/issues"
   },
-  "homepage": "https://github.com/spalt08/mtproto-js#readme"
+  "homepage": "https://github.com/spalt08/mtproto-js#readme",
+  "files": [
+    "dist/*",
+    "package.json"
+  ]
 }

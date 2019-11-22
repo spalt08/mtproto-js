@@ -6,6 +6,6 @@ import { hex, Bytes } from '../serialization';
  * Benchmark: https://dominictarr.github.io/crypto-bench/
  */
 
-export default function sha1(data: Bytes): Bytes {
-  return hex(Rusha.createHash().update(data.raw).digest('hex'));
+export default function sha1(data: string): Bytes {
+  return hex(Rusha.createHash().update(data).digest('hex'));
 }

@@ -28,4 +28,6 @@ export { default as TypeLanguage } from './tl';
 
 export { Client } from './client';
 
+export { ClientError } from './client/rpc.types';
+
 export { hex, Bytes } from './serialization';

@@ -41,7 +41,7 @@ export function parseKey(key: string): RSAKey {
   }
 
   const tlKey = new TLConstructor('rsa_public_key n:bytes e:bytes = RSAPublicKey', new SchemaProvider(), true, { n, e });
-  const keyHash = sha1(tlKey.serialize());
+  const keyHash = sha1(tlKey.serialize().raw);
 
   return {
     fingerprint: keyHash.slice(keyHash.length - 8).hex,

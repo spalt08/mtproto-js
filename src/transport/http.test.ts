@@ -18,7 +18,7 @@ test('Transort | http plain call', () => {
   };
 
   const http = new Http(new DCService(), {
-    test: true, ssl: true, dc: 1, thread: 1, resolve,
+    test: true, ssl: true, dc: 1, thread: 1, resolve, resolveError: () => {},
   });
 
   http.send(msg);

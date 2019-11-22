@@ -11,18 +11,17 @@ import sha1 from '../sha1';
 export function encryptMessage(authKey: string, msg: Message): EncryptedMessage {
   const key = hex(authKey);
   const data = msg.buf;
-  const dataToHash = hex(key.slice(88, 120).hex + data.hex);
-  const msgKeyLarge = sha256(dataToHash);
+  const msgKeyLarge = sha256(key.slice(88, 120).raw + data.raw);
   const msgKey = msgKeyLarge.slice(8, 24);
-  const sha256a = sha256(hex(msgKey.hex + key.slice(0, 36).hex));
-  const sha256b = sha256(hex(key.slice(40, 76).hex + msgKey.hex));
+  const sha256a = sha256(msgKey.raw + key.slice(0, 36).raw);
+  const sha256b = sha256(key.slice(40, 76).raw + msgKey.raw);
   const aesKey = hex(sha256a.slice(0, 8).hex + sha256b.slice(8, 24).hex + sha256a.slice(24, 32).hex);
   const aesIv = hex(sha256b.slice(0, 8).hex + sha256a.slice(8, 24).hex + sha256b.slice(24, 32).hex);
   const encryptedData = encrypt(data, aesKey, aesIv);
 
   const encMsg = new EncryptedMessage(encryptedData.length);
 
-  encMsg.authKey = sha1(key).slice(12, 20).hex;
+  encMsg.authKey = sha1(key.raw).slice(12, 20).hex;
   encMsg.key = msgKey.hex;
   encMsg.data = encryptedData;
 
@@ -37,8 +36,8 @@ export function decryptMessage(authKey: string, msg: EncryptedMessage): Message 
   const key = hex(authKey);
   const { data } = msg;
   const msgKey = hex(msg.key);
-  const sha256a = sha256(hex(msgKey.hex + key.slice(8, 44).hex));
-  const sha256b = sha256(hex(key.slice(48, 84).hex + msgKey.hex));
+  const sha256a = sha256(msgKey.raw + key.slice(8, 44).raw);
+  const sha256b = sha256(key.slice(48, 84).raw + msgKey.raw);
   const aesKey = hex(sha256a.slice(0, 8).hex + sha256b.slice(8, 24).hex + sha256a.slice(24, 32).hex);
   const aesIv = hex(sha256b.slice(0, 8).hex + sha256a.slice(8, 24).hex + sha256b.slice(24, 32).hex);
 

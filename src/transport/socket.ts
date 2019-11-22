@@ -28,6 +28,9 @@ export default class Socket extends Transport {
   /** Instance transport */
   transport = 'websocket';
 
+  /** Last plain message nonce */
+  lastNonce: string | null = null;
+
   /**
    * Creates new web socket handler
    */
@@ -68,21 +71,19 @@ export default class Socket extends Transport {
 
       log(this.cfg.dc, 'ready');
 
-      if (this.pending) {
-        for (let i = 0; i < this.pending.length; i += 1) {
-          const msg = this.pending.shift();
-          if (msg) this.send(msg);
-        }
-      }
+      this.releasePending();
     });
   };
 
   /**
    * Handles onclose event at websocket object
    */
-  handleClose = () => {
+  handleClose = (event: CloseEvent) => {
     log(this.cfg.dc, 'closed');
     this.emit('disconnected');
+    this.pending = [];
+    this.isConnecting = false;
+    this.cfg.resolveError(this.cfg.dc, this.cfg.thread, this.transport, this.lastNonce || '', event.code, event.reason);
   };
 
   /**
@@ -98,6 +99,7 @@ export default class Socket extends Transport {
     if (!event.data) return;
 
     async('transport_decrypt', payload, (msg: Message | PlainMessage | Bytes) => {
+      if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
       if (msg instanceof Message || msg instanceof PlainMessage) {
         this.cfg.resolve(msg, {
           dc: this.cfg.dc,
@@ -115,6 +117,10 @@ export default class Socket extends Transport {
    * Method sends bytes to server via web socket.
    */
   send(msg: PlainMessage | Message) {
+    log('<-', msg.id, `(dc: ${this.cfg.dc}, thread: ${this.cfg.thread})`);
+
+    if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
+
     if (this.ws && this.ws.readyState === 1) {
       const authKey = this.svc.getAuthKey(this.cfg.dc);
       const { dc, thread } = this.cfg;
@@ -126,10 +132,20 @@ export default class Socket extends Transport {
         if (this.ws) this.ws.send(data.buffer.buffer);
       });
 
+      this.releasePending();
       return;
     }
 
     if (this.isConnecting === false) this.connect();
     this.pending.push(msg);
+  }
+
+  releasePending() {
+    if (this.pending) {
+      for (let i = 0; i < this.pending.length; i += 1) {
+        const msg = this.pending.shift();
+        if (msg) this.send(msg);
+      }
+    }
   }
 }

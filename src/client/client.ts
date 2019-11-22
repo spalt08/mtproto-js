@@ -1,20 +1,18 @@
 /* eslint-disable lines-between-class-members, no-dupe-class-members, import/no-cycle */
+import BigInt from 'big-integer';
 import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
 import { MTProtoTransport } from '../transport/protocol';
 import Transport from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
 import { Message, PlainMessage } from '../message';
-import { createAuthKey, bindTempAuthKey, initConnection } from './auth';
+import {
+  createAuthKey, bindTempAuthKey, initConnection, transferAuthorization,
+} from './auth';
 import RPCService from './rpc';
-import { RPCHeaders } from './rpc.types';
-
-/** Generic error for mtproto transport */
-export type ClientError = {
-  type: 'rpc' | 'network';
-  code: number,
-  message?: string,
-};
+import { RPCHeaders, ClientError } from './rpc.types';
+import UpdatesService from './updates';
+import async from '../crypto/async';
 
 /** Client inner callback */
 export type ClientCallback = (error: ClientError | null, result?: Message | PlainMessage) => void;
@@ -31,6 +29,7 @@ export type ClientConfig = {
   dc: number,
   protocol: MTProtoTransport,
   transport: Transports,
+  storage: Storage,
 
   APILayer: number,
   APIID?: string,
@@ -49,6 +48,7 @@ const defaultClientConfig = {
   dc: 2,
   protocol: 'intermediate' as MTProtoTransport,
   transport: 'websocket' as Transports,
+  storage: window.localStorage,
 
   APILayer: 105,
   deviceModel: 'Unknown',
@@ -74,6 +74,9 @@ export default class Client {
   // todo: Client interface to RPC to avoid cycle
   rpc: RPCService;
 
+  /** Updates service */
+  updates: UpdatesService;
+
   /** Connection handlers */
   instances: Transport[];
 
@@ -86,13 +89,16 @@ export default class Client {
   /** DC state. 0 - attached, 1 - authorizing, 2 - ready */
   state: Record<number, number>;
 
+  retries: Record<number, number> = {};
+
   /** Creates new client handler */
   constructor(tl: TypeLanguage, cfg: Record<string, any> = {}) {
     this.tl = tl;
     this.cfg = { ...defaultClientConfig, ...cfg };
 
-    this.svc = new DCService();
+    this.svc = new DCService(this);
     this.rpc = new RPCService(this);
+    this.updates = new UpdatesService(this);
 
     this.pending = {};
     this.state = {};
@@ -104,26 +110,55 @@ export default class Client {
     this.authorize(cfg.dc);
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  getPasswordKdfAsync(conf: any, password: string, cb: (result: object) => void): void {
+    const payload = {
+      salt1: conf.current_algo.salt1,
+      salt2: conf.current_algo.salt2,
+      g: conf.current_algo.g,
+      p: conf.current_algo.p.toString(),
+      srpB: conf.srp_B,
+      srpId: conf.srp_id.toString(),
+      password,
+    };
+
+    async('password_kdf', payload, (res: any) => cb({ ...res, srp_id: BigInt(res.srp_id) }));
+  }
+
   /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */
   authorize(dc: number, cb?: () => void): void {
     // Change state to block user requests
     if (!this.state[dc] || this.state[dc] !== 1) this.state[dc] = 1;
+    if (!this.retries[dc]) this.retries[dc] = 0;
+
+    this.retries[dc] += 1;
+
+    if (this.retries[dc] > 12) {
+      this.state[dc] = 0;
+      this.retries[dc] = 0;
+      return;
+    }
 
     const expiresAfter = 3600 * 5;
     const permKey = this.svc.getPermKey(dc);
-    let tempKey = this.svc.getAuthKey(dc);
+    const tempKey = this.svc.getAuthKey(dc);
 
     if (permKey === null) {
-      createAuthKey(this, dc, 1, 0, () => {
-        if (this.svc.getAuthKey(dc) !== null) this.authorize(dc, cb);
-      });
-      tempKey = null;
+      this.svc.setMeta(dc, 'tempKey', null);
+
+      let calls = 0;
+      const onKeyCreated = () => {
+        calls += 1;
+        if (calls === 2) this.authorize(dc, cb);
+      };
+
+      createAuthKey(this, dc, 1, 0, onKeyCreated);
+      createAuthKey(this, dc, 2, expiresAfter, onKeyCreated);
+      return;
     }
 
-    if (tempKey === null) { // || (tempKey.expires && tempKey.expires < Date.now())
-      createAuthKey(this, dc, 2, expiresAfter, () => {
-        if (this.svc.getPermKey(dc) !== null) this.authorize(dc, cb);
-      });
+    if (tempKey === null || (tempKey.expires && tempKey.expires < Date.now() / 1000)) {
+      createAuthKey(this, dc, 2, expiresAfter, () => this.authorize(dc, cb));
       return;
     }
 
@@ -137,6 +172,21 @@ export default class Client {
       return;
     }
 
+    // if (this.svc.getUserID(dc) === null) {
+    //   for (let i = 1; i <= 5; i += 1) {
+    //     if (this.svc.getUserID(i) !== null && dc !== i) {
+    //       const uid = this.svc.getUserID(i);
+    //       transferAuthorization(this, uid as number, i, dc, () => this.authorize(dc, cb));
+    //       return;
+    //     }
+    //   }
+    // }
+
+    if (dc !== this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
+      transferAuthorization(this, this.svc.getUserID(this.cfg.dc) as number, this.cfg.dc, dc, () => this.authorize(dc, cb));
+      return;
+    }
+
     // Unlock dc state to perform user requests
     this.state[dc] = 2;
     this.resendPending(dc);
@@ -147,12 +197,12 @@ export default class Client {
   createInstance(transport: string, dc: number, thread: number): Transport {
     if (transport === 'websocket') {
       return new Socket(this.svc, {
-        ...this.cfg, dc, thread, resolve: this.resolve,
+        ...this.cfg, dc, thread, resolve: this.resolve, resolveError: this.resolveError,
       });
     }
 
     return new Http(this.svc, {
-      ...this.cfg, dc, thread, resolve: this.resolve,
+      ...this.cfg, dc, thread, resolve: this.resolve, resolveError: this.resolveError,
     });
   }
 
@@ -179,11 +229,24 @@ export default class Client {
     const result = this.tl.parse(msg.data);
 
     if (msg instanceof PlainMessage) {
-      if (msg.nonce && this.plainResolvers[msg.nonce]) this.plainResolvers[msg.nonce](null, result);
+      if (msg.nonce && this.plainResolvers[msg.nonce]) {
+        this.plainResolvers[msg.nonce](null, result);
+        delete this.plainResolvers[msg.nonce];
+      }
       return;
     }
 
     this.rpc.processMessage(result, headers);
+  };
+
+  /** Resolve transport error */
+  resolveError = (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => {
+    if (nonce && this.plainResolvers[nonce]) {
+      this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
+      delete this.plainResolvers[nonce];
+    }
+
+    this.rpc.emitError(dc, thread, transport, code, message);
   };
 
   /** Create plain message and send it to the server */
@@ -238,13 +301,10 @@ export default class Client {
   }
 
   /** Create message, encrypt it and send it to the server */
-  public call(src: TLConstructor | Message, cb: RequestCallback): void;
-  public call(src: TLConstructor | Message, headers: Record<string, any>): void;
-  public call(src: TLConstructor | Message, headers: Record<string, any>, cb: RequestCallback): void;
-  public call(method: string, data: Record<string, any>): void;
-  public call(method: string, data: Record<string, any>, cb: RequestCallback): void;
-  public call(method: string, data: Record<string, any>, headers: Record<string, any>): void;
-  public call(method: string, data: Record<string, any>, headers: Record<string, any>, cb: RequestCallback): void;
+  public call(src: TLConstructor | Message, cb?: RequestCallback): void;
+  public call(src: TLConstructor | Message, headers: Record<string, any>, cb?: RequestCallback): void;
+  public call(method: string, data: Record<string, any>, cb?: RequestCallback): void;
+  public call(method: string, data: Record<string, any>, headers: Record<string, any>, cb?: RequestCallback): void;
   public call(src: TLConstructor | Message | string, ...args: unknown[]): void {
     let msg: Message;
     let cb: RequestCallback | undefined;

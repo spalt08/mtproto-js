@@ -28,7 +28,7 @@ export default class TypeLanguage {
    */
   parse(src: Bytes, isBare: boolean = false, predicate: string = ''): TLAbstract {
     let c: TLAbstract;
-
+  
     if (predicate) {
       c = resolve(predicate, this.schema);
     } else {

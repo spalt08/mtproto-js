@@ -156,6 +156,13 @@ export default class Bytes {
   }
 
   /**
+   * Debug
+   */
+  get next() {
+    return new Bytes(new Uint8Array(this.buffer.buffer, this.buffer.byteOffset + 8, 8));
+  }
+
+  /**
    * Creates new Bytes object pointed to same array buffer
    */
   slice(start?: number, end?: number): Bytes {

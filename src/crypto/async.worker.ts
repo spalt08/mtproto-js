@@ -8,6 +8,8 @@ import {
   transportInit,
   transportEncrypt,
   transportDecrypt,
+  getPasswordKdf,
+  genKey,
 } from './async.tasks';
 import { PlainMessage, Message } from '../message';
 
@@ -61,6 +63,13 @@ ctx.addEventListener('message', (event) => {
         break;
       }
 
+      case 'gen_key': {
+        const [g, ga, dh] = payload;
+        const res = genKey(g, ga, dh);
+        resolve(task, id, res);
+        break;
+      }
+
       case 'transport_init': {
         const result = transportInit(payload.dc, payload.thread, payload.transport, payload.protocol);
         resolve(task, id, result.hex);
@@ -91,6 +100,16 @@ ctx.addEventListener('message', (event) => {
         } else {
           resolve(task, id, result.hex);
         }
+        break;
+      }
+
+      case 'password_kdf': {
+        const {
+          salt1, salt2, g, p, srpId, srpB, password,
+        } = payload;
+        const result = getPasswordKdf(salt1, salt2, g, p, srpId, srpB, password);
+
+        resolve(task, id, result);
         break;
       }
 

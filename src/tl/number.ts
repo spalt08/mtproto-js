@@ -12,7 +12,7 @@ export default class TLNumber extends TLAbstract {
    * @static
    */
   static ValidTypes = [
-    'int', 'int64', 'int128', 'int256', 'long',
+    'int', 'int64', 'int128', 'int256', 'long', 'double',
   ];
 
   /** Stored value */
@@ -33,6 +33,8 @@ export default class TLNumber extends TLAbstract {
       case 'int128': this.byteSize = 16; break;
       case 'int256': this.byteSize = 32; break;
       case 'long': this.byteSize = 8; break;
+      // todo double read / write
+      case 'double': this.byteSize = 8; break;
       default:
         throw new Error(`TypeLanguage: Unknown number ${predicate}`);
     }
