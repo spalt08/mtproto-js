@@ -35,19 +35,28 @@ for (let i = 0; i < 64; i += 1) _padding += String.fromCharCode(0);
  * @param s the SHA-256 state to update.
  * @param bytes the byte buffer to update with.
  */
-function update(state: number[], data: string) {
+function update(data: string) {
   let t1; let t2; let s0; let s1; let ch; let maj;
+  let a; let b; let c; let d; let e; let f; let g; let h;
+  let i = 0;
 
-  const nextState = state.slice(0, 8);
+  // Array to use to store words.
+  const words = new Array(64);
+
+  // SHA-256 state contains eight 32-bit integers
+  let h1 = 0x6A09E667;
+  let h2 = 0xBB67AE85;
+  let h3 = 0x3C6EF372;
+  let h4 = 0xA54FF53A;
+  let h5 = 0x510E527F;
+  let h6 = 0x9B05688C;
+  let h7 = 0x1F83D9AB;
+  let h8 = 0x5BE0CD19;
 
   for (let p = 0; p < data.length - (data.length % 64); p += 64) {
-    // Array to use to store words.
-    const words = new Array(64);
-
-    let i = 0;
     // the w array will be populated with sixteen 32-bit big-endian words
     // and then extended into 64 32-bit words according to SHA-256
-    for (; i < 16; i += 1) {
+    for (i = 0; i < 16; i += 1) {
       words[i] = strToInt32(data, p + i * 4);
     }
 
@@ -69,14 +78,15 @@ function update(state: number[], data: string) {
     }
 
     // initialize hash value for this chunk
-    let a = nextState[0];
-    let b = nextState[1];
-    let c = nextState[2];
-    let d = nextState[3];
-    let e = nextState[4];
-    let f = nextState[5];
-    let g = nextState[6];
-    let h = nextState[7];
+    // [a, b, c, d, e, f, g, h] = nextState;
+    a = h1;
+    b = h2;
+    c = h3;
+    d = h4;
+    e = h5;
+    f = h6;
+    g = h7;
+    h = h8;
 
     // round function
     for (i = 0; i < 64; i += 1) {
@@ -110,17 +120,19 @@ function update(state: number[], data: string) {
     }
 
     // update hash state
-    nextState[0] = (nextState[0] + a) | 0;
-    nextState[1] = (nextState[1] + b) | 0;
-    nextState[2] = (nextState[2] + c) | 0;
-    nextState[3] = (nextState[3] + d) | 0;
-    nextState[4] = (nextState[4] + e) | 0;
-    nextState[5] = (nextState[5] + f) | 0;
-    nextState[6] = (nextState[6] + g) | 0;
-    nextState[7] = (nextState[7] + h) | 0;
+    h1 = (h1 + a) | 0;
+    h2 = (h2 + b) | 0;
+    h3 = (h3 + c) | 0;
+    h4 = (h4 + d) | 0;
+    h5 = (h5 + e) | 0;
+    h6 = (h6 + f) | 0;
+    h7 = (h7 + g) | 0;
+    h8 = (h8 + h) | 0;
   }
 
-  return nextState;
+  return {
+    h1, h2, h3, h4, h5, h6, h7, h8,
+  };
 }
 
 /**
@@ -133,35 +145,23 @@ export default function sha256(message: string): Bytes {
   // true 64-bit message length as two 32-bit ints
   const len64 = [(len / 0x100000000) >>> 0, len >>> 0];
 
-  // SHA-256 state contains eight 32-bit integers
-  let state = [
-    0x6A09E667,
-    0xBB67AE85,
-    0x3C6EF372,
-    0xA54FF53A,
-    0x510E527F,
-    0x9B05688C,
-    0x1F83D9AB,
-    0x5BE0CD19,
-  ];
-
   const pad = message
     + _padding.substr(0, 64 - ((len64[1] + 8) & 0x3F))
     + int32ToStr((len64[0] << 3) | (len64[0] >>> 28))
     + int32ToStr(len64[1] << 3);
 
-  state = update(state, pad);
+  const state = update(pad);
 
   const buf = new Bytes(32);
 
-  buf.raw = int32ToStr(state[0])
-    + int32ToStr(state[1])
-    + int32ToStr(state[2])
-    + int32ToStr(state[3])
-    + int32ToStr(state[4])
-    + int32ToStr(state[5])
-    + int32ToStr(state[6])
-    + int32ToStr(state[7]);
+  buf.raw = int32ToStr(state.h1)
+    + int32ToStr(state.h2)
+    + int32ToStr(state.h3)
+    + int32ToStr(state.h4)
+    + int32ToStr(state.h5)
+    + int32ToStr(state.h6)
+    + int32ToStr(state.h7)
+    + int32ToStr(state.h8);
 
   return buf;
 }

@@ -1,3 +1,5 @@
+/* eslint-disable prefer-destructuring */
+
 import { Bytes } from '../../serialization';
 import { strToInt32, int32ToStr } from './utils';
 
@@ -54,28 +56,35 @@ const _k = [
 let _padding = String.fromCharCode(128);
 for (let i = 0; i < 128; i += 1) _padding += String.fromCharCode(0);
 
+// Array to use to store words.
+const words = new Array(80);
+for (let i = 0; i < 80; i += 1) words[i] = new Array(2);
+
 /**
  * Updates a SHA-512 state with the given byte buffer.
  * @param s the SHA-512 state to update.
  * @param bytes the byte buffer to update with.
  */
-function update(state: number[][], data: string) {
-  const nextState = new Array(state.length);
+function digest(data: string) {
+  // SHA-512 state contains eight 32-bit integers
+  let h1hi = 0x6a09e667; let h1lo = 0xf3bcc908;
+  let h2hi = 0xbb67ae85; let h2lo = 0x84caa73b;
+  let h3hi = 0x3c6ef372; let h3lo = 0xfe94f82b;
+  let h4hi = 0xa54ff53a; let h4lo = 0x5f1d36f1;
+  let h5hi = 0x510e527f; let h5lo = 0xade682d1;
+  let h6hi = 0x9b05688c; let h6lo = 0x2b3e6c1f;
+  let h7hi = 0x1f83d9ab; let h7lo = 0xfb41bd6b;
+  let h8hi = 0x5be0cd19; let h8lo = 0x137e2179;
 
-  for (let i = 0; i < nextState.length; i += 1) {
-    nextState[i] = state[i].slice(0);
-  }
+  let i = 0; let hi; let lo; let t1hi; let t1lo; let t2hi; let t2lo;
+  let ahi; let alo; let bhi; let blo; let chi; let clo; let dhi; let dlo; let ehi; let elo; let fhi; let flo; let ghi; let glo; let hhi; let hlo;
+  let s1hi; let s1lo; let chlo; let chhi; let s0hi; let s0lo; let majhi; let majlo;
+  let w7; let w16;
 
   for (let p = 0; p < data.length - (data.length % 128); p += 128) {
-    // Array to use to store words.
-    const words = new Array(80);
-    for (let wi = 0; wi < 80; wi += 1) words[wi] = new Array(2);
-
-    let i = 0; let hi; let lo; let t1hi; let t1lo; let t2hi; let t2lo;
-
     // the w array will be populated with sixteen 64-bit big-endian words
     // and then extended into 64 64-bit words according to SHA-512
-    for (; i < 16; i += 1) {
+    for (i = 0; i < 16; i += 1) {
       words[i][0] = strToInt32(data, p + i * 8) >>> 0;
       words[i][1] = strToInt32(data, p + i * 8 + 4) >>> 0;
     }
@@ -112,8 +121,8 @@ function update(state: number[][], data: string) {
         ^ ((hi << 25) | (lo >>> 7))) >>> 0; // SHR 7
 
       // sum(t1, word 7 ago, t2, word 16 ago) modulo 2^64 (carry lo overflow)
-      const w7 = words[i - 7];
-      const w16 = words[i - 16];
+      w7 = words[i - 7];
+      w16 = words[i - 16];
 
       lo = (t1lo + w7[1] + t2lo + w16[1]);
       words[i][0] = (t1hi + w7[0] + t2hi + w16[0] + ((lo / 0x100000000) >>> 0)) >>> 0;
@@ -121,46 +130,46 @@ function update(state: number[][], data: string) {
     }
 
     // initialize hash value for this chunk
-    let [ahi, alo] = nextState[0];
-    let [bhi, blo] = nextState[1];
-    let [chi, clo] = nextState[2];
-    let [dhi, dlo] = nextState[3];
-    let [ehi, elo] = nextState[4];
-    let [fhi, flo] = nextState[5];
-    let [ghi, glo] = nextState[6];
-    let [hhi, hlo] = nextState[7];
+    ahi = h1hi; alo = h1lo;
+    bhi = h2hi; blo = h2lo;
+    chi = h3hi; clo = h3lo;
+    dhi = h4hi; dlo = h4lo;
+    ehi = h5hi; elo = h5lo;
+    fhi = h6hi; flo = h6lo;
+    ghi = h7hi; glo = h7lo;
+    hhi = h8hi; hlo = h8lo;
 
     // round function
     for (i = 0; i < 80; i += 1) {
       // Sum1(e) = ROTR 14(e) ^ ROTR 18(e) ^ ROTR 41(e)
-      const s1hi = (
+      s1hi = (
         ((ehi >>> 14) | (elo << 18)) // ROTR 14
         ^ ((ehi >>> 18) | (elo << 14)) // ROTR 18
         ^ ((elo >>> 9) | (ehi << 23))) >>> 0; // ROTR 41/(swap + ROTR 9)
 
-      const s1lo = (
+      s1lo = (
         ((ehi << 18) | (elo >>> 14)) // ROTR 14
         ^ ((ehi << 14) | (elo >>> 18)) // ROTR 18
         ^ ((elo << 23) | (ehi >>> 9))) >>> 0; // ROTR 41/(swap + ROTR 9)
 
       // Ch(e, f, g) (optimized the same way as SHA-1)
-      const chhi = (ghi ^ (ehi & (fhi ^ ghi))) >>> 0;
-      const chlo = (glo ^ (elo & (flo ^ glo))) >>> 0;
+      chhi = (ghi ^ (ehi & (fhi ^ ghi))) >>> 0;
+      chlo = (glo ^ (elo & (flo ^ glo))) >>> 0;
 
       // Sum0(a) = ROTR 28(a) ^ ROTR 34(a) ^ ROTR 39(a)
-      const s0hi = (
+      s0hi = (
         ((ahi >>> 28) | (alo << 4)) // ROTR 28
         ^ ((alo >>> 2) | (ahi << 30)) // ROTR 34/(swap + ROTR 2)
         ^ ((alo >>> 7) | (ahi << 25))) >>> 0; // ROTR 39/(swap + ROTR 7)
 
-      const s0lo = (
+      s0lo = (
         ((ahi << 4) | (alo >>> 28)) // ROTR 28
         ^ ((alo << 30) | (ahi >>> 2)) // ROTR 34/(swap + ROTR 2)
         ^ ((alo << 25) | (ahi >>> 7))) >>> 0; // ROTR 39/(swap + ROTR 7)
 
       // Maj(a, b, c) (optimized the same way as SHA-1)
-      const majhi = ((ahi & bhi) | (chi & (ahi ^ bhi))) >>> 0;
-      const majlo = ((alo & blo) | (clo & (alo ^ blo))) >>> 0;
+      majhi = ((ahi & bhi) | (chi & (ahi ^ bhi))) >>> 0;
+      majlo = ((alo & blo) | (clo & (alo ^ blo))) >>> 0;
 
       // main algorithm
       // t1 = (h + s1 + ch + _k[i] + _w[i]) modulo 2^64 (carry lo overflow)
@@ -203,58 +212,48 @@ function update(state: number[][], data: string) {
     }
 
     // update hash state (additional modulo 2^64)
-    lo = nextState[0][1] + alo;
-    nextState[0][0] = (nextState[0][0] + ahi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[0][1] = lo >>> 0;
+    lo = h1lo + alo;
+    h1hi = (h1hi + ahi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h1lo = lo >>> 0;
 
-    lo = nextState[1][1] + blo;
-    nextState[1][0] = (nextState[1][0] + bhi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[1][1] = lo >>> 0;
+    lo = h2lo + blo;
+    h2hi = (h2hi + bhi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h2lo = lo >>> 0;
 
-    lo = nextState[2][1] + clo;
-    nextState[2][0] = (nextState[2][0] + chi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[2][1] = lo >>> 0;
+    lo = h3lo + clo;
+    h3hi = (h3hi + chi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h3lo = lo >>> 0;
 
-    lo = nextState[3][1] + dlo;
-    nextState[3][0] = (nextState[3][0] + dhi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[3][1] = lo >>> 0;
+    lo = h4lo + dlo;
+    h4hi = (h4hi + dhi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h4lo = lo >>> 0;
 
-    lo = nextState[4][1] + elo;
-    nextState[4][0] = (nextState[4][0] + ehi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[4][1] = lo >>> 0;
+    lo = h5lo + elo;
+    h5hi = (h5hi + ehi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h5lo = lo >>> 0;
 
-    lo = nextState[5][1] + flo;
-    nextState[5][0] = (nextState[5][0] + fhi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[5][1] = lo >>> 0;
+    lo = h6lo + flo;
+    h6hi = (h6hi + fhi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h6lo = lo >>> 0;
 
-    lo = nextState[6][1] + glo;
-    nextState[6][0] = (nextState[6][0] + ghi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[6][1] = lo >>> 0;
+    lo = h7lo + glo;
+    h7hi = (h7hi + ghi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h7lo = lo >>> 0;
 
-    lo = nextState[7][1] + hlo;
-    nextState[7][0] = (nextState[7][0] + hhi + ((lo / 0x100000000) >>> 0)) >>> 0;
-    nextState[7][1] = lo >>> 0;
+    lo = h8lo + hlo;
+    h8hi = (h8hi + hhi + ((lo / 0x100000000) >>> 0)) >>> 0;
+    h8lo = lo >>> 0;
   }
 
-  return nextState;
+  return {
+    h1hi, h1lo, h2hi, h2lo, h3hi, h3lo, h4hi, h4lo, h5hi, h5lo, h6hi, h6lo, h7hi, h7lo, h8hi, h8lo,
+  };
 }
 
 /**
  * Calculates sha512 hash from string
  */
 export default function sha512(message: string): Bytes {
-  // SHA-512 state contains eight 32-bit integers
-  let state = [
-    [0x6a09e667, 0xf3bcc908],
-    [0xbb67ae85, 0x84caa73b],
-    [0x3c6ef372, 0xfe94f82b],
-    [0xa54ff53a, 0x5f1d36f1],
-    [0x510e527f, 0xade682d1],
-    [0x9b05688c, 0x2b3e6c1f],
-    [0x1f83d9ab, 0xfb41bd6b],
-    [0x5be0cd19, 0x137e2179],
-  ];
-
   // 56-bit length of message so far (does not including padding)
   const len = message.length;
 
@@ -273,13 +272,10 @@ export default function sha512(message: string): Bytes {
 
   let pad = message;
 
-  // compute remaining size to be digested (include message length size)
-  const remaining = flen[flen.length - 1] + 16;
-
   // add padding for overflow blockSize - overflow
   // _padding starts with 1 byte with first bit is set (byte value 128), then
   // there may be up to (blockSize - 1) other pad bytes
-  const overflow = remaining & (128 - 1);
+  const overflow = (flen[flen.length - 1] + 16) & (128 - 1);
 
   pad += _padding.substr(0, 128 - overflow);
 
@@ -297,15 +293,18 @@ export default function sha512(message: string): Bytes {
 
   pad += int32ToStr(bits);
 
-  state = update(state, pad);
-
-  let raw = '';
-
-  for (let i = 0; i < state.length; i += 1) {
-    raw += int32ToStr(state[i][0]) + int32ToStr(state[i][1]);
-  }
+  const state = digest(pad);
 
   const buf = new Bytes(64);
-  buf.raw = raw;
+
+  buf.raw = int32ToStr(state.h1hi) + int32ToStr(state.h1lo)
+  + int32ToStr(state.h2hi) + int32ToStr(state.h2lo)
+  + int32ToStr(state.h3hi) + int32ToStr(state.h3lo)
+  + int32ToStr(state.h4hi) + int32ToStr(state.h4lo)
+  + int32ToStr(state.h5hi) + int32ToStr(state.h5lo)
+  + int32ToStr(state.h6hi) + int32ToStr(state.h6lo)
+  + int32ToStr(state.h7hi) + int32ToStr(state.h7lo)
+  + int32ToStr(state.h8hi) + int32ToStr(state.h8lo);
+
   return buf;
 }
