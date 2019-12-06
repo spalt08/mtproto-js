@@ -21,8 +21,8 @@ type PasswordKDFPayload = { salt1: string, salt2: string, g: number, p: string, 
  */
 function async(task: 'factorize', payload: string, cb: (res: string[]) => void): void;
 function async(task: 'encrypt_pq', payload: [Bytes, RSAKey], cb: (res: string) => void): void;
-function async(task: 'decrypt_dh', payload: [string, Bytes, Bytes], cb: (res: Bytes) => void): void;
-function async(task: 'encrypt_dh', payload: Bytes[], cb: (res: string) => void): void;
+function async(task: 'decrypt_dh', payload: string[], cb: (res: Bytes) => void): void;
+function async(task: 'encrypt_dh', payload: string[], cb: (res: string) => void): void;
 function async(task: 'gen_key', payload: [number, string, string], cb: (res: [string, string]) => void): void;
 function async(task: 'transport_init', payload: TranportInitPayload, cb: (res: Bytes) => void): void;
 function async(task: 'transport_encrypt', payload: TranportEncryptPayload, cb: (res: Bytes) => void): void;
@@ -47,14 +47,14 @@ function async(task: string, payload: any, cb: TaskResolver): void {
     case 'decrypt_dh': {
       const [data, nn, sn] = payload;
 
-      worker.postMessage({ id, task, payload: [data, nn.hex, sn.hex] });
+      worker.postMessage({ id, task, payload: [data, nn, sn] });
       break;
     }
 
     case 'encrypt_dh': {
       const [data, nn, sn] = payload;
 
-      worker.postMessage({ id, task, payload: [data.hex, nn.hex, sn.hex] });
+      worker.postMessage({ id, task, payload: [data, nn, sn] });
       break;
     }
 

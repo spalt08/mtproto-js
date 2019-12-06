@@ -1,4 +1,3 @@
-import BigInt from 'big-integer';
 import Bytes from './bytes';
 
 test('Bytes | constructor number', () => {
@@ -80,7 +79,7 @@ test('Bytes | uint write 255 at 3 bytes', () => {
 
 test('Bytes | big integer', () => {
   const buf = new Bytes(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]));
-  expect(buf.uint).toEqual(BigInt('166599134359138271745'));
+  expect(buf.uint).toEqual('090807060504030201');
 });
 
 test('Bytes | int', () => {

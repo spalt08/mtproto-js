@@ -25,7 +25,9 @@
         "no-continue": 0,
         "no-bitwise": 0,
         "no-underscore-dangle": "off",
-        "import/no-webpack-loader-syntax": "off"
+        "import/no-webpack-loader-syntax": "off",
+        "prefer-template": "off",
+        "no-param-reassign": "off",
     },
     "settings": {
       "import/resolver": {

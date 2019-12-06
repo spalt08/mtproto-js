@@ -33,7 +33,7 @@ export default class Intermediate {
 
     if (len < 8) throw new Error(`Unexpected frame: ${data.hex}`);
 
-    if (data.slice(4, 12).uint.toString() === '0') {
+    if (data.slice(4, 12).uint === '0000000000000000') {
       return ['plain', data.slice(4)];
     }
 

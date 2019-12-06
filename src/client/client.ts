@@ -1,5 +1,4 @@
 /* eslint-disable lines-between-class-members, no-dupe-class-members, import/no-cycle */
-import BigInt from 'big-integer';
 import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
 import { MTProtoTransport } from '../transport/protocol';
 import Transport from '../transport/abstract';
@@ -18,7 +17,7 @@ import async from '../crypto/async';
 export type ClientCallback = (error: ClientError | null, result?: Message | PlainMessage) => void;
 
 /** Request callback */
-export type RequestCallback = (error: ClientError | null, result?: TLAbstract) => void;
+export type RequestCallback = (error: ClientError | null, result: undefined | TLAbstract) => void;
 
 type Transports = 'http' | 'websocket';
 
@@ -122,7 +121,7 @@ export default class Client {
       password,
     };
 
-    async('password_kdf', payload, (res: any) => cb({ ...res, srp_id: BigInt(res.srp_id) }));
+    async('password_kdf', payload, (res: any) => cb(res));
   }
 
   /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */
@@ -297,6 +296,8 @@ export default class Client {
       this.plainResolvers[msg.nonce] = cb!;
     }
 
+    console.log("<-", dc, thread, msg.buf.hex);
+
     this.getInstance(transport, dc, thread).send(msg);
   }
 
@@ -393,7 +394,6 @@ export default class Client {
         const thread = key >= 1000 ? Math.floor((key - 1000) / 10) : Math.floor(key / 10);
         const transport = key >= 1000 ? 'websocket' : 'http';
         for (let j = 0; j < this.pending[key].length; j += 1) {
-          console.log('resend', this.pending[key][j]);
           this.call(this.pending[key][j], { dc, thread, transport });
         }
         this.pending[key] = [];

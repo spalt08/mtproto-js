@@ -1,4 +1,3 @@
-import { BigInteger } from 'big-integer';
 import { Bytes } from '../serialization';
 import TLAbstract from './abstract';
 
@@ -16,13 +15,13 @@ export default class TLNumber extends TLAbstract {
   ];
 
   /** Stored value */
-  value: number | BigInteger = 0;
+  value: number | string = 0;
 
   /**
    * Creates new type language number
    * @constructs
    */
-  constructor(predicate: string, data?: number | BigInteger) {
+  constructor(predicate: string, data?: number | string) {
     super();
 
     this._ = predicate;

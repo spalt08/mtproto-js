@@ -1,10 +1,9 @@
 import { Client } from '.';
-import { TLConstructor, TLVector } from '../tl';
+import { TLConstructor } from '../tl';
 import async from '../crypto/async';
 import { PredefinedKeys, RSAKey } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
 import { Bytes, hex } from '../serialization';
-import sha1 from '../crypto/hash/sha1';
 import { MessageV1, PlainMessage } from '../message';
 
 const log = logs('auth');
@@ -16,143 +15,193 @@ export type AuthKey = {
   binded?: boolean,
 };
 
+type Headers = {
+  dc: number,
+  thread: number,
+  transport?: string,
+};
+
+/**
+ * @mtproto req_pq_multi
+ */
+function authReqPQ(client: Client, h: Headers, nonce: string, cb: (success: boolean, result?: any) => void) {
+  client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce }, h, (err, resPQ) => {
+    if (err || !(resPQ instanceof TLConstructor) || resPQ._ !== 'resPQ') {
+      log(h.dc, h.thread, 'Unexpected resPQ response');
+      console.log(err, resPQ);
+
+      cb(false);
+      return;
+    }
+
+    cb(true, resPQ.json());
+  });
+}
+
+/**
+ * Find RSA key by fingerprint
+ */
+function matchPublicKey(fingerprints: string[]): RSAKey | undefined {
+  for (let i = 0; i < fingerprints.length; i += 1) {
+    const item = fingerprints[i];
+    for (let j = 0; j < PredefinedKeys.length; j += 1) {
+      if (PredefinedKeys[j].fingerprint === item) {
+        return PredefinedKeys[j];
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * @mtproto req_DH_params
+ */
+function authReqDHParams(client: Client, h: Headers, nn: string, resPQ: any, expiresAfter: number, cb: (success: boolean, result?: any) => void) {
+  const { pq, nonce } = resPQ;
+
+  // factorize PQ
+  async('factorize', pq, ([p, q]: string[]) => {
+    const publicKey = matchPublicKey(resPQ.server_public_key_fingerprints);
+
+    if (!publicKey) {
+      log(h.dc, h.thread, 'Unknown RSA public key fingerprint:', resPQ.server_public_key_fingerprints.join(', '));
+      cb(false);
+      return;
+    }
+
+    const pqInner = client.tl.create(expiresAfter > 0 ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
+      pq,
+      p,
+      q,
+      nonce,
+      server_nonce: resPQ.server_nonce,
+      new_nonce: nn,
+    });
+
+    if (expiresAfter > 0) pqInner.params.expires_in.value = expiresAfter;
+
+    // Encrypt pq_inner_data
+    async('encrypt_pq', [pqInner.serialize(), publicKey], (encryptedPQ: string) => {
+      if (encryptedPQ.length <= 510) {
+        do {
+          encryptedPQ = '00' + encryptedPQ; // eslint-disable-line
+        } while (encryptedPQ.length <= 510);
+      }
+
+      const dhParams = {
+        nonce,
+        server_nonce: resPQ.server_nonce,
+        p,
+        q,
+        public_key_fingerprint: publicKey.fingerprint,
+        encrypted_data: encryptedPQ,
+      };
+
+      // call req_DH_params
+      client.plainCall('req_DH_params', dhParams, h, (errd, resDH) => {
+        if (errd || !(resDH instanceof TLConstructor) || resDH._ !== 'server_DH_params_ok') {
+          log(h.dc, h.thread, 'Unexpected req_DH_params response');
+          cb(false);
+          return;
+        }
+
+        // decrypt encrypted_answer
+        async('decrypt_dh', [resDH.params.encrypted_answer.value, nn, resPQ.server_nonce], (decryptedDH: Bytes) => {
+          const serverDH = client.tl.parse(decryptedDH.slice(20));
+
+          if (!(serverDH instanceof TLConstructor) || serverDH._ !== 'server_DH_inner_data') {
+            log(h.dc, h.thread, 'Unable to decrypt aes-256-ige');
+            cb(false);
+            return;
+          }
+
+          cb(true, serverDH.json());
+        });
+      });
+    });
+  });
+}
+
+type SetClientDHParamsCallback = (success: boolean, authKey?: AuthKey) => void;
+
+/**
+ * @mtproto set_client_DH_params
+ */
+function authSetClientDHParams(client: Client, h: Headers, nn: string, resPQ: any, serverDH: any, cb: SetClientDHParamsCallback) {
+  async('gen_key', [serverDH.g, serverDH.ga, serverDH.dhPrime], ([gb, key, id]: string[]) => {
+    const clientDH = client.tl.create('client_DH_inner_data', {
+      nonce: resPQ.nonce,
+      server_nonce: resPQ.server_nonce,
+      retry_id: 0,
+      g_b: gb,
+    }).serialize();
+
+    async('encrypt_dh', [clientDH.hex, nn, resPQ.server_nonce], (encryptedDH: string) => {
+      const clientDHParams = {
+        nonce: resPQ.nonce,
+        server_nonce: resPQ.server_nonce,
+        encrypted_data: encryptedDH,
+      };
+
+      client.plainCall('set_client_DH_params', clientDHParams, h, (err, sDH) => {
+        if (err || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
+          log(h.dc, h.thread, 'Unexpected set_client_DH_params response');
+          cb(false);
+          return;
+        }
+
+        cb(true, { id, key });
+      });
+    });
+  });
+}
+
 /**
  * Creates AuthKey using DH-exchange
  * Ref: https://core.telegram.org/mtproto/auth_key
  */
-export function createAuthKey(client: Client, dc: number, thread: number, expiresAfter: number, cb?: (err: boolean, key?: AuthKey) => void) {
-  // transport for handshaking
-  const transport = 'websocket';
-  const nonce = new Bytes(16).randomize();
-  const newNonce = new Bytes(32).randomize();
+export function createAuthKey(client: Client, dc: number, thread: number, expiresAfter: number, cb: (err: boolean, key?: AuthKey) => void) {
+  // handshaking meta
+  const headers = { dc, thread, transport: 'websocket' };
+  const nonce = new Bytes(16).randomize().uint as string;
+  const newNonce = new Bytes(32).randomize().uint as string;
 
-  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key (${transport}, thread: ${thread})`);
+  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key (${headers.transport}, thread: ${thread})`);
 
-  client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: nonce.uint }, { dc, thread, transport }, (err, resPQ) => {
-    if (err || !(resPQ instanceof TLConstructor) || resPQ._ !== 'resPQ') {
-      log(dc, 'Unexpected resPQ response');
-      if (cb) cb(true);
+  // call req_pq_multi
+  authReqPQ(client, headers, nonce, (success, resPQ) => {
+    if (success === false) {
+      cb(false);
       return;
     }
 
-    const serverNonce = resPQ.params.server_nonce.buf!;
-    const pq = resPQ.params.pq.value;
-
-    async('factorize', pq, (res) => {
-      const [p, q] = res;
-
-      let fingerprint: number = 0;
-      let publicKey: RSAKey | undefined;
-
-      const fingerprints = resPQ.params.server_public_key_fingerprints as TLVector;
-
-      for (let i = 0; i < fingerprints.items.length; i += 1) {
-        const item = fingerprints.items[i];
-        for (let j = 0; j < PredefinedKeys.length; j += 1) {
-          if (PredefinedKeys[j].fingerprint === item.buf!.hex) {
-            fingerprint = item.value;
-            publicKey = PredefinedKeys[j];
-            break;
-          }
-        }
-
-        if (fingerprint) break;
-      }
-
-      if (!fingerprint || !publicKey) {
-        log(dc, 'Unknown RSA public key fingerprint');
-        if (cb) cb(true);
+    // call req_DH_params
+    authReqDHParams(client, headers, newNonce, resPQ, expiresAfter, (rsuccess, serverDH) => {
+      if (rsuccess === false) {
+        cb(false);
         return;
       }
 
-      const pqInner = client.tl.create(expiresAfter > 0 ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
-        pq,
-        p,
-        q,
-        nonce: nonce.uint,
-        server_nonce: serverNonce.uint,
-        new_nonce: newNonce.uint,
-      });
+      // todo: server time sync
+      // todo: check dh prime, ga, gb
 
-      if (expiresAfter > 0) pqInner.params.expires_in.value = expiresAfter;
+      authSetClientDHParams(client, headers, newNonce, resPQ, serverDH, (csuccess: boolean, authKey?: AuthKey) => {
+        if (csuccess === false || !authKey) {
+          cb(false);
+          return;
+        }
 
-      async('encrypt_pq', [pqInner.serialize(), publicKey], (encryptedPQ: string) => {
-        const dhParams = {
-          nonce: nonce.uint,
-          server_nonce: serverNonce.uint,
-          p,
-          q,
-          public_key_fingerprint: fingerprint,
-          encrypted_data: encryptedPQ,
-        };
+        if (expiresAfter > 0) {
+          authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
+          authKey.binded = false;
 
-        client.plainCall('req_DH_params', dhParams, { dc, thread, transport }, (errd, resDH) => {
-          if (errd || !(resDH instanceof TLConstructor) || resDH._ !== 'server_DH_params_ok') {
-            log('Unexpected req_DH_params response');
-            if (cb) cb(true);
-            return;
-          }
+          client.svc.setMeta(dc, 'salt', Bytes.xor(hex(newNonce), hex(resPQ.server_nonce)).hex);
+        }
 
-          async('decrypt_dh', [resDH.params.encrypted_answer.value, newNonce, serverNonce], (decryptedDH: Bytes) => {
-            const serverDH = client.tl.parse(decryptedDH.slice(20));
+        log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${headers.transport}, thread: ${thread})`);
 
-            if (!(serverDH instanceof TLConstructor) || serverDH._ !== 'server_DH_inner_data') {
-              log('Unable to decrypt aes-256-ige');
-              if (cb) cb(true);
-              return;
-            }
-
-            // todo: server time sync
-            const g = serverDH.params.g.value;
-            const ga = serverDH.params.g_a.value;
-            const dhPrime = serverDH.params.dh_prime.value;
-            // todo: check dh prime, ga, gb
-
-            async('gen_key', [g, ga, dhPrime], ([gb, authKeyFull]: string[]) => {
-              const clientDH = client.tl.create('client_DH_inner_data', {
-                nonce: nonce.uint,
-                server_nonce: serverNonce.uint,
-                retry_id: 0,
-                g_b: gb,
-              }).serialize();
-
-              async('encrypt_dh', [clientDH, newNonce, serverNonce], (encryptedDH: string) => {
-                const clientDHParams = {
-                  nonce: nonce.uint,
-                  server_nonce: serverNonce.uint,
-                  encrypted_data: encryptedDH,
-                };
-
-                client.plainCall('set_client_DH_params', clientDHParams, { dc, thread, transport }, (errc, sDH) => {
-                  if (errc || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
-                    log('Unexpected set_client_DH_params response');
-                    if (cb) cb(true);
-                    return;
-                  }
-
-                  const authKey: AuthKey = {
-                    id: sha1(hex(authKeyFull).raw).slice(12, 20).hex,
-                    key: authKeyFull,
-                  };
-
-                  if (expiresAfter > 0) {
-                    authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
-                    authKey.binded = false;
-
-                    client.svc.setMeta(dc, 'salt', Bytes.xor(newNonce.slice(0, 8), serverNonce.slice(0, 8)).hex);
-                  }
-
-                  if (expiresAfter > 0) client.svc.setMeta(dc, 'tempKey', authKey);
-                  else client.svc.setMeta(dc, 'permKey', authKey);
-
-                  log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${transport}, thread: ${thread})`);
-
-                  if (cb) cb(false, authKey);
-                });
-              });
-            });
-          });
-        });
+        if (cb) cb(false, authKey);
       });
     });
   });

@@ -51,7 +51,7 @@ export default class Abridged {
 
     const authKeyID = data.slice(hlen, hlen + 8).uint;
 
-    if (authKeyID.toString() === '0') {
+    if (authKeyID === '0000000000000000') {
       return ['plain', data.slice(hlen)];
     }
 

@@ -55,7 +55,7 @@ export default class Full {
 
     if (len < 8) throw new Error(`Unexpected frame: ${data.hex}`);
 
-    if (data.slice(8, 16).uint.toString() === '0') {
+    if (data.slice(8, 16).uint === '0000000000000000') {
       return ['plain', data.slice(8, 8 + len)];
     }
 

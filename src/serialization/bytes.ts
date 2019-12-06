@@ -1,9 +1,8 @@
-import BigInt, { BigInteger } from 'big-integer';
-
 /**
  * Wrapper for handling array buffers, views and hex strings
  */
 export default class Bytes {
+  // Array Buffer
   buffer: Uint8Array;
 
   /**
@@ -56,8 +55,14 @@ export default class Bytes {
    * Gets string encoded as hex
    */
   get hex(): string {
-    const { map } = Array.prototype;
-    return map.call(this.buffer, (byte: number): string => `0${byte.toString(16)}`.slice(-2)).join('');
+    let str = ''; let byte;
+
+    for (let i = 0; i < this.length; i += 1) {
+      byte = this.buffer[i];
+      str += (byte < 16 ? '0' + byte.toString(16) : byte.toString(16));
+    }
+
+    return str;
   }
 
   /**
@@ -74,7 +79,14 @@ export default class Bytes {
    * Gets string encoded as hex (little-endian)
    */
   get lhex(): string {
-    return Array.prototype.map.call(this.reverse().buffer, (byte: number): string => `0${byte.toString(16)}`.slice(-2)).join('');
+    let str = ''; let byte;
+
+    for (let i = 0; i < this.length; i += 1) {
+      byte = this.buffer[i];
+      str = (byte < 16 ? '0' + byte.toString(16) : byte.toString(16)) + str;
+    }
+
+    return str;
   }
 
   /**
@@ -106,30 +118,30 @@ export default class Bytes {
   /**
    * Gets integer in little endian order
    */
-  get uint(): number | BigInteger {
-    let str = '';
-    for (let i = this.length - 1; i >= 0; i -= 1) str += `0${this.buffer[i].toString(16)}`.slice(-2);
-
+  get uint(): number | string {
     if (this.length > 4) {
-      return BigInt(str, 16);
+      return this.lhex;
     }
 
-    return +`0x${str}`;
+    let out = 0;
+
+    for (let i = 0; i < this.length; i += 1) {
+      out ^= this.buffer[i] << (8 * i);
+    }
+
+    return out;
   }
 
   /**
    * Sets integer in little endian order
    */
-  set uint(data: number | BigInteger) {
-    const str = data.toString(16);
-    const normalized = str.length % 2 === 1 ? `0${str}` : str;
-
-    for (let i = 0; i < normalized.length; i += 2) {
-      this.buffer[i / 2] = +`0x${normalized.slice(normalized.length - i - 2, normalized.length - i)}`;
-    }
-
-    for (let i = normalized.length / 2; i < this.length; i += 1) {
-      this.buffer[i] = 0;
+  set uint(data: number | string) {
+    if (typeof data === 'string') {
+      this.lhex = data;
+    } else {
+      for (let i = 0; i < this.length; i += 1) {
+        this.buffer[i] = (data >> 8 * i) & 0xFF;
+      }
     }
   }
 
@@ -158,9 +170,9 @@ export default class Bytes {
   /**
    * Debug
    */
-  get next() {
-    return new Bytes(new Uint8Array(this.buffer.buffer, this.buffer.byteOffset + 8, 8));
-  }
+  // get next() {
+  //   return new Bytes(new Uint8Array(this.buffer.buffer, this.buffer.byteOffset + 8, 8));
+  // }
 
   /**
    * Creates new Bytes object pointed to same array buffer
@@ -186,8 +198,12 @@ export default class Bytes {
    * Randomize bytes
    */
   randomize(): Bytes {
-    for (let i = 0; i < this.length; i += 1) {
-      this.buffer[i] = Math.ceil(Math.random() * 255);
+    if (window && window.crypto && crypto.getRandomValues) {
+      crypto.getRandomValues(this.buffer);
+    } else {
+      for (let i = 0; i < this.length; i += 1) {
+        this.buffer[i] = Math.ceil(Math.random() * 255);
+      }
     }
 
     return this;
