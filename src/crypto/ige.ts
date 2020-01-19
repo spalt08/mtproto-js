@@ -1,5 +1,5 @@
 import aesjs from 'aes-js';
-import { Bytes } from '../../serialization';
+import { Bytes } from '../serialization';
 
 // Default options for encryption
 const defaultOptions = {

@@ -1,7 +1,6 @@
 import { PlainMessage, Message, EncryptedMessage } from '../message';
 import Transport from './abstract';
 import { Bytes } from '../serialization';
-import { encryptMessage, decryptMessage } from '../crypto/aes/message';
 import { logs } from '../utils/log';
 
 const log = logs('socket');
@@ -31,7 +30,7 @@ export default class Http extends Transport {
     } else {
       if (!authKey) throw new Error('Trying to send encrypted message without auth key');
 
-      const encrypted = encryptMessage(authKey.key, msg);
+      const encrypted = msg.encrypt(authKey.key);
       frame = encrypted.buf.buffer.buffer;
     }
 
@@ -60,7 +59,7 @@ export default class Http extends Transport {
           resMsg = new EncryptedMessage(buf);
 
           try {
-            resMsg = decryptMessage(authKey.key, resMsg);
+            resMsg = resMsg.decrypt(authKey.key);
           } catch (e) {
             log(this.cfg.dc, 'failed to decrypt message');
           }

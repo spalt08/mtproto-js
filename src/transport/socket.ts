@@ -3,7 +3,6 @@ import { PlainMessage, Message, EncryptedMessage } from '../message';
 import { logs } from '../utils/log';
 import { Bytes } from '../serialization';
 import { DCService } from '../client';
-import { encryptMessage, decryptMessage } from '../crypto/aes/message';
 import {
   Abridged,
   Intermediate,
@@ -114,7 +113,7 @@ export default class Socket extends Transport {
       if (!authKey) throw new Error('Unable to descrpt message without auth key');
 
       try {
-        msg = decryptMessage(authKey.key, msg);
+        msg = msg.decrypt(authKey.key);
       } catch (e) {
         log(this.cfg.dc, 'failed to decrypt message');
       }
@@ -150,7 +149,7 @@ export default class Socket extends Transport {
       } else {
         if (!authKey) throw new Error('Trying to send encrypted message without auth key');
 
-        const encrypted = encryptMessage(authKey.key, msg);
+        const encrypted = msg.encrypt(authKey.key);
         frame = this.obfuscation.encode(this.protocol.wrap(encrypted.buf)).buffer.buffer;
       }
 

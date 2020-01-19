@@ -8,10 +8,9 @@ import { Bytes, hex } from '../serialization';
 import { MessageV1, PlainMessage } from '../message';
 import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
-import { decrypt, encrypt } from '../crypto/aes/ige';
+import { decrypt, encrypt } from '../crypto/ige';
 import { ClientError } from './rpc.types';
 import { raw2hex, hex2raw } from '../serialization/conv';
-import { encryptMessageV1 } from '../crypto/aes/message.v1';
 
 const log = logs('auth');
 
@@ -318,7 +317,7 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
   bindMsg.sessionID = new Bytes(8).randomize().hex;
   bindMsg.id = msgID;
 
-  const encryptedMsg = encryptMessageV1(permKey.key, bindMsg);
+  const encryptedMsg = bindMsg.encrypt(permKey.key);
 
   const query = client.tl.create('auth.bindTempAuthKey', {
     perm_auth_key_id: permAuthKeyID,

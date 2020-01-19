@@ -1,4 +1,8 @@
-import { Bytes } from '../serialization';
+import sha256 from '@cryptography/sha256';
+// eslint-disable-next-line
+import Message from './message';
+import { decrypt } from '../crypto/ige';
+import { Bytes, hex } from '../serialization';
 
 /**
  * MessageEncrypted is a buffer with 24 byte padding, which has been encrypted.
@@ -63,5 +67,31 @@ export default class EncryptedMessage {
    */
   get data(): Bytes {
     return this.buf.slice(24);
+  }
+
+  /**
+   * Decrypts MessageEncrypted object with AES-256-IGE mode.
+   * https://core.telegram.org/mtproto/description#protocol-description
+   */
+  decrypt(authKey: string): Message {
+    const key = hex(authKey);
+    const { data } = this;
+    const msgKey = this.key;
+    const sha256a = sha256(msgKey + key.slice(8, 44).raw);
+    const sha256b = sha256(key.slice(48, 84).raw + msgKey);
+
+    const aesKey = new Bytes(32);
+    aesKey.slice(0, 8).raw = sha256a.slice(0, 8);
+    aesKey.slice(8, 24).raw = sha256b.slice(8, 24);
+    aesKey.slice(24, 32).raw = sha256a.slice(24, 32);
+
+    const aesIv = new Bytes(32);
+    aesIv.slice(0, 8).raw = sha256b.slice(0, 8);
+    aesIv.slice(8, 24).raw = sha256a.slice(8, 24);
+    aesIv.slice(24, 32).raw = sha256b.slice(24, 32);
+
+    const decryptedData = decrypt(data, aesKey, aesIv);
+
+    return new Message(decryptedData);
   }
 }
