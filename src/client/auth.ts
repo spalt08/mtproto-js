@@ -205,12 +205,8 @@ function authSetClientDHParams(client: Client, ctx: AuthContext, cb: (_err: Clie
       return;
     }
 
-    console.log({
-      id: raw2hex(sha1(hex2raw(key)).slice(12, 20)),
-      key,
-    });
     cb(null, {
-      id: raw2hex(sha1(hex2raw(key) ).slice(12, 20)),
+      id: raw2hex(sha1(hex2raw(key)).slice(12, 20)),
       key,
     });
   });
@@ -316,8 +312,6 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
     expires_at: expiresAt,
   });
 
-  console.log(q);
-
   const bindMsg = new MessageV1(q);
 
   bindMsg.salt = new Bytes(8).randomize().hex;
@@ -326,16 +320,12 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
 
   const encryptedMsg = encryptMessageV1(permKey.key, bindMsg);
 
-  console.log(encryptedMsg.buf.hex);
-
   const query = client.tl.create('auth.bindTempAuthKey', {
     perm_auth_key_id: permAuthKeyID,
     nonce,
     expires_at: expiresAt,
     encrypted_message: encryptedMsg.buf.hex,
   });
-
-  console.log(query);
 
   client.call(query, { msgID, dc, force: true }, (err, res) => {
     if (!err && res && res.json() === true) {

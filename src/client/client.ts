@@ -11,7 +11,7 @@ import {
 import RPCService from './rpc';
 import { RPCHeaders, ClientError } from './rpc.types';
 import UpdatesService from './updates';
-import async from '../crypto/async';
+import { genPasswordSRP } from '../crypto/srp';
 
 /** Client inner callback */
 export type ClientCallback = (error: ClientError | null, result?: Message | PlainMessage) => void;
@@ -115,17 +115,17 @@ export default class Client {
 
   // eslint-disable-next-line class-methods-use-this
   getPasswordKdfAsync(conf: any, password: string, cb: (result: object) => void): void {
-    const payload = {
-      salt1: conf.current_algo.salt1,
-      salt2: conf.current_algo.salt2,
-      g: conf.current_algo.g,
-      p: conf.current_algo.p.toString(),
-      srpB: conf.srp_B,
-      srpId: conf.srp_id.toString(),
+    const srp = genPasswordSRP(
+      conf.current_algo.salt1,
+      conf.current_algo.salt2,
+      conf.current_algo.g,
+      conf.current_algo.p.toString(),
+      conf.srp_id.toString(),
+      conf.srp_B,
       password,
-    };
+    );
 
-    async('password_kdf', payload, (res: any) => cb(res));
+    cb(srp);
   }
 
   /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */

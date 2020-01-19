@@ -31,12 +31,12 @@ export function encryptMessage(authKey: string, msg: Message): EncryptedMessage 
 
   const aesKey = new Bytes(32);
   aesKey.slice(0, 8).raw = sha256a.slice(0, 8);
-  aesKey.slice(8, 16).raw = sha256b.slice(8, 24);
+  aesKey.slice(8, 24).raw = sha256b.slice(8, 24);
   aesKey.slice(24, 32).raw = sha256a.slice(24, 32);
 
   const aesIv = new Bytes(32);
   aesIv.slice(0, 8).raw = sha256b.slice(0, 8);
-  aesIv.slice(8, 16).raw = sha256a.slice(8, 24);
+  aesIv.slice(8, 24).raw = sha256a.slice(8, 24);
   aesIv.slice(24, 32).raw = sha256b.slice(24, 32);
 
   const encryptedData = encrypt(data, aesKey, aesIv);
@@ -63,12 +63,12 @@ export function decryptMessage(authKey: string, msg: EncryptedMessage): Message 
 
   const aesKey = new Bytes(32);
   aesKey.slice(0, 8).raw = sha256a.slice(0, 8);
-  aesKey.slice(8, 16).raw = sha256b.slice(8, 24);
+  aesKey.slice(8, 24).raw = sha256b.slice(8, 24);
   aesKey.slice(24, 32).raw = sha256a.slice(24, 32);
 
   const aesIv = new Bytes(32);
   aesIv.slice(0, 8).raw = sha256b.slice(0, 8);
-  aesIv.slice(8, 16).raw = sha256a.slice(8, 24);
+  aesIv.slice(8, 24).raw = sha256a.slice(8, 24);
   aesIv.slice(24, 32).raw = sha256b.slice(24, 32);
 
   const decryptedData = decrypt(data, aesKey, aesIv);
