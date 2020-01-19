@@ -12,8 +12,5 @@ export default function encrypt(data: string, modulus: string, exponent: string)
   const n = BigInt(modulus, 16);
   const e = BigInt(exponent, 16);
 
-  const res = x.modPow(e, n).toString(16);
-  console.log(data);
-  console.log(res.length / 2, res);
   return x.modPow(e, n).toString(16);
 }

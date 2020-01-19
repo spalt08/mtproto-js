@@ -1,3 +1,4 @@
+// eslint-disable-next-line
 import { Client } from '../client';
 import { TLConstructor, TLVector } from '../tl';
 import { logs } from '../utils/log';

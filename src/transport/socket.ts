@@ -1,9 +1,16 @@
 import Transport, { TransportConfig } from './abstract';
-import { PlainMessage, Message } from '../message';
+import { PlainMessage, Message, EncryptedMessage } from '../message';
 import { logs } from '../utils/log';
 import { Bytes } from '../serialization';
-import async from '../crypto/async';
 import { DCService } from '../client';
+import { encryptMessage, decryptMessage } from '../crypto/aes/message';
+import {
+  Abridged,
+  Intermediate,
+  IntermediatePadded,
+  Full,
+  Obfuscation,
+} from './protocol';
 
 const log = logs('socket');
 
@@ -31,6 +38,12 @@ export default class Socket extends Transport {
   /** Last plain message nonce */
   lastNonce: string | null = null;
 
+  /** Transport protocol */
+  protocol?: Abridged | Intermediate | IntermediatePadded | Full;
+
+  /** Transport obfuscation */
+  obfuscation?: Obfuscation;
+
   /**
    * Creates new web socket handler
    */
@@ -55,24 +68,24 @@ export default class Socket extends Transport {
    * Handles onopen event at websocket object
    */
   handleOpen = () => {
+    if (!this.ws) return;
+
     log(this.cfg.dc, 'opened');
 
-    const { dc, thread, protocol } = this.cfg;
-    const payload = {
-      dc, thread, protocol, transport: this.transport,
-    };
+    this.obfuscation = new Obfuscation();
 
-    async('transport_init', payload, (initPayload: Bytes) => {
-      if (!this.ws) return;
+    switch (this.cfg.protocol) {
+      case 'abridged': this.protocol = new Abridged(); break;
+      case 'intermediate_padded': this.protocol = new IntermediatePadded(); break;
+      case 'full': this.protocol = new Full(); break;
+      default: this.protocol = new Intermediate();
+    }
 
-      this.ws.send(initPayload.buffer.buffer);
+    const initPayload = this.obfuscation.init(this.protocol.header);
 
-      this.isConnecting = false;
-
-      log(this.cfg.dc, 'ready');
-
-      this.releasePending();
-    });
+    this.ws.send(initPayload.buffer.buffer);
+    this.isConnecting = false;
+    this.releasePending();
   };
 
   /**
@@ -91,26 +104,32 @@ export default class Socket extends Transport {
    */
   handleMessage = (event: MessageEvent) => {
     const authKey = this.svc.getAuthKey(this.cfg.dc);
-    const { dc, thread } = this.cfg;
-    const payload = {
-      dc, thread, transport: this.transport, authKey: authKey ? authKey.key : '', msg: new Bytes(event.data),
-    };
 
-    if (!event.data) return;
+    if (!event.data || !this.protocol || !this.obfuscation) return;
 
-    async('transport_decrypt', payload, (msg: Message | PlainMessage | Bytes) => {
-      if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
-      if (msg instanceof Message || msg instanceof PlainMessage) {
-        this.cfg.resolve(msg, {
-          dc: this.cfg.dc,
-          thread: this.cfg.thread,
-          transport: this.transport,
-          msgID: msg.id,
-        });
-      } else {
-        throw new Error(`Unexpected answer: ${msg.hex}`);
+    let msg: PlainMessage | EncryptedMessage | Message = this.protocol.unWrap(this.obfuscation.decode(new Bytes(event.data)));
+
+    if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
+    if (msg instanceof EncryptedMessage) {
+      if (!authKey) throw new Error('Unable to descrpt message without auth key');
+
+      try {
+        msg = decryptMessage(authKey.key, msg);
+      } catch (e) {
+        log(this.cfg.dc, 'failed to decrypt message');
       }
-    });
+    }
+
+    if (msg instanceof Message || msg instanceof PlainMessage) {
+      this.cfg.resolve(msg, {
+        dc: this.cfg.dc,
+        thread: this.cfg.thread,
+        transport: this.transport,
+        msgID: msg.id,
+      });
+    } else {
+      throw new Error(`Unexpected answer: ${msg.buf.hex}`);
+    }
   };
 
   /**
@@ -121,23 +140,28 @@ export default class Socket extends Transport {
 
     if (msg instanceof PlainMessage) this.lastNonce = msg.nonce;
 
-    if (this.ws && this.ws.readyState === 1) {
+    // send if socket is ready
+    if (this.obfuscation && this.protocol && this.ws && this.ws.readyState === 1) {
       const authKey = this.svc.getAuthKey(this.cfg.dc);
-      const { dc, thread } = this.cfg;
-      const payload = {
-        msg, dc, thread, transport: this.transport, authKey: authKey ? authKey.key : '',
-      };
+      let frame: ArrayBuffer;
 
-      async('transport_encrypt', payload, (data: Bytes) => {
-        if (this.ws) this.ws.send(data.buffer.buffer);
-      });
+      if (msg instanceof PlainMessage) {
+        frame = this.obfuscation.encode(this.protocol.wrap(msg.buf)).buffer.buffer;
+      } else {
+        if (!authKey) throw new Error('Trying to send encrypted message without auth key');
 
+        const encrypted = encryptMessage(authKey.key, msg);
+        frame = this.obfuscation.encode(this.protocol.wrap(encrypted.buf)).buffer.buffer;
+      }
+
+      this.ws.send(frame);
       this.releasePending();
-      return;
-    }
 
-    if (this.isConnecting === false) this.connect();
-    this.pending.push(msg);
+    // else: add message to pending quene and reconnect
+    } else {
+      this.pending.push(msg);
+      if (this.isConnecting === false) this.connect();
+    }
   }
 
   releasePending() {

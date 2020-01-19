@@ -15,8 +15,8 @@ test('transport | abridged short', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped[1].hex).toEqual(payload.hex);
-  expect(unenveloped[0]).toBe('encrypted');
+  expect(unenveloped instanceof EncryptedMessage).toBeTruthy();
+  expect(unenveloped.buf.hex).toBe(payload.hex);
 });
 
 test('transport | abridged long', () => {
@@ -32,7 +32,7 @@ test('transport | abridged long', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped[1].hex).toEqual(payload.hex);
+  expect(unenveloped.buf.hex).toEqual(payload.hex);
 });
 
 test('transport | abridged plain', () => {
@@ -48,5 +48,5 @@ test('transport | abridged plain', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped[0]).toBe('plain');
+  expect(unenveloped instanceof PlainMessage).toBeTruthy();
 });

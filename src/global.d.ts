@@ -1,25 +1,17 @@
-declare module 'rusha' {
-  type digest = {
-    digest(format: string): string;
-  };
-
-  type hash = {
-    update: (data: string) => digest;
-  };
-
-  function createHash(): hash;
-}
+declare module 'aes-js'
 
 declare module '*.json' {
   const data: Record<string, any>;
   export default data;
 }
 
-declare module 'aes-js'
-
 declare module 'pako/lib/deflate' {
-  export { deflate, Deflate, deflateRaw, gzip } from 'pako';
+  export {
+    deflate, Deflate, deflateRaw, gzip,
+  } from 'pako';
 }
 declare module 'pako/lib/inflate' {
-  export { inflate, Inflate, inflateRaw, ungzip } from 'pako';
+  export {
+    inflate, Inflate, inflateRaw, ungzip,
+  } from 'pako';
 }

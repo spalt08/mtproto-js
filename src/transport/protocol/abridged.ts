@@ -1,5 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import { Bytes } from '../../serialization';
+import { PlainMessage, EncryptedMessage } from '../../message';
 
 /**
  * Abridged MTProto Transport Protocol
@@ -36,7 +37,7 @@ export default class Abridged {
   /**
    * Unwraps incoming bytes to type language message
    */
-  unWrap(data: Bytes): [string, Bytes] {
+  unWrap(data: Bytes): EncryptedMessage | PlainMessage {
     let len = data.buffer[0];
     let hlen = 1;
 
@@ -52,13 +53,13 @@ export default class Abridged {
     const authKeyID = data.slice(hlen, hlen + 8).uint;
 
     if (authKeyID === '0000000000000000') {
-      return ['plain', data.slice(hlen)];
+      return new PlainMessage(data.slice(hlen));
     }
 
     // todo: quick ack
     len = len % 16 === 8 ? len : len - 16 + (len % 16);
     len = len % 16 === 0 ? len + 8 : len;
 
-    return ['encrypted', data.slice(hlen, hlen + len)];
+    return new EncryptedMessage(data.slice(hlen, hlen + len));
   }
 }

@@ -34,21 +34,21 @@ export default class EncryptedMessage {
    * Method sets authKey to the first 8 bytes
    */
   set authKey(authKeyID: string) {
-    this.buf.slice(0, 8).hex = authKeyID;
+    this.buf.slice(0, 8).raw = authKeyID;
   }
 
   /**
    * Method sets 8-24 bytes with msg_key
    */
   set key(msgKey: string) {
-    this.buf.slice(8, 24).hex = msgKey;
+    this.buf.slice(8, 24).raw = msgKey;
   }
 
   /**
    * Method gets hex string from 8-24 bytes
    */
   get key(): string {
-    return this.buf.slice(8, 24).hex;
+    return this.buf.slice(8, 24).raw;
   }
 
   /**

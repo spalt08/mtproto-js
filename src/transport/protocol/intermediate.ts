@@ -1,5 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import { Bytes } from '../../serialization';
+import { EncryptedMessage, PlainMessage } from '../../message';
 
 /**
  * Intermediate MTProto Transport Protocol
@@ -28,18 +29,18 @@ export default class Intermediate {
   /**
    * Unwraps incoming bytes to type language message
    */
-  unWrap(data: Bytes): [string, Bytes] {
+  unWrap(data: Bytes): EncryptedMessage | PlainMessage {
     let len = data.slice(0, 4).int32;
 
     if (len < 8) throw new Error(`Unexpected frame: ${data.hex}`);
 
     if (data.slice(4, 12).uint === '0000000000000000') {
-      return ['plain', data.slice(4)];
+      return new PlainMessage(data.slice(4));
     }
 
     len = len % 16 === 8 ? len : len - 16 + (len % 16);
     len = len % 16 === 0 ? len + 8 : len;
 
-    return ['encrypted', data.slice(4, 4 + len)];
+    return new EncryptedMessage(data.slice(4, 4 + len));
   }
 }

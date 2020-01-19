@@ -115,3 +115,8 @@ test('Bytes | randomize', () => {
     expect(buf.buffer[i]).not.toEqual(0);
   }
 });
+
+test('Bytes | byte-string', () => {
+  const buf = new Bytes('.a?');
+  expect(buf.hex).toBe('2e613f');
+});

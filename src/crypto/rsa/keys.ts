@@ -1,7 +1,7 @@
+import sha1 from '@cryptography/sha1';
 import { Bytes } from '../../serialization';
 import TLConstructor from '../../tl/constructor';
 import SchemaProvider from '../../schema/provider';
-import sha1 from '../hash/sha1';
 
 export type RSAKey = {
   fingerprint: string,
@@ -41,7 +41,7 @@ export function parseKey(key: string): RSAKey {
   }
 
   const tlKey = new TLConstructor('rsa_public_key n:bytes e:bytes = RSAPublicKey', new SchemaProvider(), true, { n, e });
-  const keyHash = sha1(tlKey.serialize().raw);
+  const keyHash = new Bytes(sha1(tlKey.serialize().raw));
 
   return {
     fingerprint: keyHash.slice(keyHash.length - 8).hex,
@@ -62,7 +62,7 @@ export const PredefinedKeys: RSAKey[] = [
    * -----END RSA PUBLIC KEY-----
    */
   {
-    fingerprint: '216be86c022bb4c3',
+    fingerprint: 'c3b42b026ce86b21',
     n: 'c150023e2f70db7985ded064759cfecf0af328e69a41daf4d6f01b538135a6f91f'
      + '8f8b2a0ec9ba9720ce352efcf6c5680ffc424bd634864902de0b4bd6d49f4e5802'
      + '30e3ae97d95c8b19442b3c0a10d8f5633fecedd6926a7f6dab0ddb7d457f9ea81b'
@@ -86,7 +86,7 @@ export const PredefinedKeys: RSAKey[] = [
    * JwIDAQAB
    * -----END PUBLIC KEY----- */
   {
-    fingerprint: 'a5b7f709355fc30b',
+    fingerprint: '0bc35f3509f7b7a5',
     n: 'aeec36c8ffc109cb099624685b97815415657bd76d8c9c3e398103d7ad16c9bba6f'
      + '525ed0412d7ae2c2de2b44e77d72cbf4b7438709a4e646a05c43427c7f184debf72'
      + '947519680e651500890c6832796dd11f772c25ff8f576755afe055b0a3752c696eb'
@@ -110,7 +110,7 @@ export const PredefinedKeys: RSAKey[] = [
    * /wIDAQAB
    * -----END PUBLIC KEY----- */
   {
-    fingerprint: '429552b5a85fae15',
+    fingerprint: '15ae5fa8b5529542',
     n: 'bdf2c77d81f6afd47bd30f29ac76e55adfe70e487e5e48297e5a9055c9c07d2b93b4'
     + 'ed3994d3eca5098bf18d978d54f8b7c713eb10247607e69af9ef44f38e28f8b439f25'
     + '7a11572945cc0406fe3f37bb92b79112db69eedf2dc71584a661638ea5becb9e23585'
@@ -134,7 +134,7 @@ export const PredefinedKeys: RSAKey[] = [
    * oQIDAQAB
    * -----END PUBLIC KEY----- */
   {
-    fingerprint: '4ff9d73ce198aeae',
+    fingerprint: 'aeae98e13cd7f94f',
     n: 'b3f762b739be98f343eb1921cf0148cfa27ff7af02b6471213fed9daa0098976e6677'
     + '50324f1abcea4c31e43b7d11f1579133f2b3d9fe27474e462058884e5e1b123be9cbbc'
     + '6a443b2925c08520e7325e6f1a6d50e117eb61ea49d2534c8bb4d2ae4153fabe832b9e'
@@ -158,7 +158,7 @@ export const PredefinedKeys: RSAKey[] = [
    * AQIDAQAB
    * -----END PUBLIC KEY----- */
   {
-    fingerprint: '987d0535221b185a',
+    fingerprint: '5a181b2235057d98',
     n: 'be6a71558ee577ff03023cfa17aab4e6c86383cff8a7ad38edb9fafe6f323f2d5106cb'
     + 'c8cafb83b869cffd1ccf121cd743d509e589e68765c96601e813dc5b9dfc4be415c7a65'
     + '26132d0035ca33d6d6075d4f535122a1cdfe017041f1088d1419f65c8e5490ee613e16d'
@@ -170,3 +170,19 @@ export const PredefinedKeys: RSAKey[] = [
     e: '010001',
   },
 ];
+
+/**
+ * Find RSA key by fingerprint
+ */
+export function getKeyByFingerprints(fingerprints: string[]): RSAKey | undefined {
+  for (let i = 0; i < fingerprints.length; i += 1) {
+    const item = fingerprints[i];
+    for (let j = 0; j < PredefinedKeys.length; j += 1) {
+      if (PredefinedKeys[j].fingerprint === item) {
+        return PredefinedKeys[j];
+      }
+    }
+  }
+
+  return undefined;
+}

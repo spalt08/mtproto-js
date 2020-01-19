@@ -15,8 +15,8 @@ test('transport | intermediate short', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped[1].hex).toEqual(payload.hex);
-  expect(unenveloped[0]).toBe('encrypted');
+  expect(unenveloped.buf.hex).toEqual(payload.hex);
+  expect(unenveloped instanceof EncryptedMessage).toBeTruthy();
 });
 
 test('transport | intermediate long', () => {
@@ -32,7 +32,7 @@ test('transport | intermediate long', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped[1].hex).toEqual(payload.hex);
+  expect(unenveloped.buf.hex).toEqual(payload.hex);
 });
 
 test('transport | intermediate plain', () => {
@@ -48,5 +48,5 @@ test('transport | intermediate plain', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped[0]).toBe('plain');
+  expect(unenveloped instanceof PlainMessage).toBeTruthy();
 });

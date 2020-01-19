@@ -21,13 +21,14 @@
         "jest"
     ],
     "rules": {
-        "max-len": [2, 150, 4],
+        "max-len": [2, 160, 4],
         "no-continue": 0,
         "no-bitwise": 0,
         "no-underscore-dangle": "off",
         "import/no-webpack-loader-syntax": "off",
         "prefer-template": "off",
         "no-param-reassign": "off",
+        "import/prefer-default-export": "off",
     },
     "settings": {
       "import/resolver": {

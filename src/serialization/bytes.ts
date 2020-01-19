@@ -1,3 +1,7 @@
+// Fix for accesing window.crypto through Web Worker.
+// eslint-disable-next-line no-restricted-globals
+const crypto: Crypto | undefined = (typeof window !== 'undefined' && window.crypto) || (self && (self as any).crypto);
+
 /**
  * Wrapper for handling array buffers, views and hex strings
  */
@@ -9,7 +13,7 @@ export default class Bytes {
    * Creates new Bytes object from:
    * - AraryBuffer
    * - UInt8Array
-   * - Hex-string
+   * - Byte-string
    */
   constructor(src: unknown, start?: number, end?: number) {
     if (src instanceof Uint8Array) {
@@ -38,6 +42,12 @@ export default class Bytes {
 
     if (typeof src === 'number') {
       this.buffer = new Uint8Array(src);
+      return;
+    }
+
+    if (typeof src === 'string') {
+      this.buffer = new Uint8Array(src.length);
+      this.raw = src;
       return;
     }
 
@@ -198,7 +208,7 @@ export default class Bytes {
    * Randomize bytes
    */
   randomize(): Bytes {
-    if (window && window.crypto && crypto.getRandomValues) {
+    if (crypto && crypto.getRandomValues) {
       crypto.getRandomValues(this.buffer);
     } else {
       for (let i = 0; i < this.length; i += 1) {

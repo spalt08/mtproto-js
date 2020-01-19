@@ -1,10 +1,17 @@
+import BigInt from 'big-integer';
+import sha1 from '@cryptography/sha1';
 import { Client } from '.';
 import { TLConstructor } from '../tl';
-import async from '../crypto/async';
-import { PredefinedKeys, RSAKey } from '../crypto/rsa/keys';
+import { getKeyByFingerprints } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
 import { Bytes, hex } from '../serialization';
 import { MessageV1, PlainMessage } from '../message';
+import { BrentPrime } from '../crypto/pq';
+import RSAEncrypt from '../crypto/rsa/encrypt';
+import { decrypt, encrypt } from '../crypto/aes/ige';
+import { ClientError } from './rpc.types';
+import { raw2hex, hex2raw } from '../serialization/conv';
+import { encryptMessageV1 } from '../crypto/aes/message.v1';
 
 const log = logs('auth');
 
@@ -15,144 +22,196 @@ export type AuthKey = {
   binded?: boolean,
 };
 
-type Headers = {
+type AuthContext = {
   dc: number,
   thread: number,
-  transport?: string,
+  transport: string,
+  expiresAfter: number,
+  nonce: Bytes,
+  serverNonce?: Bytes,
+  pq?: string,
+  fingerprints?: string[],
+  newNonce: Bytes,
+  aesKey?: Bytes,
+  aesIv?: Bytes,
+  g?: number,
+  ga?: string,
+  dh?: string,
 };
 
 /**
+ * Auth Flow
+ * Step 1. Send random nonce.
  * @mtproto req_pq_multi
  */
-function authReqPQ(client: Client, h: Headers, nonce: string, cb: (success: boolean, result?: any) => void) {
-  client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce }, h, (err, resPQ) => {
+function authReqPQ(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, _result?: TLConstructor) => void) {
+  client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: ctx.nonce.uint }, ctx, (err, resPQ) => {
     if (err || !(resPQ instanceof TLConstructor) || resPQ._ !== 'resPQ') {
-      log(h.dc, h.thread, 'Unexpected resPQ response');
-      console.log(err, resPQ);
+      log(ctx.dc, ctx.thread, 'Unexpected resPQ response');
 
-      cb(false);
+      cb(err);
       return;
     }
 
-    cb(true, resPQ.json());
+    cb(null, resPQ);
   });
 }
 
 /**
- * Find RSA key by fingerprint
- */
-function matchPublicKey(fingerprints: string[]): RSAKey | undefined {
-  for (let i = 0; i < fingerprints.length; i += 1) {
-    const item = fingerprints[i];
-    for (let j = 0; j < PredefinedKeys.length; j += 1) {
-      if (PredefinedKeys[j].fingerprint === item) {
-        return PredefinedKeys[j];
-      }
-    }
-  }
-
-  return undefined;
-}
-
-/**
+ * Auth Flow
+ * Step 2. Request Diffie-Hellman params
  * @mtproto req_DH_params
  */
-function authReqDHParams(client: Client, h: Headers, nn: string, resPQ: any, expiresAfter: number, cb: (success: boolean, result?: any) => void) {
-  const { pq, nonce } = resPQ;
+function authReqDHParams(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
+  // check context
+  if (!ctx.pq || ctx.pq.length === 0) throw new Error('Auth: Missing PQ param');
+  if (!ctx.fingerprints || ctx.fingerprints.length === 0) throw new Error('Auth: Missing public key fingerprints');
+  if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
 
-  // factorize PQ
-  async('factorize', pq, ([p, q]: string[]) => {
-    const publicKey = matchPublicKey(resPQ.server_public_key_fingerprints);
+  // factorize PQ and find RSA key
+  const [p, q] = BrentPrime(BigInt(ctx.pq, 16));
+  const publicKey = getKeyByFingerprints(ctx.fingerprints);
 
-    if (!publicKey) {
-      log(h.dc, h.thread, 'Unknown RSA public key fingerprint:', resPQ.server_public_key_fingerprints.join(', '));
-      cb(false);
+  if (!publicKey) {
+    log(ctx.dc, ctx.thread, 'Unknown RSA public key fingerprint:', ctx.fingerprints.join(', '));
+    cb({
+      type: 'internal',
+      code: 0,
+      message: 'Unknown RSA public key fingerprint',
+    });
+    return;
+  }
+
+  // wrap p_q_inner_data
+  const pqInner = client.tl.create(ctx.expiresAfter > 0 ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
+    pq: ctx.pq,
+    p: p.toString(16),
+    q: q.toString(16),
+    nonce: ctx.nonce.uint,
+    server_nonce: ctx.serverNonce.uint,
+    new_nonce: ctx.newNonce.uint,
+  });
+
+  if (ctx.expiresAfter > 0) pqInner.params.expires_in.value = ctx.expiresAfter;
+
+  // encrypt pq_inner_data
+  const data = pqInner.serialize();
+  const dataToEncrypt = new Bytes(255);
+
+  dataToEncrypt.slice(0, 20).raw = sha1(data.raw);
+  dataToEncrypt.slice(20, 20 + data.length).raw = data.raw;
+  dataToEncrypt.slice(20 + data.length).randomize();
+
+  let encryptedPQ = RSAEncrypt(dataToEncrypt.hex, publicKey.n, publicKey.e);
+
+  // fix: length should be === 255;
+  if (encryptedPQ.length <= 510) {
+    do {
+      encryptedPQ = '00' + encryptedPQ;
+    } while (encryptedPQ.length <= 510);
+  }
+
+  const dhParams = {
+    nonce: ctx.nonce.uint,
+    server_nonce: ctx.serverNonce.uint,
+    p: p.toString(16),
+    q: q.toString(16),
+    public_key_fingerprint: publicKey.fingerprint,
+    encrypted_data: encryptedPQ,
+  };
+
+  // call req_DH_params
+  client.plainCall('req_DH_params', dhParams, ctx, (errd, resDH) => {
+    if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
+    if (!ctx.aesKey) throw new Error('Auth: Missing aes_key');
+    if (!ctx.aesIv) throw new Error('Auth: Missing aes_iv');
+
+    if (errd || !(resDH instanceof TLConstructor) || resDH._ !== 'server_DH_params_ok') {
+      log(ctx.dc, ctx.thread, 'Unexpected req_DH_params response');
+      cb(errd);
       return;
     }
 
-    const pqInner = client.tl.create(expiresAfter > 0 ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
-      pq,
-      p,
-      q,
-      nonce,
-      server_nonce: resPQ.server_nonce,
-      new_nonce: nn,
-    });
+    // decrypt encrypted_answer
+    const wrapper = resDH.json();
 
-    if (expiresAfter > 0) pqInner.params.expires_in.value = expiresAfter;
+    const decryptedDH = decrypt(hex(wrapper.encrypted_answer), ctx.aesKey, ctx.aesIv);
+    const serverDH = client.tl.parse(decryptedDH.slice(20));
 
-    // Encrypt pq_inner_data
-    async('encrypt_pq', [pqInner.serialize(), publicKey], (encryptedPQ: string) => {
-      if (encryptedPQ.length <= 510) {
-        do {
-          encryptedPQ = '00' + encryptedPQ; // eslint-disable-line
-        } while (encryptedPQ.length <= 510);
-      }
-
-      const dhParams = {
-        nonce,
-        server_nonce: resPQ.server_nonce,
-        p,
-        q,
-        public_key_fingerprint: publicKey.fingerprint,
-        encrypted_data: encryptedPQ,
-      };
-
-      // call req_DH_params
-      client.plainCall('req_DH_params', dhParams, h, (errd, resDH) => {
-        if (errd || !(resDH instanceof TLConstructor) || resDH._ !== 'server_DH_params_ok') {
-          log(h.dc, h.thread, 'Unexpected req_DH_params response');
-          cb(false);
-          return;
-        }
-
-        // decrypt encrypted_answer
-        async('decrypt_dh', [resDH.params.encrypted_answer.value, nn, resPQ.server_nonce], (decryptedDH: Bytes) => {
-          const serverDH = client.tl.parse(decryptedDH.slice(20));
-
-          if (!(serverDH instanceof TLConstructor) || serverDH._ !== 'server_DH_inner_data') {
-            log(h.dc, h.thread, 'Unable to decrypt aes-256-ige');
-            cb(false);
-            return;
-          }
-
-          cb(true, serverDH.json());
-        });
+    if (!(serverDH instanceof TLConstructor) || serverDH._ !== 'server_DH_inner_data') {
+      log(ctx.dc, ctx.thread, 'Unable to decrypt aes-256-ige');
+      cb({
+        type: 'internal',
+        code: 0,
+        message: 'Unable to decrypt aes-256-ige',
       });
-    });
+      return;
+    }
+
+    cb(null, serverDH.json());
   });
 }
-
-type SetClientDHParamsCallback = (success: boolean, authKey?: AuthKey) => void;
 
 /**
  * @mtproto set_client_DH_params
  */
-function authSetClientDHParams(client: Client, h: Headers, nn: string, resPQ: any, serverDH: any, cb: SetClientDHParamsCallback) {
-  async('gen_key', [serverDH.g, serverDH.ga, serverDH.dhPrime], ([gb, key, id]: string[]) => {
-    const clientDH = client.tl.create('client_DH_inner_data', {
-      nonce: resPQ.nonce,
-      server_nonce: resPQ.server_nonce,
-      retry_id: 0,
-      g_b: gb,
-    }).serialize();
+function authSetClientDHParams(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, authKey?: AuthKey) => void) {
+  // check context
+  if (!ctx.g) throw new Error('Auth: Missing g param');
+  if (!ctx.ga || ctx.ga.length === 0) throw new Error('Auth: Missing g_a param');
+  if (!ctx.dh || ctx.dh.length === 0) throw new Error('Auth: Missing dh_prime param');
+  if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
+  if (!ctx.aesKey) throw new Error('Auth: Missing aes_key');
+  if (!ctx.aesIv) throw new Error('Auth: Missing aes_iv');
 
-    async('encrypt_dh', [clientDH.hex, nn, resPQ.server_nonce], (encryptedDH: string) => {
-      const clientDHParams = {
-        nonce: resPQ.nonce,
-        server_nonce: resPQ.server_nonce,
-        encrypted_data: encryptedDH,
-      };
+  // generate key;
+  const g = BigInt(ctx.g);
+  const ga = BigInt(ctx.ga, 16);
+  const dhPrime = BigInt(ctx.dh, 16);
+  const b = BigInt(new Bytes(255).randomize().hex, 16);
+  const gb = g.modPow(b, dhPrime).toString(16);
+  const key = ga.modPow(b, dhPrime).toString(16);
 
-      client.plainCall('set_client_DH_params', clientDHParams, h, (err, sDH) => {
-        if (err || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
-          log(h.dc, h.thread, 'Unexpected set_client_DH_params response');
-          cb(false);
-          return;
-        }
+  // inner content for client_DH_inner_data
+  const clientDH = client.tl.create('client_DH_inner_data', {
+    nonce: ctx.nonce.uint,
+    server_nonce: ctx.serverNonce.uint,
+    retry_id: 0,
+    g_b: gb,
+  }).serialize();
 
-        cb(true, { id, key });
-      });
+  let len = 20 + clientDH.length;
+  len += 16 - (len % 16);
+
+  const plain = new Bytes(len);
+  plain.slice(0, 20).raw = sha1(clientDH.raw);
+  plain.slice(20, 20 + clientDH.length).raw = clientDH.raw;
+  plain.slice(20 + clientDH.length).randomize();
+
+  // encrypt client_DH_inner_data
+  const encryptedDH = encrypt(plain, ctx.aesKey, ctx.aesIv);
+
+  // params for set_client_DH_params
+  const clientDHParams = {
+    nonce: ctx.nonce.uint,
+    server_nonce: ctx.serverNonce.uint,
+    encrypted_data: encryptedDH.hex,
+  };
+
+  client.plainCall('set_client_DH_params', clientDHParams, ctx, (err, sDH) => {
+    if (err || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
+      log(ctx.dc, ctx.thread, 'Unexpected set_client_DH_params response');
+      cb(err);
+      return;
+    }
+
+    console.log({
+      id: raw2hex(sha1(hex2raw(key)).slice(12, 20)),
+      key,
+    });
+    cb(null, {
+      id: raw2hex(sha1(hex2raw(key) ).slice(12, 20)),
+      key,
     });
   });
 }
@@ -161,34 +220,56 @@ function authSetClientDHParams(client: Client, h: Headers, nn: string, resPQ: an
  * Creates AuthKey using DH-exchange
  * Ref: https://core.telegram.org/mtproto/auth_key
  */
-export function createAuthKey(client: Client, dc: number, thread: number, expiresAfter: number, cb: (err: boolean, key?: AuthKey) => void) {
-  // handshaking meta
-  const headers = { dc, thread, transport: 'websocket' };
-  const nonce = new Bytes(16).randomize().uint as string;
-  const newNonce = new Bytes(32).randomize().uint as string;
+export function createAuthKey(client: Client, dc: number, thread: number, expiresAfter: number, cb?: (err: ClientError | null, key?: AuthKey) => void) {
+  const ctx: AuthContext = {
+    dc,
+    thread,
+    transport: 'websocket',
+    expiresAfter,
+    nonce: new Bytes(16).randomize(),
+    newNonce: new Bytes(32).randomize(),
+  };
 
-  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key (${headers.transport}, thread: ${thread})`);
+  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key (${ctx.transport}, thread: ${ctx.thread})`);
 
   // call req_pq_multi
-  authReqPQ(client, headers, nonce, (success, resPQ) => {
-    if (success === false) {
-      cb(false);
+  authReqPQ(client, ctx, (err, resPQ) => {
+    if (err || !resPQ) {
+      if (cb) cb(err);
       return;
     }
 
+    ctx.serverNonce = resPQ.params.server_nonce.buf || new Bytes(0);
+    ctx.fingerprints = resPQ.params.server_public_key_fingerprints.value;
+    ctx.pq = resPQ.params.pq.value;
+    ctx.aesKey = new Bytes(32);
+
+    ctx.aesKey.slice(0, 20).raw = sha1(ctx.newNonce.raw + ctx.serverNonce.raw);
+    ctx.aesKey.slice(20, 32).raw = sha1(ctx.serverNonce.raw + ctx.newNonce.raw).slice(0, 12);
+
+    ctx.aesIv = new Bytes(32);
+    ctx.aesIv.slice(0, 8).raw = sha1(ctx.serverNonce.raw + ctx.newNonce.raw).slice(12, 20);
+    ctx.aesIv.slice(8, 28).raw = sha1(ctx.newNonce.raw + ctx.newNonce.raw);
+    ctx.aesIv.slice(28, 32).raw = ctx.newNonce.slice(0, 4).raw;
+
     // call req_DH_params
-    authReqDHParams(client, headers, newNonce, resPQ, expiresAfter, (rsuccess, serverDH) => {
-      if (rsuccess === false) {
-        cb(false);
+    authReqDHParams(client, ctx, (rerr, serverDH) => {
+      if (rerr) {
+        if (cb) cb(rerr);
         return;
       }
 
       // todo: server time sync
       // todo: check dh prime, ga, gb
+      ctx.g = serverDH.g;
+      ctx.ga = serverDH.g_a;
+      ctx.dh = serverDH.dh_prime;
 
-      authSetClientDHParams(client, headers, newNonce, resPQ, serverDH, (csuccess: boolean, authKey?: AuthKey) => {
-        if (csuccess === false || !authKey) {
-          cb(false);
+      authSetClientDHParams(client, ctx, (cerr, authKey) => {
+        if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
+
+        if (cerr || !authKey) {
+          if (cb) cb(cerr);
           return;
         }
 
@@ -196,12 +277,15 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
           authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
           authKey.binded = false;
 
-          client.svc.setMeta(dc, 'salt', Bytes.xor(hex(newNonce), hex(resPQ.server_nonce)).hex);
+          client.svc.setMeta(dc, 'salt', Bytes.xor(ctx.newNonce.slice(0, 8), ctx.serverNonce.slice(0, 8)).hex);
         }
 
-        log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${headers.transport}, thread: ${thread})`);
+        if (expiresAfter > 0) client.svc.setMeta(dc, 'tempKey', authKey);
+        else client.svc.setMeta(dc, 'permKey', authKey);
 
-        if (cb) cb(false, authKey);
+        log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${ctx.transport}, thread: ${thread})`);
+
+        if (cb) cb(null, authKey);
       });
     });
   });
@@ -232,29 +316,35 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
     expires_at: expiresAt,
   });
 
+  console.log(q);
+
   const bindMsg = new MessageV1(q);
 
   bindMsg.salt = new Bytes(8).randomize().hex;
   bindMsg.sessionID = new Bytes(8).randomize().hex;
   bindMsg.id = msgID;
 
-  async('transport_encrypt_v1', { msg: bindMsg, authKey: permKey.key }, (encryptedMsg: Bytes) => {
-    const query = client.tl.create('auth.bindTempAuthKey', {
-      perm_auth_key_id: permAuthKeyID,
-      nonce,
-      expires_at: expiresAt,
-      encrypted_message: encryptedMsg.hex,
-    });
+  const encryptedMsg = encryptMessageV1(permKey.key, bindMsg);
 
-    client.call(query, { msgID, dc, force: true }, (err, res) => {
-      if (!err && res && res.json() === true) {
-        log(dc, 'temporary key successfuly binded');
-        client.svc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
-        if (cb) cb(true);
-      } else {
-        throw new Error('Auth: Binding temp auth key failed');
-      }
-    });
+  console.log(encryptedMsg.buf.hex);
+
+  const query = client.tl.create('auth.bindTempAuthKey', {
+    perm_auth_key_id: permAuthKeyID,
+    nonce,
+    expires_at: expiresAt,
+    encrypted_message: encryptedMsg.buf.hex,
+  });
+
+  console.log(query);
+
+  client.call(query, { msgID, dc, force: true }, (err, res) => {
+    if (!err && res && res.json() === true) {
+      log(dc, 'temporary key successfuly binded');
+      client.svc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
+      if (cb) cb(true);
+    } else {
+      throw new Error('Auth: Binding temp auth key failed');
+    }
   });
 }
 

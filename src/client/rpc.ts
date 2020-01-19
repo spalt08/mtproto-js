@@ -279,7 +279,8 @@ export default class RPCService {
               message: result.params.error_message.value,
             }, result, headers);
           }
-          console.log('rpc err', this.messages[reqMsgID], `(${headers.transport}, thread: ${headers.thread})`, result.json());
+
+          // console.log('rpc err', this.messages[reqMsgID], `(${headers.transport}, thread: ${headers.thread})`, result.json());
           break;
 
         default:

@@ -19,8 +19,8 @@ test('transport | full', () => {
 
   const unenveloped = protocol.unWrap(enveloped);
 
-  expect(unenveloped[1].slice(0, payload.length).hex).toEqual(payload.hex);
-  expect(unenveloped[0]).toBe('encrypted');
+  expect(unenveloped.buf.slice(0, payload.length).hex).toEqual(payload.hex);
+  expect(unenveloped instanceof EncryptedMessage).toBeTruthy();
 
   const envelopedNext = protocol.wrap(msg.buf);
 

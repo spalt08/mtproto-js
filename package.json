@@ -9,9 +9,13 @@
     "build": "rm -rf dist/* && webpack --mode=production",
     "start": "rm -rf dist/* && webpack --watch",
     "analyze": "npm run build -- --analyze",
-    "test": "jest"    
+    "test": "jest"
   },
   "dependencies": {
+    "@cryptography/pbkdf2": "^0.1.0",
+    "@cryptography/sha1": "^0.1.0",
+    "@cryptography/sha256": "^0.1.4",
+    "@cryptography/sha512": "^0.1.2",
     "aes-js": "^3.1.2",
     "big-integer": "^1.6.46",
     "pako": "^1.0.10"

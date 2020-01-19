@@ -6,7 +6,7 @@ import { Http, Socket } from '../transport';
 import DCService from './dc';
 import { Message, PlainMessage } from '../message';
 import {
-  createAuthKey, bindTempAuthKey, initConnection, transferAuthorization,
+  createAuthKey, bindTempAuthKey, initConnection, transferAuthorization, AuthKey,
 } from './auth';
 import RPCService from './rpc';
 import { RPCHeaders, ClientError } from './rpc.types';
@@ -17,7 +17,7 @@ import async from '../crypto/async';
 export type ClientCallback = (error: ClientError | null, result?: Message | PlainMessage) => void;
 
 /** Request callback */
-export type RequestCallback = (error: ClientError | null, result: undefined | TLAbstract) => void;
+export type RequestCallback = (error: ClientError | null, result?: undefined | TLAbstract) => void;
 
 type Transports = 'http' | 'websocket';
 
@@ -38,6 +38,8 @@ export type ClientConfig = {
   systemVersion: string,
   appVersion: string,
   langCode: string,
+
+  autoConnect: boolean,
 };
 
 /** Default client configuration */
@@ -54,6 +56,8 @@ const defaultClientConfig = {
   systemVersion: 'Unknown',
   appVersion: '1.0.0',
   langCode: 'en',
+
+  autoConnect: true,
 };
 
 /**
@@ -106,7 +110,7 @@ export default class Client {
       this.createInstance(this.cfg.transport, cfg.dc, 1),
     ];
 
-    this.authorize(cfg.dc);
+    if (this.cfg.autoConnect) this.authorize(cfg.dc);
   }
 
   // eslint-disable-next-line class-methods-use-this
@@ -125,7 +129,7 @@ export default class Client {
   }
 
   /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */
-  authorize(dc: number, cb?: () => void): void {
+  authorize(dc: number, cb?: (_err: ClientError | null, _key?: AuthKey) => void): void {
     // Change state to block user requests
     if (!this.state[dc] || this.state[dc] !== 1) this.state[dc] = 1;
     if (!this.retries[dc]) this.retries[dc] = 0;
@@ -189,7 +193,7 @@ export default class Client {
     // Unlock dc state to perform user requests
     this.state[dc] = 2;
     this.resendPending(dc);
-    if (cb) cb();
+    if (cb) cb(null);
   }
 
   /** Create new connection instance */
@@ -230,7 +234,8 @@ export default class Client {
     if (msg instanceof PlainMessage) {
       if (msg.nonce && this.plainResolvers[msg.nonce]) {
         this.plainResolvers[msg.nonce](null, result);
-        delete this.plainResolvers[msg.nonce];
+        // to do: delete plain resolvers;
+        // delete this.plainResolvers[msg.nonce];
       }
       return;
     }
@@ -242,7 +247,8 @@ export default class Client {
   resolveError = (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => {
     if (nonce && this.plainResolvers[nonce]) {
       this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
-      delete this.plainResolvers[nonce];
+      // to do: delete plain resolvers;
+      // delete this.plainResolvers[nonce];
     }
 
     this.rpc.emitError(dc, thread, transport, code, message);
@@ -255,7 +261,7 @@ export default class Client {
   public plainCall(method: string, data: Record<string, any>, headers: Record<string, any>, cb: RequestCallback): void;
   public plainCall(src: TLConstructor | PlainMessage | string, ...args: unknown[]): void {
     let msg: PlainMessage;
-    let cb: RequestCallback;
+    let cb: RequestCallback | undefined;
     let headers: Record<string, any> = {};
 
     if (src instanceof PlainMessage) {
@@ -292,11 +298,9 @@ export default class Client {
     const transport = headers.transport || this.cfg.transport;
 
     // Resolve plain message
-    if (msg instanceof PlainMessage && cb!) {
-      this.plainResolvers[msg.nonce] = cb!;
+    if (msg instanceof PlainMessage && cb) {
+      this.plainResolvers[msg.nonce] = cb;
     }
-
-    console.log("<-", dc, thread, msg.buf.hex);
 
     this.getInstance(transport, dc, thread).send(msg);
   }
@@ -353,6 +357,7 @@ export default class Client {
 
       msg.id = PlainMessage.GenerateID();
     }
+
 
     const dc = headers.dc || this.cfg.dc;
     const thread = headers.thread || 1;

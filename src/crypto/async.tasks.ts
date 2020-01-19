@@ -1,9 +1,12 @@
 import BigInt from 'big-integer';
+import sha1 from '@cryptography/sha1';
+import sha256 from '@cryptography/sha256';
+import sha512 from '@cryptography/sha512';
+import pbkdf2 from '@cryptography/pbkdf2';
 import { Bytes, hex } from '../serialization';
 import { BrentPrime } from './pq';
 import { RSAKey } from './rsa/keys';
 import RSAEncrypt from './rsa/encrypt';
-import sha1 from './hash/sha1';
 import { decrypt, encrypt } from './aes/ige';
 import {
   Abridged,
@@ -16,9 +19,7 @@ import {
   Message, PlainMessage, EncryptedMessage, MessageV1,
 } from '../message';
 import { encryptMessage, decryptMessage } from './aes/message';
-import sha256 from './hash/sha256';
 import { encryptMessageV1 } from './aes/message.v1';
-import pbkdf2 from './pbkdf2/pbkdf2';
 
 /** Factorization PQ */
 export function factorize(pq: string): string[] {
@@ -29,7 +30,7 @@ export function factorize(pq: string): string[] {
 export function ecnryptPQ(data: Bytes, pk: RSAKey): string {
   const dataToEncrypt = new Bytes(255);
 
-  dataToEncrypt.slice(0, 20).raw = sha1(data.raw).raw;
+  dataToEncrypt.slice(0, 20).raw = sha1(data.raw);
   dataToEncrypt.slice(20, 20 + data.length).raw = data.raw;
   dataToEncrypt.slice(20 + data.length).randomize();
 
@@ -41,11 +42,11 @@ export function decryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
   const tmpAesKey = new Bytes(32);
   const tmpAesIv = new Bytes(32);
 
-  tmpAesKey.slice(0, 20).raw = sha1(nn.raw + sn.raw).raw;
-  tmpAesKey.slice(20, 32).raw = sha1(sn.raw + nn.raw).slice(0, 12).raw;
+  tmpAesKey.slice(0, 20).raw = sha1(nn.raw + sn.raw);
+  tmpAesKey.slice(20, 32).raw = sha1(sn.raw + nn.raw).slice(0, 12);
 
-  tmpAesIv.slice(0, 8).raw = sha1(sn.raw + nn.raw).slice(12, 20).raw;
-  tmpAesIv.slice(8, 28).raw = sha1(nn.raw + nn.raw).raw;
+  tmpAesIv.slice(0, 8).raw = sha1(sn.raw + nn.raw).slice(12, 20);
+  tmpAesIv.slice(8, 28).raw = sha1(nn.raw + nn.raw);
   tmpAesIv.slice(28, 32).raw = nn.slice(0, 4).raw;
 
   return decrypt(data, tmpAesKey, tmpAesIv);
@@ -67,11 +68,11 @@ export function encryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
   const tmpAesKey = new Bytes(32);
   const tmpAesIv = new Bytes(32);
 
-  tmpAesKey.slice(0, 20).raw = sha1(nn.raw + sn.raw).raw;
-  tmpAesKey.slice(20, 32).raw = sha1(sn.raw + nn.raw).slice(0, 12).raw;
+  tmpAesKey.slice(0, 20).raw = sha1(nn.raw + sn.raw);
+  tmpAesKey.slice(20, 32).raw = sha1(sn.raw + nn.raw).slice(0, 12);
 
-  tmpAesIv.slice(0, 8).raw = sha1(sn.raw + nn.raw).slice(12, 20).raw;
-  tmpAesIv.slice(8, 28).raw = sha1(nn.raw + nn.raw).raw;
+  tmpAesIv.slice(0, 8).raw = sha1(sn.raw + nn.raw).slice(12, 20);
+  tmpAesIv.slice(8, 28).raw = sha1(nn.raw + nn.raw);
   tmpAesIv.slice(28, 32).raw = nn.slice(0, 4).raw;
 
   let len = 20 + data.length;
@@ -79,7 +80,7 @@ export function encryptDH(data: Bytes, nn: Bytes, sn: Bytes): Bytes {
 
   const plain = new Bytes(len);
 
-  plain.slice(0, 20).raw = sha1(data.raw).raw;
+  plain.slice(0, 20).raw = sha1(data.raw);
   plain.slice(20, 20 + data.length).raw = data.raw;
   plain.slice(20 + data.length).randomize();
 
@@ -200,14 +201,14 @@ export function getPasswordKdf(
 
   let pwdhash;
   pwdhash = sha256(clientSalt.raw + password + clientSalt.raw);
-  pwdhash = sha256(serverSalt.raw + pwdhash.raw + serverSalt.raw);
-  pwdhash = pbkdf2(pwdhash.raw, clientSalt.raw, 100000, 64);
-  pwdhash = sha256(serverSalt.raw + pwdhash.raw + serverSalt.raw);
+  pwdhash = sha256(serverSalt.raw + pwdhash + serverSalt.raw);
+  pwdhash = pbkdf2(pwdhash, clientSalt.raw, 100000, 64, sha512);
+  pwdhash = new Bytes(sha256(serverSalt.raw + pwdhash + serverSalt.raw));
 
   const x = BigInt(pwdhash.hex, 16);
   const gx = g.modPow(x, p);
 
-  const k = BigInt(sha256(pBuf.raw + gBuf.raw).hex, 16);
+  const k = BigInt(new Bytes(sha256(pBuf.raw + gBuf.raw)).hex, 16);
   const kgx = k.multiply(gx).mod(p);
 
   const aBuf = rand ? hex(rand) : new Bytes(256).randomize();
@@ -218,7 +219,7 @@ export function getPasswordKdf(
   let bkgx = srpB.subtract(kgx);
   if (bkgx.lesser(BigInt.zero)) bkgx = bkgx.add(p);
 
-  const u = BigInt(sha256(AcBuf.raw + srpBBuf.raw).hex, 16);
+  const u = BigInt(new Bytes(sha256(AcBuf.raw + srpBBuf.raw)).hex, 16);
   const ux = u.multiply(x);
   const uxa = ux.add(a);
 
@@ -228,14 +229,14 @@ export function getPasswordKdf(
   const K = sha256(SBuf.raw);
   const h1 = sha256(pBuf.raw);
   const h2 = sha256(gBuf.raw);
-  const h12 = Bytes.xor(h1, h2);
+  const h12 = Bytes.xor(new Bytes(h1), new Bytes(h2));
 
-  const M1 = sha256(h12.raw + sha256(clientSalt.raw).raw + sha256(serverSalt.raw).raw + AcBuf.raw + srpBBuf.raw + K.raw);
+  const M1 = sha256(h12.raw + sha256(clientSalt.raw) + sha256(serverSalt.raw) + AcBuf.raw + srpBBuf.raw + K);
 
   return {
     _: 'inputCheckPasswordSRP',
     srp_id: srpId,
     A: AcBuf.hex,
-    M1: M1.hex,
+    M1: new Bytes(M1).hex,
   };
 }
