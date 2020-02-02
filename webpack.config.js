@@ -46,16 +46,6 @@ module.exports = (env, argv) => {
     module: {
       rules: [
         {
-          test: /\.worker\.[^.]+$/,
-          use: {
-            loader: 'worker-loader',
-            options: {
-              inline: true,
-              fallback: false,
-            },
-          },
-        },
-        {
           test: /\.js$/,
           include: path.resolve(__dirname, 'src'),
           exclude: /node_modules/,
@@ -112,6 +102,11 @@ module.exports = (env, argv) => {
         ...commonConfig.output,
         filename: `${libraryName}.cjs.js`,
         libraryTarget: 'commonjs2',
+      },
+
+      optimization: {
+        ...commonConfig.optimization,
+        minimize: false,
       },
     },
   ];
