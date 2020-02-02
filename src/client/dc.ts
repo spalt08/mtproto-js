@@ -20,6 +20,9 @@ export default class DCService {
     5: { host: 'flora', media: true },
   };
 
+  /** Client ref */
+  client?: Client
+
   /** Datacenter meta data */
   meta: Record<number, {
     permKey?: AuthKey,
@@ -33,19 +36,11 @@ export default class DCService {
     [key: string]: any,
   }> = {};
 
-  storage: Storage;
-
   constructor(client?: Client) {
-    if (client) this.storage = client.cfg.storage;
-    else this.storage = window.localStorage;
+    if (!client) return;
 
-    const cached = this.storage.getItem('meta');
-
-    if (cached) this.meta = JSON.parse(cached) || {};
-
-    window.addEventListener('beforeunload', () => {
-      this.storage.setItem('meta', JSON.stringify(this.meta));
-    });
+    this.meta = client.cfg.meta;
+    this.client = client;
   }
 
   /** Resolve hostname by dc id */
@@ -54,6 +49,7 @@ export default class DCService {
   }
 
   setMeta(dc: number, param: 'userID', value: number): void;
+  setMeta(dc: number, param: 'seqNo', value: number): void;
   setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;
   setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey | null): void;
   setMeta(dc: number, param: 'connectionInited', value: boolean): void;
@@ -61,6 +57,7 @@ export default class DCService {
     if (!this.meta[dc]) this.meta[dc] = {};
 
     this.meta[dc][param] = value;
+    if (this.client) this.client.emit('metaChanged', this.meta);
   }
 
   getSessionID(dc: number): string {
@@ -111,7 +108,8 @@ export default class DCService {
 
     const isc = isContentRelated ? 1 : 0;
     const seqNo = this.meta[dc].seqNo!;
-    this.meta[dc].seqNo! += isc;
+
+    this.setMeta(dc, 'seqNo', this.meta[dc].seqNo! + isc);
 
     return seqNo * 2 + isc;
   }

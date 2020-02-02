@@ -24,11 +24,12 @@ type Transports = 'http' | 'websocket';
 /** Client configuration type */
 export type ClientConfig = {
   test: boolean,
+  debug: boolean,
   ssl: boolean,
   dc: number,
   protocol: MTProtoTransport,
   transport: Transports,
-  storage: Storage,
+  meta: Record<number, any>,
 
   APILayer: number,
   APIID?: string,
@@ -45,11 +46,12 @@ export type ClientConfig = {
 /** Default client configuration */
 const defaultClientConfig = {
   test: false,
+  debug: false,
   ssl: true,
   dc: 2,
   protocol: 'intermediate' as MTProtoTransport,
   transport: 'websocket' as Transports,
-  storage: window.localStorage,
+  meta: {},
 
   APILayer: 105,
   deviceModel: 'Unknown',
@@ -59,6 +61,8 @@ const defaultClientConfig = {
 
   autoConnect: true,
 };
+
+type ClientEventListener = (...payload: any[]) => any;
 
 /**
  * MTProto client
@@ -91,6 +95,8 @@ export default class Client {
 
   /** DC state. 0 - attached, 1 - authorizing, 2 - ready */
   state: Record<number, number>;
+
+  listeners: Record<string, ClientEventListener[]> = {};
 
   retries: Record<number, number> = {};
 
@@ -403,6 +409,22 @@ export default class Client {
         }
         this.pending[key] = [];
       }
+    }
+  }
+
+  /** Subscription for client event */
+  on(eventName: 'metaChanged', cb: (meta: Record<number, any>) => void): void; 
+  on(eventName: string, cb: ClientEventListener): void {
+    if (!this.listeners[eventName]) this.listeners[eventName] = [];
+    this.listeners[eventName].push(cb);
+  };
+
+  /** Emit client event */
+  emit(eventName: 'metaChanged', meta: Record<number, any>): void; 
+  emit(eventName: string, ...args: unknown[]) {
+    if (!this.listeners[eventName]) this.listeners[eventName] = [];
+    for (let i = 0; i < this.listeners[eventName].length; i += 1) {
+      this.listeners[eventName][i](...args);
     }
   }
 }
