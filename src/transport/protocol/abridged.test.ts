@@ -1,4 +1,3 @@
-import { PlainMessage, EncryptedMessage } from '../../message';
 import { Bytes } from '../../serialization';
 import Abridged from './abridged';
 
@@ -8,15 +7,11 @@ test('transport | abridged short', () => {
 
   payload.randomize();
 
-  const msg = new EncryptedMessage(payload);
-  const enveloped = protocol.wrap(msg.buf);
-
+  const enveloped = protocol.wrap(payload);
   expect(enveloped.hex).toEqual(`0a${payload.hex}`);
 
   const unenveloped = protocol.unWrap(enveloped);
-
-  expect(unenveloped instanceof EncryptedMessage).toBeTruthy();
-  expect(unenveloped.buf.hex).toBe(payload.hex);
+  expect(unenveloped.hex).toBe(payload.hex);
 });
 
 test('transport | abridged long', () => {
@@ -25,28 +20,10 @@ test('transport | abridged long', () => {
 
   payload.randomize();
 
-  const msg = new EncryptedMessage(payload);
-  const enveloped = protocol.wrap(msg.buf);
+  const enveloped = protocol.wrap(payload);
 
   expect(enveloped.hex).toEqual(`7f020100${payload.hex}`);
 
   const unenveloped = protocol.unWrap(enveloped);
-
-  expect(unenveloped.buf.hex).toEqual(payload.hex);
-});
-
-test('transport | abridged plain', () => {
-  const protocol = new Abridged();
-  const payload = new Bytes(52);
-
-  payload.slice(8).randomize();
-
-  const msg = new PlainMessage(payload);
-  const enveloped = protocol.wrap(msg.buf);
-
-  expect(enveloped.hex).toEqual(`0d${payload.hex}`);
-
-  const unenveloped = protocol.unWrap(enveloped);
-
-  expect(unenveloped instanceof PlainMessage).toBeTruthy();
+  expect(unenveloped.hex).toEqual(payload.hex);
 });

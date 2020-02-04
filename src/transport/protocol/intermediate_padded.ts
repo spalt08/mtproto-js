@@ -1,6 +1,5 @@
 /* eslint-disable class-methods-use-this */
 import { Bytes } from '../../serialization';
-import { EncryptedMessage, PlainMessage } from '../../message';
 
 /**
  * Padded Intermediate MTProto Transport Protocol
@@ -32,19 +31,8 @@ export default class IntermediatePadded {
   /**
    * Unwraps incoming bytes to type language message
    */
-  unWrap(data: Bytes): EncryptedMessage | PlainMessage {
-    let tlen = data.slice(0, 4).int32;
-
-    if (tlen < 8) throw new Error(`Unexpected frame: ${data.hex}`);
-
-    if (data.slice(4, 12).uint === '0000000000000000') {
-      return new PlainMessage(data.slice(4));
-    }
-
-    // todo: quick ack
-    tlen = tlen % 16 === 8 ? tlen : tlen - 16 + (tlen % 16);
-    tlen = tlen % 16 === 0 ? tlen + 8 : tlen;
-
-    return new EncryptedMessage(data.slice(4, 4 + tlen));
+  unWrap(data: Bytes): Bytes {
+    const len = data.slice(0, 4).int32;
+    return data.slice(4, 4 + len - (len % 16));
   }
 }

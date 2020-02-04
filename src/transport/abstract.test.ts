@@ -1,12 +1,10 @@
 
-import { DCService } from '../client';
 import Transport from './abstract';
+import configMock from '../mock/transport_config';
 
 test('Transort | constructor', () => {
-  const tr = new Transport(new DCService(), {
-    test: true, ssl: true, dc: 1, thread: 1, resolve: () => {}, resolveError: () => {},
-  });
+  const tr = new Transport(() => {}, configMock);
 
-  expect(tr.cfg.dc).toEqual(1);
-  expect(tr.cfg.thread).toEqual(1);
+  expect(tr.cfg.dc).toEqual(configMock.dc);
+  expect(tr.cfg.thread).toEqual(configMock.thread);
 });

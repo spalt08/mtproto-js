@@ -1,66 +1,20 @@
-/* eslint-disable lines-between-class-members, no-dupe-class-members, import/no-cycle */
 import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
-import { MTProtoTransport } from '../transport/protocol';
-import Transport from '../transport/abstract';
+import Transport, { TransportConfig } from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
-import { Message, PlainMessage } from '../message';
 import {
-  createAuthKey, bindTempAuthKey, initConnection, transferAuthorization, AuthKey,
+  Message, PlainMessage, EncryptedMessage, ErrorMessage,
+} from '../message';
+import {
+  createAuthKey, bindTempAuthKey, initConnection, transferAuthorization,
 } from './auth';
 import RPCService from './rpc';
-import { RPCHeaders, ClientError } from './rpc.types';
 import UpdatesService from './updates';
 import { genPasswordSRP } from '../crypto/srp';
-
-/** Client inner callback */
-export type ClientCallback = (error: ClientError | null, result?: Message | PlainMessage) => void;
-
-/** Request callback */
-export type RequestCallback = (error: ClientError | null, result?: undefined | TLAbstract) => void;
-
-type Transports = 'http' | 'websocket';
-
-/** Client configuration type */
-export type ClientConfig = {
-  test: boolean,
-  debug: boolean,
-  ssl: boolean,
-  dc: number,
-  protocol: MTProtoTransport,
-  transport: Transports,
-  meta: Record<number, any>,
-
-  APILayer: number,
-  APIID?: string,
-  APIHash?: string,
-
-  deviceModel: string,
-  systemVersion: string,
-  appVersion: string,
-  langCode: string,
-
-  autoConnect: boolean,
-};
-
-/** Default client configuration */
-const defaultClientConfig = {
-  test: false,
-  debug: false,
-  ssl: true,
-  dc: 2,
-  protocol: 'intermediate' as MTProtoTransport,
-  transport: 'websocket' as Transports,
-  meta: {},
-
-  APILayer: 105,
-  deviceModel: 'Unknown',
-  systemVersion: 'Unknown',
-  appVersion: '1.0.0',
-  langCode: 'en',
-
-  autoConnect: true,
-};
+import {
+  ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey,
+} from './types';
+import { MTProtoTransport } from '../transport/protocol';
 
 type ClientEventListener = (...payload: any[]) => any;
 
@@ -75,10 +29,9 @@ export default class Client {
   cfg: ClientConfig;
 
   /** Datacenter service */
-  svc: DCService;
+  dc: DCService;
 
   /** RPC service */
-  // todo: Client interface to RPC to avoid cycle
   rpc: RPCService;
 
   /** Updates service */
@@ -88,29 +41,31 @@ export default class Client {
   instances: Transport[];
 
   /** Quene of response callbacks for plain requests */
-  plainResolvers: Record<string, RequestCallback> = {};
+  plainRequests: Record<string, RequestCallback> = {};
 
-  /** Pending requests */
-  pending: Record<number, Message[]>;
+  /** DC auth state. 0 - attached, 1 - authorizing, 2 - ready */
+  authState: Record<number, number>;
 
-  /** DC state. 0 - attached, 1 - authorizing, 2 - ready */
-  state: Record<number, number>;
+  /** Auth retries */
+  authRetries: Record<number, number>;
 
+  /** Client common events */
   listeners: Record<string, ClientEventListener[]> = {};
 
-  retries: Record<number, number> = {};
+  pending: Record<number, Message[]> = {};
 
   /** Creates new client handler */
   constructor(tl: TypeLanguage, cfg: Record<string, any> = {}) {
     this.tl = tl;
     this.cfg = { ...defaultClientConfig, ...cfg };
 
-    this.svc = new DCService(this);
+    this.dc = new DCService(cfg.meta);
     this.rpc = new RPCService(this);
     this.updates = new UpdatesService(this);
 
+    this.authState = {};
+    this.authRetries = {};
     this.pending = {};
-    this.state = {};
 
     this.instances = [
       this.createInstance(this.cfg.transport, cfg.dc, 1),
@@ -119,7 +74,6 @@ export default class Client {
     if (this.cfg.autoConnect) this.authorize(cfg.dc);
   }
 
-  // eslint-disable-next-line class-methods-use-this
   getPasswordKdfAsync(conf: any, password: string, cb: (result: object) => void): void {
     const srp = genPasswordSRP(
       conf.current_algo.salt1,
@@ -135,27 +89,28 @@ export default class Client {
   }
 
   /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */
-  authorize(dc: number, cb?: (_err: ClientError | null, _key?: AuthKey) => void): void {
+  authorize(dc: number, cb?: (key: AuthKey) => void): void {
     // Change state to block user requests
-    if (!this.state[dc] || this.state[dc] !== 1) this.state[dc] = 1;
-    if (!this.retries[dc]) this.retries[dc] = 0;
+    if (!this.authState[dc] || this.authState[dc] !== 1) this.authState[dc] = 1;
+    if (!this.authRetries[dc]) this.authRetries[dc] = 0;
 
-    this.retries[dc] += 1;
+    this.authRetries[dc] += 1;
 
-    if (this.retries[dc] > 12) {
-      this.state[dc] = 0;
-      this.retries[dc] = 0;
+    if (this.authRetries[dc] > 3) {
+      this.authState[dc] = 0;
+      this.authRetries[dc] = 0;
       return;
     }
 
     const expiresAfter = 3600 * 5;
-    const permKey = this.svc.getPermKey(dc);
-    const tempKey = this.svc.getAuthKey(dc);
+    const permKey = this.dc.getPermKey(dc);
+    const tempKey = this.dc.getAuthKey(dc);
 
     if (permKey === null) {
-      this.svc.setMeta(dc, 'tempKey', null);
+      this.dc.setMeta(dc, 'tempKey', null);
 
       let calls = 0;
+
       const onKeyCreated = () => {
         calls += 1;
         if (calls === 2) this.authorize(dc, cb);
@@ -176,43 +131,44 @@ export default class Client {
       return;
     }
 
-    if (this.svc.getConnectionStatus(dc) === false) {
+    if (this.dc.getConnectionStatus(dc) === false) {
       initConnection(this, dc, () => this.authorize(dc, cb));
       return;
     }
 
-    // if (this.svc.getUserID(dc) === null) {
-    //   for (let i = 1; i <= 5; i += 1) {
-    //     if (this.svc.getUserID(i) !== null && dc !== i) {
-    //       const uid = this.svc.getUserID(i);
-    //       transferAuthorization(this, uid as number, i, dc, () => this.authorize(dc, cb));
-    //       return;
-    //     }
-    //   }
-    // }
+    const uid = this.dc.getUserID(this.cfg.dc);
 
-    if (dc !== this.cfg.dc && this.svc.getUserID(this.cfg.dc) !== null && this.svc.getUserID(dc) === null) {
-      transferAuthorization(this, this.svc.getUserID(this.cfg.dc) as number, this.cfg.dc, dc, () => this.authorize(dc, cb));
+    // transfer auth if exists
+    if (dc !== this.cfg.dc && uid !== null && uid > 0 && this.dc.getUserID(dc) !== uid) {
+      transferAuthorization(this, uid, this.cfg.dc, dc, () => this.authorize(dc, cb));
       return;
     }
 
     // Unlock dc state to perform user requests
-    this.state[dc] = 2;
+    this.authState[dc] = 2;
+    this.authRetries[dc] = 0;
     this.resendPending(dc);
+
     if (cb) cb(null);
   }
 
   /** Create new connection instance */
   createInstance(transport: string, dc: number, thread: number): Transport {
+    const instanceConfig = {
+      test: this.cfg.test,
+      debug: this.cfg.debug,
+      ssl: this.cfg.ssl,
+      dc,
+      host: this.dc.getHost(dc),
+      thread,
+      protocol: 'intermediate' as MTProtoTransport,
+    };
+
     if (transport === 'websocket') {
-      return new Socket(this.svc, {
-        ...this.cfg, dc, thread, resolve: this.resolve, resolveError: this.resolveError,
-      });
+      return new Socket(this.resolve, { ...instanceConfig, transport: 'websocket' });
     }
 
-    return new Http(this.svc, {
-      ...this.cfg, dc, thread, resolve: this.resolve, resolveError: this.resolveError,
-    });
+    return new Http(this.resolve, { ...instanceConfig, transport: 'http' });
   }
 
   /** Gets connection instance */
@@ -226,7 +182,7 @@ export default class Client {
     const newi = this.createInstance(transport, dc, thread);
     this.instances.push(newi);
 
-    if (this.state[dc] !== 1 && this.state[dc] !== 2) {
+    if (this.authState[dc] !== 1 && this.authState[dc] !== 2) {
       this.authorize(dc);
     }
 
@@ -234,31 +190,65 @@ export default class Client {
   }
 
   /** Resolve response message */
-  resolve = (msg: Message | PlainMessage, headers: RPCHeaders) => {
-    const result = this.tl.parse(msg.data);
+  resolve = (cfg: TransportConfig, msg: ErrorMessage | EncryptedMessage | PlainMessage) => {
+    let message: ErrorMessage | EncryptedMessage | Message | PlainMessage = msg;
 
-    if (msg instanceof PlainMessage) {
-      if (msg.nonce && this.plainResolvers[msg.nonce]) {
-        this.plainResolvers[msg.nonce](null, result);
-        // to do: delete plain resolvers;
-        // delete this.plainResolvers[msg.nonce];
-      }
+    if (msg instanceof EncryptedMessage) {
+      const authKey = this.dc.getAuthKey(cfg.dc);
+      if (!authKey) throw new Error(`Unable to decrypt message without auth key (dc: ${cfg.dc}`);
+      message = msg.decrypt(authKey.key);
+    }
+
+    let error: ClientError = null;
+    if (msg instanceof ErrorMessage) {
+      error = {
+        type: 'transport',
+        ...msg.error,
+      };
+    }
+
+    let result: TLAbstract | undefined;
+    let id = '';
+
+    if (message instanceof PlainMessage || message instanceof Message) {
+      result = this.tl.parse(message.data);
+      id = message.id;
+    }
+
+    if (message instanceof PlainMessage) {
+      const { nonce } = message;
+      const requestCallback = this.plainRequests[nonce];
+
+      if (!requestCallback) throw new Error(`Expected plain request callback for nonce ${nonce}`);
+
+      requestCallback(error, result && result.json());
+      delete this.plainRequests[nonce];
+
       return;
     }
 
-    this.rpc.processMessage(result, headers);
+    if (!error && result instanceof TLAbstract) {
+      this.rpc.processMessage(result, {
+        id,
+        dc: cfg.dc,
+        thread: cfg.thread,
+        transport: cfg.transport,
+      });
+    } else {
+      this.rpc.emit(id, error);
+    }
   };
 
   /** Resolve transport error */
-  resolveError = (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => {
-    if (nonce && this.plainResolvers[nonce]) {
-      this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
-      // to do: delete plain resolvers;
-      // delete this.plainResolvers[nonce];
-    }
+  // resolveError = (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => {
+  //   if (nonce && this.plainResolvers[nonce]) {
+  //     this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
+  //     // to do: delete plain resolvers;
+  //     // delete this.plainResolvers[nonce];
+  //   }
 
-    this.rpc.emitError(dc, thread, transport, code, message);
-  };
+  //   this.rpc.emitError(dc, thread, transport, code, message);
+  // };
 
   /** Create plain message and send it to the server */
   public plainCall(src: TLConstructor | PlainMessage, cb: RequestCallback): void;
@@ -305,7 +295,7 @@ export default class Client {
 
     // Resolve plain message
     if (msg instanceof PlainMessage && cb) {
-      this.plainResolvers[msg.nonce] = cb;
+      this.plainRequests[msg.nonce] = cb;
     }
 
     this.getInstance(transport, dc, thread).send(msg);
@@ -356,33 +346,40 @@ export default class Client {
       msg.id = headers.msgID;
     } else {
       // refetch callback
-      if (msg.id && this.rpc.messages[msg.id]) {
-        if (this.rpc.messages[msg.id].cb) cb = this.rpc.messages[msg.id].cb;
-        delete this.rpc.messages[msg.id];
+      if (msg.id && this.rpc.requests[msg.id]) {
+        cb = this.rpc.requests[msg.id].cb;
+        delete this.rpc.requests[msg.id];
       }
 
       msg.id = PlainMessage.GenerateID();
     }
 
-
     const dc = headers.dc || this.cfg.dc;
     const thread = headers.thread || 1;
     const transport = headers.transport || this.cfg.transport;
 
-    msg.salt = this.svc.getSalt(dc);
-    msg.sessionID = this.svc.getSessionID(dc);
+    msg.salt = this.dc.getSalt(dc);
+    msg.sessionID = this.dc.getSessionID(dc);
 
     if (cb) {
-      this.rpc.subscribe(msg, {
-        dc, thread, transport, msgID: msg.id,
-      }, cb);
+      this.rpc.subscribe(msg, dc, thread, transport, cb);
     }
 
     const inst = this.getInstance(transport, dc, thread);
 
-    if (this.state[dc] === 2 || headers.force === true) {
-      msg.seqNo = this.svc.nextSeqNo(dc, isc);
-      inst.send(msg);
+    if (this.authState[dc] === 2 || headers.force === true) {
+      msg.seqNo = this.dc.nextSeqNo(dc, isc);
+
+      if (msg instanceof PlainMessage) {
+        inst.send(msg);
+
+      // ecnrypt first
+      } else {
+        const authKey = this.dc.getAuthKey(dc);
+        if (!authKey) throw new Error(`Unable to encrypt message without auth key (dc: ${dc}`);
+        const encrypted = msg.encrypt(authKey.key);
+        inst.send(encrypted);
+      }
     } else {
       this.addPendingMsg(transport, dc, thread, msg);
     }
@@ -413,14 +410,14 @@ export default class Client {
   }
 
   /** Subscription for client event */
-  on(eventName: 'metaChanged', cb: (meta: Record<number, any>) => void): void; 
+  on(eventName: 'metaChanged', cb: (meta: Record<number, any>) => void): void;
   on(eventName: string, cb: ClientEventListener): void {
     if (!this.listeners[eventName]) this.listeners[eventName] = [];
     this.listeners[eventName].push(cb);
-  };
+  }
 
   /** Emit client event */
-  emit(eventName: 'metaChanged', meta: Record<number, any>): void; 
+  emit(eventName: 'metaChanged', meta: Record<number, any>): void;
   emit(eventName: string, ...args: unknown[]) {
     if (!this.listeners[eventName]) this.listeners[eventName] = [];
     for (let i = 0; i < this.listeners[eventName].length; i += 1) {

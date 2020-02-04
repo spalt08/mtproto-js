@@ -1,8 +1,9 @@
 import Http from './http';
 import { TypeLanguage } from '..';
 import { hex } from '../serialization';
-import { DCService } from '../client';
-import { PlainMessage, Message } from '../message';
+import configMock from '../mock/transport_config';
+import { PlainMessage } from '../message';
+import { TransportCallback } from './abstract';
 
 test('Transort | http plain call', () => {
   const tl = new TypeLanguage();
@@ -10,16 +11,15 @@ test('Transort | http plain call', () => {
   const query = tl.create('req_pq', { nonce });
   const msg = new PlainMessage(query);
 
-  const resolve = (res: PlainMessage | Message, headers: any) => {
-    if (res instanceof PlainMessage) {
-      expect(tl.parse(res.data).json().nonce).toEqual(nonce);
-      expect(headers.dc).toEqual(1);
-    } else throw new Error('FAIL');
+  const receiver: TransportCallback = (cfg, message) => {
+    if (!(message instanceof PlainMessage)) throw new Error('Should receive plain message');
+
+    expect(cfg).toBe(configMock);
+    expect(message instanceof PlainMessage).toBeTruthy();
+    expect(message.nonce).toBe(nonce);
   };
 
-  const http = new Http(new DCService(), {
-    test: true, ssl: true, dc: 1, thread: 1, resolve, resolveError: () => {},
-  });
+  const http = new Http(receiver, configMock);
 
   http.send(msg);
 });

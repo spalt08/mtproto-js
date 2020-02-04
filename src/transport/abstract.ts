@@ -1,17 +1,18 @@
-/* eslint-disable class-methods-use-this, @typescript-eslint/no-unused-vars */
-import { Message, PlainMessage } from '../message';
-import { DCService, ClientCallback } from '../client';
-import { RPCHeaders } from '../client/rpc.types';
+import { PlainMessage, EncryptedMessage, ErrorMessage } from '../message';
+import { Transports } from '../client/types';
 
 /** Generic config for mtproto transport classes */
 export type TransportConfig = {
   dc: number,
   thread: number,
+  host: string,
   test: boolean,
   ssl: boolean,
-  resolve: (res: Message | PlainMessage, headers: RPCHeaders) => void,
-  resolveError: (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => void,
+  debug: boolean,
+  transport: Transports,
 };
+
+export type TransportCallback = (cfg: TransportConfig, msg: ErrorMessage | EncryptedMessage | PlainMessage) => void;
 
 /**
  * Abstract class for all mtproto transport classes
@@ -20,43 +21,21 @@ export default class Transport {
   /** Instance transport */
   transport = '';
 
-  /** Datacenter service */
-  svc: DCService;
+  /** Message listener */
+  pass: TransportCallback;
 
   /** Transport config */
   cfg: TransportConfig;
 
-  /** Event listeners */
-  events: Record<string, Array<() => void>> = {};
-
   /**
    * Creates abstract transport object
    */
-  constructor(svc: DCService, cfg: TransportConfig) {
-    this.svc = svc;
+  constructor(pass: TransportCallback, cfg: TransportConfig) {
+    this.pass = pass;
     this.cfg = cfg;
   }
 
-  /**
-   * Subscribe to transport event
-   */
-  on(event: string, cb: () => void): void {
-    if (!this.events[event]) this.events[event] = [];
-    this.events[event].push(cb);
-  }
-
-  /**
-   * Emit transport event
-   */
-  emit(event: string): void {
-    if (this.events[event]) {
-      for (let i = 0; i < this.events[event].length; i += 1) {
-        this.events[event][i]();
-      }
-    }
-  }
-
-  send(_msg: PlainMessage | Message, _cb?: ClientCallback) {
-    throw new Error('You should overload send method first');
+  send(_msg: PlainMessage | EncryptedMessage) {
+    throw new Error('Unable to send packet with generic transport');
   }
 }

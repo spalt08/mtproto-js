@@ -9,17 +9,10 @@ import { MessageV1, PlainMessage } from '../message';
 import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
 import { decrypt, encrypt } from '../crypto/ige';
-import { ClientError } from './rpc.types';
+import { ClientError, AuthKey } from './types';
 import { raw2hex, hex2raw } from '../serialization/conv';
 
 const log = logs('auth');
-
-export type AuthKey = {
-  key: string,
-  id: string,
-  expires?: number,
-  binded?: boolean,
-};
 
 type AuthContext = {
   dc: number,
@@ -272,11 +265,11 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
           authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
           authKey.binded = false;
 
-          client.svc.setMeta(dc, 'salt', Bytes.xor(ctx.newNonce.slice(0, 8), ctx.serverNonce.slice(0, 8)).hex);
+          client.dc.setMeta(dc, 'salt', Bytes.xor(ctx.newNonce.slice(0, 8), ctx.serverNonce.slice(0, 8)).hex);
         }
 
-        if (expiresAfter > 0) client.svc.setMeta(dc, 'tempKey', authKey);
-        else client.svc.setMeta(dc, 'permKey', authKey);
+        if (expiresAfter > 0) client.dc.setMeta(dc, 'tempKey', authKey);
+        else client.dc.setMeta(dc, 'permKey', authKey);
 
         log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${ctx.transport}, thread: ${thread})`);
 
@@ -293,6 +286,8 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
 export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, tempKey: AuthKey, cb?: (result: boolean) => void) {
   log(dc, 'binding temporary key');
 
+  if (!permKey || !tempKey) throw new Error('Missing keys');
+
   const permAuthKeyID = hex(permKey.id).uint;
   const tempAuthKeyID = hex(tempKey.id).uint;
 
@@ -301,7 +296,7 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
   const expiresAt = tempKey.expires;
   const msgID = PlainMessage.GenerateID();
 
-  client.svc.setMeta(dc, 'sessionID', tmpSessionID.hex);
+  client.dc.setMeta(dc, 'sessionID', tmpSessionID.hex);
 
   const q = client.tl.create('bind_auth_key_inner', {
     nonce,
@@ -329,7 +324,7 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
   client.call(query, { msgID, dc, force: true }, (err, res) => {
     if (!err && res && res.json() === true) {
       log(dc, 'temporary key successfuly binded');
-      client.svc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
+      client.dc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
       if (cb) cb(true);
     } else {
       throw new Error('Auth: Binding temp auth key failed');
@@ -364,13 +359,16 @@ export function initConnection(client: Client, dc: number, cb?: (result: boolean
       log('Unexpected initConnection response');
       if (cb) cb(false);
     } else {
-      client.svc.setMeta(dc, 'connectionInited', true);
+      client.dc.setMeta(dc, 'connectionInited', true);
       log('session successfuly inited');
       if (cb) cb(true);
     }
   });
 }
 
+/**
+ * Calls auth.exportAuthorization and auth.importAuthorization from one dc to another
+ */
 export function transferAuthorization(client: Client, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
   client.call('auth.exportAuthorization', { dc_id: dcTo }, { dc: dcFrom, force: true }, (err, res) => {
     if (err || !(res instanceof TLConstructor) || res._ !== 'auth.exportedAuthorization') {

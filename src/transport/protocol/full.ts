@@ -1,6 +1,5 @@
 import crc32 from '../../utils/crc32';
 import { Bytes } from '../../serialization';
-import { PlainMessage, EncryptedMessage } from '../../message';
 
 /**
  * Full MTProto Transport Protocol
@@ -44,25 +43,16 @@ export default class Full {
   /**
    * Unwraps incoming bytes to type language message
    */
-  unWrap(data: Bytes): EncryptedMessage | PlainMessage {
+  unWrap(data: Bytes): Bytes {
     const tlen = data.slice(0, 4).int32;
     const seq = data.slice(4, 8).int32;
     const crc = +`0x${data.slice(tlen - 4, tlen).hex}`;
-    let len = tlen - 12;
+    const len = tlen - 12;
 
     // eslint-disable-next-line no-console
     if (seq !== this.seqIn) console.warn('Invalid seq_no for incoming message');
     if (crc !== crc32(data.slice(0, tlen - 4).raw)) throw new Error('Invalid CRC for incoming message');
 
-    if (len < 8) throw new Error(`Unexpected frame: ${data.hex}`);
-
-    if (data.slice(8, 16).uint === '0000000000000000') {
-      return new PlainMessage(data.slice(8, 8 + len));
-    }
-
-    len = len % 16 === 8 ? len : len - 16 + (len % 16);
-    len = len % 16 === 0 ? len + 8 : len;
-
-    return new EncryptedMessage(data.slice(8, 8 + len));
+    return data.slice(8, 8 + len);
   }
 }

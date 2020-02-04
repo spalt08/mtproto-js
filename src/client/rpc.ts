@@ -1,4 +1,3 @@
-/* eslint-disable import/no-cycle */
 import { inflate } from 'pako/lib/inflate';
 import TLAbstract from '../tl/abstract';
 import TLConstructor from '../tl/constructor';
@@ -6,143 +5,130 @@ import TLVector from '../tl/vector';
 import { logs } from '../utils/log';
 import { Message } from '../message';
 import { Bytes, uint, hex } from '../serialization';
-import { Client } from '.';
-import { RequestCallback } from './client';
-import { RPCHeaders, ClientError } from './rpc.types';
+import {
+  RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestCallback, Transports, RequestRPC,
+} from './types';
 
-const log = logs('rpc');
+const debug = (cfg: ClientConfig, ...rest: any[]) => {
+  if (cfg.debug) logs('rpc')(...rest);
+};
 
 /**
  * Service class helper for processing rpc messages
  */
 export default class RPCService {
   /** Client Handler */
-  client: Client;
+  client: ClientInterface;
 
-  /** Message Callbacks */
-  messages: Record<string, {
-    msg: Message,
-    headers: RPCHeaders,
-    cb?: RequestCallback,
-  }>;
+  /** Outcoming requests */
+  requests: Record<string, RequestRPC>;
 
   /** Pending message acknowlegments  */
-  pendingAcks: Record<number, Array<string>>;
+  pendingAcks: Record<number, string[]>;
 
   /**
    * Creates auth service object
    */
-  constructor(client: Client) {
+  constructor(client: ClientInterface) {
     this.client = client;
 
-    this.messages = {};
+    this.requests = {};
     this.pendingAcks = [];
   }
 
   /**
    * Subscribes callback to message identificator
    */
-  subscribe(msg: Message, headers: RPCHeaders, cb?: RequestCallback) {
-    const msgID = msg.id;
+  subscribe(message: Message, dc: number, thread: number, transport: Transports, cb: RequestCallback) {
+    if (this.requests[message.id]) throw new Error('Message ID already waiting for response');
 
-    if (cb) {
-      log('<- rpc_request', msgID, `(${headers.transport}, thread: ${headers.thread}, seq: ${msg.seqNo})`);
-    }
+    this.requests[message.id] = {
+      message,
+      dc,
+      thread,
+      transport,
+      cb,
+    };
 
-    this.messages[msgID] = { msg, headers, cb };
+    debug(this.client.cfg, dc, '<- request', message.id, `(thread: ${thread}, seq: ${message.seqNo})`);
   }
 
   /**
    * Call callback due to message id
    */
-  emitResponse(msgID: string, error: ClientError | null, res: TLAbstract, headers: RPCHeaders) {
-    if (this.messages[msgID]) {
-      const reqMsg = this.messages[msgID];
-      // Call callback with error
-      if (error) {
-        if (reqMsg.cb) reqMsg.cb(error);
-        delete this.messages[msgID];
-        return;
-      }
-
-      // Success response
-      if (res && res instanceof TLConstructor) {
-        if (res instanceof TLConstructor && res._ === 'gzip_packed') {
-          const gzData = hex(res.params.packed_data.value);
-          const buf = new Bytes(inflate(gzData.buffer).buffer);
-
-          const result = this.client.tl.parse(buf);
-
-          log(this.messages[msgID].headers.dc, '-> ', result._, msgID);
-
-          if (reqMsg.cb) reqMsg.cb(null, result);
-
-          this.middleware(result as TLConstructor, headers);
-        } else {
-          log(this.messages[msgID].headers.dc, '-> ', res._, msgID);
-          if (reqMsg.cb) reqMsg.cb(null, res);
-          this.middleware(res, headers);
-        }
-      }
-
-      delete this.messages[msgID];
+  emit(id: string, error: ClientError, data?: TLAbstract) {
+    if (!this.requests[id]) {
+      debug(this.client.cfg, 'unknown request for ', id);
     }
+
+    const request = this.requests[id];
+
+    // Call callback with error
+    if (error !== null) {
+      request.cb(error);
+      delete this.requests[id];
+      return;
+    }
+
+    // Success response
+    if (!data) throw new Error('Expected type language constructor for response');
+
+    let result = data;
+
+    // Ungzip if gzipped
+    if (data instanceof TLConstructor && data._ === 'gzip_packed') {
+      const gz = hex(data.params.packed_data.value);
+      const buffer = new Bytes(inflate(gz.buffer).buffer);
+      result = this.client.tl.parse(buffer);
+    }
+
+    // Process response
+    debug(this.client.cfg, request.dc, '-> ', result._, `(request: ${id})`);
+    request.cb(null, result.json());
+
+    delete this.requests[id];
+
+    // Apply middleware
+    this.middleware(request, result);
   }
 
-  emitError(dc: number, thread: number, transport: string, code?: number, message?: string) {
-    const msgIDs = Object.keys(this.messages);
-
-    for (let i = 0; i < msgIDs.length; i += 1) {
-      const msg = this.messages[msgIDs[i]];
-
-      if (msg.headers.dc === dc && msg.headers.thread === thread && msg.headers.transport === transport) {
-        if (msg.cb) {
-          msg.cb({
-            type: 'network',
-            code: code || 1,
-            message,
-          });
-        }
-
-        delete this.messages[msgIDs[i]];
-      }
-    }
-  }
-
-  middleware = (res: TLAbstract, headers: RPCHeaders) => {
-    if (res._ === 'auth.authorization') {
-      log('middleware', res._);
-      const { user } = res.json();
-      this.client.svc.setMeta(headers.dc, 'userID', user.id);
+  /**
+   * Middlewares
+   */
+  middleware = (request: RequestRPC, result: TLAbstract) => {
+    if (result._ === 'auth.authorization') {
+      debug(this.client.cfg, 'middleware', result._);
+      const { user } = result.json();
+      this.client.dc.setMeta(request.dc, 'userID', user.id);
     }
   };
 
   /**
    * Resends request message by id
    */
-  resend(msgID: string, changeSeq: boolean = false) {
-    const request = this.messages[msgID];
+  resend(id: string, forceChangeSeq: boolean = false) {
+    const request = this.requests[id];
 
-    if (request) {
-      request.msg.salt = this.client.svc.getSalt(request.headers.dc);
+    if (!request) throw new Error(`Cannot resend missing request ${id}`);
 
-      if (changeSeq) request.msg.seqNo = this.client.svc.nextSeqNo(request.headers.dc, true);
+    request.message.salt = this.client.dc.getSalt(request.dc);
+    if (forceChangeSeq) request.message.seqNo = this.client.dc.nextSeqNo(request.dc, true);
 
-      this.client.call(request.msg, request.headers, request.cb);
-      log(request.headers.dc, '<- re-sent', msgID);
-    }
+    this.client.call(request.message, { dc: request.dc, thread: request.thread, transport: request.transport });
+
+    debug(this.client.cfg, request.dc, '<- re-sent', id);
   }
 
   /**
    * Adds message ID to ack pending list
    */
-  ackMsg(transport: string, dc: number, thread: number, ...msgIDs: string[]) {
+  ackMsg(transport: string, dc: number, thread: number, ...ids: string[]) {
     const key = thread * 10 + dc + (transport === 'websocket' ? 1000 : 0);
 
     if (!this.pendingAcks[key]) this.pendingAcks[key] = [];
 
-    for (let i = 0; i < msgIDs.length; i += 1) {
-      if (this.pendingAcks[key].indexOf(msgIDs[i]) === -1) this.pendingAcks[key].push(msgIDs[i]);
+    for (let i = 0; i < ids.length; i += 1) {
+      if (this.pendingAcks[key].indexOf(ids[i]) === -1) this.pendingAcks[key].push(ids[i]);
     }
   }
 
@@ -175,15 +161,19 @@ export default class RPCService {
       case 'rpc_result': this.processRPCResult(result, headers); break;
 
       default:
+        // updates
         if (result instanceof TLConstructor && result.declaration) {
           if (result.declaration.type === 'Updates') {
             this.client.updates.process(result);
           }
+
+        // fallback
         } else {
-          log(headers.dc, '-> unknown %s', result._, result);
+          debug(this.client.cfg, headers.dc, '-> unknown %s', result._, result);
         }
 
-        if (headers.msgID) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.msgID);
+        // send acknowlegment
+        if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
         break;
     }
 
@@ -191,7 +181,7 @@ export default class RPCService {
   }
 
   /**
-   * Processes: msg_container
+   * Process: msg_container
    */
   processMessageContainer(result: TLAbstract, headers: RPCHeaders) {
     if (result instanceof TLConstructor && result.params.messages instanceof TLVector) {
@@ -203,7 +193,7 @@ export default class RPCService {
 
           this.processMessage(item.params.body, {
             ...headers,
-            msgID: item.params.msg_id.buf!.lhex,
+            id: item.params.msg_id.buf!.lhex,
           }, false);
         }
       }
@@ -211,18 +201,18 @@ export default class RPCService {
   }
 
   /**
-   * Processes: bad_server_salt
+   * Process: bad_server_salt
    */
   processBadServerSalt(result: TLAbstract, headers: RPCHeaders) {
-    log(headers.dc, '-> bad_server_salt', `(${headers.transport}, thread: ${headers.thread})`);
+    debug(this.client.cfg, headers.dc, '-> bad_server_salt', `(${headers.transport}, thread: ${headers.thread})`);
 
-    if (headers.msgID) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.msgID);
+    if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
     if (result instanceof TLConstructor) {
       const msgID = result.params.bad_msg_id.buf!.lhex;
       const newSalt = result.params.new_server_salt.buf!.hex;
 
-      this.client.svc.setMeta(headers.dc, 'salt', newSalt);
+      this.client.dc.setMeta(headers.dc, 'salt', newSalt);
       this.resend(msgID);
     }
   }
@@ -231,13 +221,13 @@ export default class RPCService {
    * Processes: new_session_created
    */
   processSessionCreated(result: TLAbstract, headers: RPCHeaders) {
-    log(headers.dc, '-> new_session_created', `(${headers.transport}, thread: ${headers.thread})`);
+    debug(this.client.cfg, headers.dc, '-> new_session_created', `(${headers.transport}, thread: ${headers.thread})`);
 
-    if (headers.msgID) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.msgID);
+    if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
     if (result instanceof TLConstructor) {
       const newSalt = result.params.server_salt.buf!.hex;
-      this.client.svc.setMeta(headers.dc, 'salt', newSalt);
+      this.client.dc.setMeta(headers.dc, 'salt', newSalt);
     }
   }
 
@@ -246,7 +236,7 @@ export default class RPCService {
    */
   processBadMsgNotification(result: TLAbstract, headers: RPCHeaders) {
     if (result instanceof TLConstructor) {
-      log(headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.buf!.hex, result.params.error_code.value);
+      debug(this.client.cfg, headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.buf!.hex, result.params.error_code.value);
 
       if (result.params.error_code.value === 32) {
         this.resend(result.params.bad_msg_id.buf!.lhex, true);
@@ -254,7 +244,7 @@ export default class RPCService {
 
       // To Do: sync server time
 
-      if (headers.msgID) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.msgID);
+      if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
     }
   }
 
@@ -264,27 +254,26 @@ export default class RPCService {
   processRPCResult(res: TLAbstract, headers: RPCHeaders) {
     if (res instanceof TLConstructor) {
       const { result } = res.params;
-      const reqMsgID = res.params.req_msg_id.buf!.lhex;
+      const reqID = res.params.req_msg_id.buf!.lhex;
 
-      log(headers.dc, '-> rpc_result', reqMsgID, `(${headers.transport}, thread: ${headers.thread})`);
 
-      if (headers.msgID) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.msgID);
+      if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
       switch (result._) {
         case 'rpc_error':
           if (result instanceof TLConstructor) {
-            this.emitResponse(reqMsgID, {
+            this.emit(reqID, {
               type: 'rpc',
               code: result.params.error_code.value,
               message: result.params.error_message.value,
-            }, result, headers);
+            }, result);
           }
 
-          // console.log('rpc err', this.messages[reqMsgID], `(${headers.transport}, thread: ${headers.thread})`, result.json());
+          debug(this.client.cfg, headers.dc, '-> rpc_error', reqID, `(${headers.transport}, thread: ${headers.thread})`, result.json());
           break;
 
         default:
-          this.emitResponse(reqMsgID, null, result, headers);
+          this.emit(reqID, null, result);
       }
     }
   }

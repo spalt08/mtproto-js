@@ -3,6 +3,7 @@ import TLBytes from './bytes';
 import { hex, Bytes } from '../serialization';
 
 const cases = [
+  ['bytes', undefined, 0, hex('00000000')],
   ['string', 'Test case #1', 1, hex('000c546573742063617365202331000000')],
   ['bytes', 'ff00ff01', 3, hex('00000004ff00ff01000000')],
   [
@@ -20,7 +21,7 @@ test('TLBytes | read', () => {
     const tl = new TLBytes(type as string);
     tl.read(bytes as Bytes, offset as number);
 
-    expect(tl.value).toEqual(res);
+    expect(tl.value).toEqual(res || '');
   }
 });
 

@@ -29,6 +29,10 @@
         "prefer-template": "off",
         "no-param-reassign": "off",
         "import/prefer-default-export": "off",
+        "class-methods-use-this": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "lines-between-class-members": "off",
+        "no-dupe-class-members": "off"
     },
     "settings": {
       "import/resolver": {
