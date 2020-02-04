@@ -6,8 +6,8 @@
   "scripts": {
     "prepare": "npm run build",
     "lint": "eslint --ext .ts ./src",
-    "build": "rm -rf dist/* && webpack --mode=production",
-    "start": "rm -rf dist/* && webpack --watch",
+    "build": "rimraf dist/* && webpack --mode=production",
+    "start": "rimraf dist/* && webpack --watch",
     "analyze": "npm run build -- --analyze",
     "test": "jest"
   },
@@ -46,6 +46,7 @@
     "eslint-plugin-react": "^7.16.0",
     "flow-bin": "^0.109.0",
     "jest": "^24.9.0",
+    "rimraf": "^3.0.1",
     "terser-webpack-plugin": "^2.1.2",
     "ts-jest": "^24.1.0",
     "ts-loader": "^6.2.1",
