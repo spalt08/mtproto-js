@@ -1,6 +1,5 @@
 import BigInt from 'big-integer';
 import sha1 from '@cryptography/sha1';
-import { Client } from '.';
 import { TLConstructor } from '../tl';
 import { getKeyByFingerprints } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
@@ -9,7 +8,7 @@ import { MessageV1, PlainMessage } from '../message';
 import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
 import { decrypt, encrypt } from '../crypto/ige';
-import { ClientError, AuthKey } from './types';
+import { ClientError, AuthKey, ClientInterface } from './types';
 import { raw2hex, hex2raw } from '../serialization/conv';
 
 const log = logs('auth');
@@ -36,7 +35,7 @@ type AuthContext = {
  * Step 1. Send random nonce.
  * @mtproto req_pq_multi
  */
-function authReqPQ(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
+function authReqPQ(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
   client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: ctx.nonce.uint }, ctx, (err, resPQ) => {
     if (err || !resPQ || resPQ._ !== 'resPQ') {
       log(ctx.dc, ctx.thread, 'Unexpected resPQ response');
@@ -54,7 +53,7 @@ function authReqPQ(client: Client, ctx: AuthContext, cb: (_err: ClientError | nu
  * Step 2. Request Diffie-Hellman params
  * @mtproto req_DH_params
  */
-function authReqDHParams(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
+function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
   // check context
   if (!ctx.pq || ctx.pq.length === 0) throw new Error('Auth: Missing PQ param');
   if (!ctx.fingerprints || ctx.fingerprints.length === 0) throw new Error('Auth: Missing public key fingerprints');
@@ -146,7 +145,7 @@ function authReqDHParams(client: Client, ctx: AuthContext, cb: (_err: ClientErro
 /**
  * @mtproto set_client_DH_params
  */
-function authSetClientDHParams(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, authKey?: AuthKey) => void) {
+function authSetClientDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, authKey?: AuthKey) => void) {
   // check context
   if (!ctx.g) throw new Error('Auth: Missing g param');
   if (!ctx.ga || ctx.ga.length === 0) throw new Error('Auth: Missing g_a param');
@@ -207,7 +206,8 @@ function authSetClientDHParams(client: Client, ctx: AuthContext, cb: (_err: Clie
  * Creates AuthKey using DH-exchange
  * Ref: https://core.telegram.org/mtproto/auth_key
  */
-export function createAuthKey(client: Client, dc: number, thread: number, expiresAfter: number, cb?: (err: ClientError | null, key?: AuthKey) => void) {
+export function createAuthKey(client: ClientInterface, dc: number, thread: number, expiresAfter: number,
+  cb?: (err: ClientError | null, key?: AuthKey) => void) {
   const ctx: AuthContext = {
     dc,
     thread,
@@ -283,7 +283,7 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
  * Binds temp auth key to permenent
  * Ref: https://core.telegram.org/method/auth.bindTempAuthKey
  */
-export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, tempKey: AuthKey, cb?: (result: boolean) => void) {
+export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: AuthKey, tempKey: AuthKey, cb?: (result: boolean) => void) {
   log(dc, 'binding temporary key');
 
   if (!permKey || !tempKey) throw new Error('Missing keys');
@@ -335,7 +335,7 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
 /**
  * Calls initConnection method invoked with layer
  */
-export function initConnection(client: Client, dc: number, cb?: (result: boolean) => void) {
+export function initConnection(client: ClientInterface, dc: number, cb?: (result: boolean) => void) {
   const query = client.tl.create('help.getNearestDc');
 
   const connectionWrapper = client.tl.create('initConnection', {
@@ -369,7 +369,7 @@ export function initConnection(client: Client, dc: number, cb?: (result: boolean
 /**
  * Calls auth.exportAuthorization and auth.importAuthorization from one dc to another
  */
-export function transferAuthorization(client: Client, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
+export function transferAuthorization(client: ClientInterface, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
   client.call('auth.exportAuthorization', { dc_id: dcTo }, { dc: dcFrom, force: true }, (err, res) => {
     if (err || !res || res._ !== 'auth.exportedAuthorization') {
       if (cb) cb(false);

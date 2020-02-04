@@ -237,7 +237,8 @@ export default class RPCService {
    */
   processBadMsgNotification(result: TLAbstract, headers: RPCHeaders) {
     if (result instanceof TLConstructor) {
-      debug(this.client.cfg, headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.buf!.lhex, result.params.error_code.value, 'sec:', result.params.bad_msg_seqno.value);
+      debug(this.client.cfg, headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.buf!.lhex, result.params.error_code.value, 'sec:',
+        result.params.bad_msg_seqno.value);
 
       if (result.params.error_code.value === 32) {
         this.resend(result.params.bad_msg_id.buf!.lhex, true);

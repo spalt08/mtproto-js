@@ -1,6 +1,6 @@
 import { MTProtoTransport } from '../transport/protocol';
 import TypeLanguage, { TLConstructor } from '../tl';
-import { Message } from '../message';
+import { Message, PlainMessage } from '../message';
 
 /** Authorization key info with PFS */
 export type AuthKey = null | {
@@ -92,7 +92,12 @@ export interface ClientInterface {
   tl: TypeLanguage;
   dc: DCServiceInterface;
   updates: UpdateServiceInterface;
-  call(src: Message, headers: Record<string, any>, cb?: RequestCallback): void;
+  plainCall(src: TLConstructor | PlainMessage, cb: RequestCallback): void;
+  plainCall(src: TLConstructor | PlainMessage, headers: Record<string, any>, cb: RequestCallback): void;
+  plainCall(method: string, data: Record<string, any>, cb: RequestCallback): void;
+  plainCall(method: string, data: Record<string, any>, headers: Record<string, any>, cb: RequestCallback): void;
+  call(src: TLConstructor | Message, cb?: RequestCallback): void;
+  call(src: TLConstructor | Message, headers: Record<string, any>, cb?: RequestCallback): void;
   call(method: string, data: Record<string, any>, cb?: RequestCallback): void;
   call(method: string, data: Record<string, any>, headers: Record<string, any>, cb?: RequestCallback): void;
 }

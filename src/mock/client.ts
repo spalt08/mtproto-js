@@ -8,6 +8,7 @@ const ClientMock: ClientInterface = {
   tl,
   dc,
   updates,
+  plainCall: () => {},
   call: () => {},
 };
 
