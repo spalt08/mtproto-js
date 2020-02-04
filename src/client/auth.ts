@@ -36,9 +36,9 @@ type AuthContext = {
  * Step 1. Send random nonce.
  * @mtproto req_pq_multi
  */
-function authReqPQ(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, _result?: TLConstructor) => void) {
+function authReqPQ(client: Client, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
   client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: ctx.nonce.uint }, ctx, (err, resPQ) => {
-    if (err || !(resPQ instanceof TLConstructor) || resPQ._ !== 'resPQ') {
+    if (err || !resPQ || resPQ._ !== 'resPQ') {
       log(ctx.dc, ctx.thread, 'Unexpected resPQ response');
 
       cb(err);
@@ -118,15 +118,14 @@ function authReqDHParams(client: Client, ctx: AuthContext, cb: (_err: ClientErro
     if (!ctx.aesKey) throw new Error('Auth: Missing aes_key');
     if (!ctx.aesIv) throw new Error('Auth: Missing aes_iv');
 
-    if (errd || !(resDH instanceof TLConstructor) || resDH._ !== 'server_DH_params_ok') {
+    if (errd || !resDH || resDH._ !== 'server_DH_params_ok') {
       log(ctx.dc, ctx.thread, 'Unexpected req_DH_params response');
       cb(errd);
       return;
     }
 
     // decrypt encrypted_answer
-    const wrapper = resDH.json();
-
+    const wrapper = resDH;
     const decryptedDH = decrypt(hex(wrapper.encrypted_answer), ctx.aesKey, ctx.aesIv);
     const serverDH = client.tl.parse(decryptedDH.slice(20));
 
@@ -191,7 +190,7 @@ function authSetClientDHParams(client: Client, ctx: AuthContext, cb: (_err: Clie
   };
 
   client.plainCall('set_client_DH_params', clientDHParams, ctx, (err, sDH) => {
-    if (err || !(sDH instanceof TLConstructor) || sDH._ !== 'dh_gen_ok') {
+    if (err || !sDH || sDH._ !== 'dh_gen_ok') {
       log(ctx.dc, ctx.thread, 'Unexpected set_client_DH_params response');
       cb(err);
       return;
@@ -227,9 +226,10 @@ export function createAuthKey(client: Client, dc: number, thread: number, expire
       return;
     }
 
-    ctx.serverNonce = resPQ.params.server_nonce.buf || new Bytes(0);
-    ctx.fingerprints = resPQ.params.server_public_key_fingerprints.value;
-    ctx.pq = resPQ.params.pq.value;
+    ctx.serverNonce = new Bytes(16);
+    ctx.serverNonce.uint = resPQ.server_nonce;
+    ctx.fingerprints = resPQ.server_public_key_fingerprints;
+    ctx.pq = resPQ.pq;
     ctx.aesKey = new Bytes(32);
 
     ctx.aesKey.slice(0, 20).raw = sha1(ctx.newNonce.raw + ctx.serverNonce.raw);
@@ -322,7 +322,7 @@ export function bindTempAuthKey(client: Client, dc: number, permKey: AuthKey, te
   });
 
   client.call(query, { msgID, dc, force: true }, (err, res) => {
-    if (!err && res && res.json() === true) {
+    if (!err && res === true) {
       log(dc, 'temporary key successfuly binded');
       client.dc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
       if (cb) cb(true);
@@ -355,7 +355,7 @@ export function initConnection(client: Client, dc: number, cb?: (result: boolean
   });
 
   client.call(invokeWrapper, { dc, force: true }, (err, res) => {
-    if (err || !res || !(res instanceof TLConstructor)) {
+    if (err || !res) {
       log('Unexpected initConnection response');
       if (cb) cb(false);
     } else {
@@ -371,12 +371,12 @@ export function initConnection(client: Client, dc: number, cb?: (result: boolean
  */
 export function transferAuthorization(client: Client, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
   client.call('auth.exportAuthorization', { dc_id: dcTo }, { dc: dcFrom, force: true }, (err, res) => {
-    if (err || !(res instanceof TLConstructor) || res._ !== 'auth.exportedAuthorization') {
+    if (err || !res || res._ !== 'auth.exportedAuthorization') {
       if (cb) cb(false);
       return;
     }
 
-    const bytes = res.params.bytes.value;
+    const bytes = res.bytes.value;
 
     client.call('auth.importAuthorization', { id: userID, bytes }, { dc: dcTo, force: true }, (err2, res2) => {
       if (err2 || !(res2 instanceof TLConstructor) || res2._ !== 'auth.authorization') {

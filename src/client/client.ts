@@ -15,8 +15,13 @@ import {
   ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey,
 } from './types';
 import { MTProtoTransport } from '../transport/protocol';
+import { logs } from '../utils/log';
 
 type ClientEventListener = (...payload: any[]) => any;
+
+const debug = (flag: boolean, ...rest: any[]) => {
+  if (flag) logs('client')(...rest);
+};
 
 /**
  * MTProto client
@@ -59,7 +64,10 @@ export default class Client {
     this.tl = tl;
     this.cfg = { ...defaultClientConfig, ...cfg };
 
-    this.dc = new DCService(cfg.meta);
+    this.dc = new DCService(cfg.meta, (meta) => {
+      this.emit('metaChanged', meta);
+    });
+
     this.rpc = new RPCService(this);
     this.updates = new UpdatesService(this);
 
@@ -218,11 +226,11 @@ export default class Client {
     if (message instanceof PlainMessage) {
       const { nonce } = message;
       const requestCallback = this.plainRequests[nonce];
+      delete this.plainRequests[nonce];
 
       if (!requestCallback) throw new Error(`Expected plain request callback for nonce ${nonce}`);
 
       requestCallback(error, result && result.json());
-      delete this.plainRequests[nonce];
 
       return;
     }
@@ -294,7 +302,7 @@ export default class Client {
     const transport = headers.transport || this.cfg.transport;
 
     // Resolve plain message
-    if (msg instanceof PlainMessage && cb) {
+    if (cb) {
       this.plainRequests[msg.nonce] = cb;
     }
 
@@ -361,25 +369,25 @@ export default class Client {
     msg.salt = this.dc.getSalt(dc);
     msg.sessionID = this.dc.getSessionID(dc);
 
-    if (cb) {
-      this.rpc.subscribe(msg, dc, thread, transport, cb);
-    }
+    this.rpc.subscribe(msg, dc, thread, transport, cb);
 
-    const inst = this.getInstance(transport, dc, thread);
+    const instance = this.getInstance(transport, dc, thread);
 
     if (this.authState[dc] === 2 || headers.force === true) {
-      msg.seqNo = this.dc.nextSeqNo(dc, isc);
-
       if (msg instanceof PlainMessage) {
-        inst.send(msg);
+        instance.send(msg);
 
       // ecnrypt first
       } else {
         const authKey = this.dc.getAuthKey(dc);
         if (!authKey) throw new Error(`Unable to encrypt message without auth key (dc: ${dc}`);
+
+        msg.seqNo = this.dc.nextSeqNo(dc, isc);
         const encrypted = msg.encrypt(authKey.key);
-        inst.send(encrypted);
+        instance.send(encrypted);
       }
+
+      debug(this.cfg.debug && src !== 'msgs_ack', msg.id, 'seq:', msg.seqNo, 'call', src);
     } else {
       this.addPendingMsg(transport, dc, thread, msg);
     }

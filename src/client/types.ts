@@ -58,7 +58,7 @@ export type RequestRPC = {
   dc: number,
   thread: number,
   transport: Transports,
-  cb: RequestCallback,
+  cb?: RequestCallback,
 };
 
 /** Generic error for mtproto client */
@@ -69,7 +69,7 @@ export type ClientError = null | {
 };
 
 /** Request callback */
-export type RequestCallback = (error: ClientError | null, result?: undefined | Record<string, any>) => void;
+export type RequestCallback = (error: ClientError | null, result?: undefined | any) => void;
 
 /** DCService interface to avoid dependency cycle */
 export interface DCServiceInterface {

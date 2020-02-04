@@ -21,7 +21,7 @@ type SocketConfig = TransportConfig & {
 
 /** Format debug messages if debug flag is enabled */
 const debug = (cfg: SocketConfig, ...rest: any[]) => {
-  if (cfg.debug) logs('socket')(`[dc: ${cfg.dc}, thread: ${cfg.thread}`, ...rest);
+  if (cfg.debug) logs('socket')('[dc:', cfg.dc, 'thread:', cfg.thread, ']', ...rest);
 };
 
 export default class Socket extends Transport {
@@ -123,9 +123,11 @@ export default class Socket extends Transport {
     if (this.obfuscation && this.protocol && this.ws && this.ws.readyState === 1) {
       const frame = this.obfuscation.encode(this.protocol.wrap(msg.buf)).buffer.buffer;
       this.ws.send(frame);
+      debug(this.cfg, '<-', msg);
 
     // else: add message to pending quene and reconnect
     } else {
+      debug(this.cfg, 'pending', (msg as any).nonce || (msg as any).key);
       this.pending.push(msg);
       if (this.state !== 1) this.connect();
     }
@@ -136,8 +138,10 @@ export default class Socket extends Transport {
    */
   releasePending() {
     if (this.pending) {
-      for (let i = 0; i < this.pending.length; i += 1) {
+      const num = this.pending.length;
+      for (let i = 0; i < num; i += 1) {
         const msg = this.pending.shift();
+        debug(this.cfg, 'release pending', (msg as any).nonce || (msg as any).key);
         if (msg) this.send(msg);
       }
     }

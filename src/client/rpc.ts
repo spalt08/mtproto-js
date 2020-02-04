@@ -39,7 +39,7 @@ export default class RPCService {
   /**
    * Subscribes callback to message identificator
    */
-  subscribe(message: Message, dc: number, thread: number, transport: Transports, cb: RequestCallback) {
+  subscribe(message: Message, dc: number, thread: number, transport: Transports, cb?: RequestCallback) {
     if (this.requests[message.id]) throw new Error('Message ID already waiting for response');
 
     this.requests[message.id] = {
@@ -50,7 +50,7 @@ export default class RPCService {
       cb,
     };
 
-    debug(this.client.cfg, dc, '<- request', message.id, `(thread: ${thread}, seq: ${message.seqNo})`);
+    if (cb) debug(this.client.cfg, dc, '<- request', message.id, `(thread: ${thread}, seq: ${message.seqNo})`);
   }
 
   /**
@@ -59,13 +59,14 @@ export default class RPCService {
   emit(id: string, error: ClientError, data?: TLAbstract) {
     if (!this.requests[id]) {
       debug(this.client.cfg, 'unknown request for ', id);
+      return;
     }
 
     const request = this.requests[id];
 
     // Call callback with error
     if (error !== null) {
-      request.cb(error);
+      if (request.cb) request.cb(error);
       delete this.requests[id];
       return;
     }
@@ -84,7 +85,7 @@ export default class RPCService {
 
     // Process response
     debug(this.client.cfg, request.dc, '-> ', result._, `(request: ${id})`);
-    request.cb(null, result.json());
+    if (request.cb) request.cb(null, result.json());
 
     delete this.requests[id];
 
@@ -236,7 +237,7 @@ export default class RPCService {
    */
   processBadMsgNotification(result: TLAbstract, headers: RPCHeaders) {
     if (result instanceof TLConstructor) {
-      debug(this.client.cfg, headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.buf!.hex, result.params.error_code.value);
+      debug(this.client.cfg, headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.buf!.lhex, result.params.error_code.value, 'sec:', result.params.bad_msg_seqno.value);
 
       if (result.params.error_code.value === 32) {
         this.resend(result.params.bad_msg_id.buf!.lhex, true);

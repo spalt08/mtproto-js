@@ -3,8 +3,8 @@ import { logs } from '../utils/log';
 import { ClientInterface, RequestCallback } from './types';
 
 // debug helper
-const debug = (flag: any, ...rest: any[]) => {
-  if (flag) logs('updates')(...rest);
+const debug = (client?: ClientInterface, ...rest: any[]) => {
+  if (client && client.cfg.debug) logs('updates')(...rest);
 };
 
 export type UpdateListener = (update: any) => void;
