@@ -12,7 +12,8 @@ export type TransportConfig = {
   transport: Transports,
 };
 
-export type TransportCallback = (cfg: TransportConfig, msg: ErrorMessage | EncryptedMessage | PlainMessage) => void;
+export type TransportState = 'connected' | 'disconnected' | 'waiting';
+export type TransportCallback = (cfg: TransportConfig, msg: TransportState | ErrorMessage | EncryptedMessage | PlainMessage) => void;
 
 /**
  * Abstract class for all mtproto transport classes

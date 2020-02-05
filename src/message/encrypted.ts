@@ -15,6 +15,9 @@ export default class EncryptedMessage {
   /** Length of message headers */
   hlen = 24;
 
+  /** If message is content related */
+  isContentRelated = true;
+
   constructor(src: ArrayBuffer | Bytes | number) {
     if (src instanceof ArrayBuffer) {
       this.buf = new Bytes(src);

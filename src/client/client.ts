@@ -1,5 +1,5 @@
 import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
-import Transport, { TransportConfig } from '../transport/abstract';
+import Transport, { TransportConfig, TransportState } from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
 import {
@@ -124,13 +124,13 @@ export default class Client {
         if (calls === 2) this.authorize(dc, cb);
       };
 
-      createAuthKey(this, dc, 1, 0, onKeyCreated);
-      createAuthKey(this, dc, 2, expiresAfter, onKeyCreated);
+      createAuthKey(this, dc, 2, 0, onKeyCreated);
+      createAuthKey(this, dc, 1, expiresAfter, onKeyCreated);
       return;
     }
 
     if (tempKey === null || (tempKey.expires && tempKey.expires < Date.now() / 1000)) {
-      createAuthKey(this, dc, 2, expiresAfter, () => this.authorize(dc, cb));
+      createAuthKey(this, dc, 1, expiresAfter, () => this.authorize(dc, cb));
       return;
     }
 
@@ -198,7 +198,18 @@ export default class Client {
   }
 
   /** Resolve response message */
-  resolve = (cfg: TransportConfig, msg: ErrorMessage | EncryptedMessage | PlainMessage) => {
+  resolve = (cfg: TransportConfig, msg: TransportState | ErrorMessage | EncryptedMessage | PlainMessage) => {
+    // resolve tranport state event
+    if (typeof msg === 'string') {
+      // emit client event if base dc status sent
+      if (cfg.dc === this.cfg.dc) {
+        this.emit('networkChanged', msg);
+      }
+
+      return;
+    }
+
+    // resolve messages
     let message: ErrorMessage | EncryptedMessage | Message | PlainMessage = msg;
 
     if (msg instanceof EncryptedMessage) {
@@ -383,11 +394,13 @@ export default class Client {
         if (!authKey) throw new Error(`Unable to encrypt message without auth key (dc: ${dc}`);
 
         msg.seqNo = this.dc.nextSeqNo(dc, isc);
+
         const encrypted = msg.encrypt(authKey.key);
+        encrypted.isContentRelated = isc;
         instance.send(encrypted);
       }
 
-      debug(this.cfg.debug && src !== 'msgs_ack', msg.id, 'seq:', msg.seqNo, 'call', src);
+      debug(this.cfg.debug && src !== 'msgs_ack', Date.now(), msg.id, 'seq:', msg.seqNo, 'call', src);
     } else {
       this.addPendingMsg(transport, dc, thread, msg);
     }
@@ -418,6 +431,7 @@ export default class Client {
   }
 
   /** Subscription for client event */
+  on(eventName: 'networkChanged', cb: (state: TransportState) => void): void;
   on(eventName: 'metaChanged', cb: (meta: Record<number, any>) => void): void;
   on(eventName: string, cb: ClientEventListener): void {
     if (!this.listeners[eventName]) this.listeners[eventName] = [];
@@ -425,6 +439,7 @@ export default class Client {
   }
 
   /** Emit client event */
+  emit(eventName: 'networkChanged', state: TransportState): void;
   emit(eventName: 'metaChanged', meta: Record<number, any>): void;
   emit(eventName: string, ...args: unknown[]) {
     if (!this.listeners[eventName]) this.listeners[eventName] = [];
