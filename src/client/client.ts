@@ -12,7 +12,7 @@ import RPCService from './rpc';
 import UpdatesService from './updates';
 import { genPasswordSRP } from '../crypto/srp';
 import {
-  ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey,
+  ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey, Transports,
 } from './types';
 import { MTProtoTransport } from '../transport/protocol';
 import { logs } from '../utils/log';
@@ -46,7 +46,13 @@ export default class Client {
   instances: Transport[];
 
   /** Quene of response callbacks for plain requests */
-  plainRequests: Record<string, RequestCallback> = {};
+  plainRequests: Record<string, {
+    dc: number,
+    thread: number,
+    transport: Transports,
+    message: PlainMessage,
+    cb: RequestCallback
+  }> = {};
 
   /** DC auth state. 0 - attached, 1 - authorizing, 2 - ready */
   authState: Record<number, number>;
@@ -206,6 +212,33 @@ export default class Client {
         this.emit('networkChanged', msg);
       }
 
+      // resend plain requests
+      if (msg === 'disconnected') {
+        const nonces = Object.keys(this.plainRequests);
+
+        for (let i = 0; i < nonces.length; i += 1) {
+          const nonce = nonces[i];
+          if (this.plainRequests[nonce].dc === cfg.dc
+            && this.plainRequests[nonce].thread === cfg.thread
+            && this.plainRequests[nonce].transport === cfg.transport) {
+            this.getInstance(cfg.transport, cfg.dc, cfg.thread).send(this.plainRequests[nonce].message);
+          }
+        }
+
+        const ids = Object.keys(this.rpc.requests);
+
+        // resend rpc requests
+        for (let i = 0; i < ids.length; i += 1) {
+          const id = ids[i];
+          if (this.rpc.requests[id].dc === cfg.dc
+            && this.rpc.requests[id].thread === cfg.thread
+            && this.rpc.requests[id].transport === cfg.transport) {
+            const message = this.encrypt(this.rpc.requests[id].message, this.rpc.requests[id].dc);
+            this.getInstance(cfg.transport, cfg.dc, cfg.thread).send(message);
+          }
+        }
+      }
+
       return;
     }
 
@@ -236,12 +269,12 @@ export default class Client {
 
     if (message instanceof PlainMessage) {
       const { nonce } = message;
-      const requestCallback = this.plainRequests[nonce];
+      const request = this.plainRequests[nonce];
       delete this.plainRequests[nonce];
 
-      if (!requestCallback) throw new Error(`Expected plain request callback for nonce ${nonce}`);
+      if (!request.cb) throw new Error(`Expected plain request callback for nonce ${nonce}`);
 
-      requestCallback(error, result && result.json());
+      request.cb(error, result && result.json());
 
       return;
     }
@@ -257,17 +290,6 @@ export default class Client {
       this.rpc.emit(id, error);
     }
   };
-
-  /** Resolve transport error */
-  // resolveError = (dc: number, thread: number, transport: string, nonce: string, code?: number, message?: string) => {
-  //   if (nonce && this.plainResolvers[nonce]) {
-  //     this.plainResolvers[nonce]({ type: 'network', code: code || 0 });
-  //     // to do: delete plain resolvers;
-  //     // delete this.plainResolvers[nonce];
-  //   }
-
-  //   this.rpc.emitError(dc, thread, transport, code, message);
-  // };
 
   /** Create plain message and send it to the server */
   public plainCall(src: TLConstructor | PlainMessage, cb: RequestCallback): void;
@@ -314,10 +336,28 @@ export default class Client {
 
     // Resolve plain message
     if (cb) {
-      this.plainRequests[msg.nonce] = cb;
+      this.plainRequests[msg.nonce] = {
+        dc,
+        thread,
+        transport,
+        message: msg,
+        cb,
+      };
     }
 
     this.getInstance(transport, dc, thread).send(msg);
+  }
+
+  /** Encrypt message */
+  encrypt(msg: Message, dc: number): EncryptedMessage {
+    const authKey = this.dc.getAuthKey(dc);
+    if (!authKey) throw new Error(`Unable to encrypt message without auth key (dc: ${dc}`);
+
+    const encrypted = msg.encrypt(authKey.key);
+
+    encrypted.isContentRelated = msg.isContentRelated;
+
+    return encrypted;
   }
 
   /** Create message, encrypt it and send it to the server */
@@ -387,17 +427,11 @@ export default class Client {
     if (this.authState[dc] === 2 || headers.force === true) {
       if (msg instanceof PlainMessage) {
         instance.send(msg);
-
-      // ecnrypt first
       } else {
-        const authKey = this.dc.getAuthKey(dc);
-        if (!authKey) throw new Error(`Unable to encrypt message without auth key (dc: ${dc}`);
-
+        msg.isContentRelated = isc;
         msg.seqNo = this.dc.nextSeqNo(dc, isc);
 
-        const encrypted = msg.encrypt(authKey.key);
-        encrypted.isContentRelated = isc;
-        instance.send(encrypted);
+        instance.send(this.encrypt(msg, dc));
       }
 
       debug(this.cfg.debug && src !== 'msgs_ack', Date.now(), msg.id, 'seq:', msg.seqNo, 'call', src);

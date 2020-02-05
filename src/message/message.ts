@@ -21,6 +21,9 @@ export default class Message {
   /** Padding length */
   plen: number = 0;
 
+  /** If message is content related */
+  isContentRelated = true;
+
   /**
    * Creates new Bytes object from:
    * - AraryBuffer
