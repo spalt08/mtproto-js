@@ -376,7 +376,7 @@ export function transferAuthorization(client: ClientInterface, userID: number, d
       return;
     }
 
-    const bytes = res.bytes.value;
+    const { bytes } = res;
 
     client.call('auth.importAuthorization', { id: userID, bytes }, { dc: dcTo, force: true }, (err2, res2) => {
       if (err2 || !(res2 instanceof TLConstructor) || res2._ !== 'auth.authorization') {
