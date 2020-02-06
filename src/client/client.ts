@@ -233,8 +233,13 @@ export default class Client {
           if (this.rpc.requests[id].dc === cfg.dc
             && this.rpc.requests[id].thread === cfg.thread
             && this.rpc.requests[id].transport === cfg.transport) {
-            const message = this.encrypt(this.rpc.requests[id].message, this.rpc.requests[id].dc);
-            this.getInstance(cfg.transport, cfg.dc, cfg.thread).send(message);
+            // message should wait for dh exchange if auth is processing
+            if (this.authState[cfg.dc] === 2) {
+              const message = this.encrypt(this.rpc.requests[id].message, this.rpc.requests[id].dc);
+              this.getInstance(cfg.transport, cfg.dc, cfg.thread).send(message);
+            } else {
+              this.pending[cfg.dc].push(this.rpc.requests[id].message);
+            }
           }
         }
       }
@@ -244,6 +249,14 @@ export default class Client {
 
     // resolve messages
     let message: ErrorMessage | EncryptedMessage | Message | PlainMessage = msg;
+
+    if (msg instanceof ErrorMessage) {
+      if (msg.error.code === -1) {
+        console.warn('switching auth key for dc', cfg.dc);
+        this.dc.setMeta(cfg.dc, 'tempKey', null);
+        this.authorize(cfg.dc);
+      }
+    }
 
     if (msg instanceof EncryptedMessage) {
       const authKey = this.dc.getAuthKey(cfg.dc);

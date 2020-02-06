@@ -11,7 +11,11 @@ export default class ErrorMessage {
   static Errors: Record<string, ErrorDetails> = {
     '53feffff': {
       code: 404,
-      message: 'Invalid packet was send or auth key was expired',
+      message: 'Invalid packet was sent',
+    },
+    '6cfeffff': {
+      code: -1,
+      message: 'Invalid auth key',
     },
   };
 
