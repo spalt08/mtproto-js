@@ -208,7 +208,7 @@ export default class Client {
     // resolve tranport state event
     if (typeof msg === 'string') {
       // emit client event if base dc status sent
-      if (cfg.dc === this.cfg.dc) {
+      if (cfg.dc === this.cfg.dc && cfg.thread === 1) {
         this.emit('networkChanged', msg);
       }
 
