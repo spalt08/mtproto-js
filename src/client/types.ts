@@ -62,11 +62,11 @@ export type RequestRPC = {
 };
 
 /** Generic error for mtproto client */
-export type ClientError = null | {
+export type ClientError = {
   type: 'rpc' | 'network' | 'transport' | 'internal';
   code: number,
   message?: string,
-};
+} | null;
 
 /** Request callback */
 export type RequestCallback = (error: ClientError | null, result?: undefined | any) => void;

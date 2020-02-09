@@ -94,7 +94,7 @@ export default class Socket extends Transport {
 
     // auto connect should be throttled
     } else if (timestamp - this.lastConnectRetry < 1000) {
-      this.reconnectTimer = setTimeout(this.connect, 3000);
+      this.reconnectTimer = setTimeout(this.connect as TimerHandler, 3000);
       return;
     }
 
