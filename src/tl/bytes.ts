@@ -20,6 +20,8 @@ export default class TLBytes extends TLAbstract {
   /** Stored value */
   value: string = '';
 
+  unescapedValue: string = '';
+
   /**
    * Creates TLString object from data
    */
@@ -40,7 +42,7 @@ export default class TLBytes extends TLAbstract {
     let len = 0;
 
     if (this._ === 'string') {
-      len = typeof this.value === 'string' ? this.value.length : 0;
+      len = typeof this.value === 'string' ? unescape(encodeURIComponent(this.value)).length : 0;
     } else {
       len = Math.ceil((typeof this.value === 'string' ? this.value.length : 0) / 2);
     }
@@ -108,9 +110,11 @@ export default class TLBytes extends TLAbstract {
 
     let tlen = 0;
     let len = 0;
+    let unescaped = '';
 
     if (this._ === 'string') {
-      len = this.value.length || 0;
+      unescaped = unescape(encodeURIComponent(this.value));
+      len = this.value ? unescaped.length : 0;
     } else {
       len = Math.ceil((this.value.length || 0) / 2);
     }
@@ -131,7 +135,7 @@ export default class TLBytes extends TLAbstract {
     }
 
     if (this._ === 'string') {
-      this.buf.slice(tlen, tlen + len).raw = unescape(encodeURIComponent(this.value));
+      this.buf.slice(tlen, tlen + len).raw = unescaped;
     } else {
       this.buf.slice(tlen, tlen + len).hex = this.value;
     }

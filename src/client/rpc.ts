@@ -83,6 +83,10 @@ export default class RPCService {
       result = this.client.tl.parse(buffer);
     }
 
+    if (result instanceof TLConstructor && result.declaration && result.declaration.type === 'Updates') {
+      this.client.updates.process(result);
+    }
+
     // Process response
     debug(this.client.cfg, Date.now(), request.dc, '-> ', result._, `(request: ${id})`);
     if (request.cb) request.cb(null, result.json());
