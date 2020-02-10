@@ -159,6 +159,7 @@ export default class RPCService {
       case 'bad_server_salt': this.processBadServerSalt(result, headers); break;
       case 'bad_msg_notification': this.processBadMsgNotification(result, headers); break;
       case 'msgs_ack': break;
+      case 'gzip_packed': this.processGzipped(result, headers); break;
       case 'rpc_result': this.processRPCResult(result, headers); break;
 
       default:
@@ -179,6 +180,22 @@ export default class RPCService {
     }
 
     if (ack) this.sendAcks(headers.transport, headers.dc, headers.thread);
+  }
+
+  /**
+   * Process: gzip_packed
+   */
+  processGzipped(result: TLAbstract, headers: RPCHeaders) {
+    if (result instanceof TLConstructor) {
+      try {
+        const gz = hex(result.params.packed_data.value);
+        const buffer = new Bytes(inflate(gz.buffer).buffer);
+
+        this.processMessage(this.client.tl.parse(buffer), headers, false);
+      } catch (e) {
+        console.warn('Unable to decode gzip data', e);
+      }
+    }
   }
 
   /**
