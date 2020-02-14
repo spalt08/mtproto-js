@@ -113,7 +113,13 @@ export default class Bytes {
    * Gets raw string
    */
   get raw(): string {
-    return String.fromCharCode.apply(null, [].slice.call(this.buffer));
+    let str = '';
+
+    for (let i = 0; i < this.length; i += 1) {
+      str += String.fromCharCode(this.buffer[i]);
+    }
+
+    return str;
   }
 
   /**
