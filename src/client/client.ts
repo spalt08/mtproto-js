@@ -110,7 +110,7 @@ export default class Client {
 
     this.authRetries[dc] += 1;
 
-    if (this.authRetries[dc] > 3) {
+    if (this.authRetries[dc] > 6) {
       this.authState[dc] = 0;
       this.authRetries[dc] = 0;
       return;
@@ -146,7 +146,9 @@ export default class Client {
     }
 
     if (this.dc.getConnectionStatus(dc) === false) {
-      initConnection(this, dc, () => this.authorize(dc, cb));
+      initConnection(this, dc, () => {
+        this.authorize(dc, cb);
+      });
       return;
     }
 
