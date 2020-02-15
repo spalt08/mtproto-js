@@ -108,13 +108,13 @@ export default class Client {
     if (!this.authState[dc] || this.authState[dc] !== 1) this.authState[dc] = 1;
     if (!this.authRetries[dc]) this.authRetries[dc] = 0;
 
-    this.authRetries[dc] += 1;
+    // this.authRetries[dc] += 1;
 
-    if (this.authRetries[dc] > 6) {
-      this.authState[dc] = 0;
-      this.authRetries[dc] = 0;
-      return;
-    }
+    // if (this.authRetries[dc] > 6) {
+    //   this.authState[dc] = 0;
+    //   this.authRetries[dc] = 0;
+    //   return;
+    // }
 
     const expiresAfter = 3600 * 5;
     const permKey = this.dc.getPermKey(dc);
