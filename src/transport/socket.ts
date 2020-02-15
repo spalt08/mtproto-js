@@ -200,7 +200,7 @@ export default class Socket extends Transport {
 
       // delay request timeout handler
       if (msg instanceof EncryptedMessage && msg.isContentRelated && !this.requestTimer) {
-        this.requestTimer = setTimeout(this.handleRequestTimout as TimerHandler, 2000);
+        this.requestTimer = setTimeout(this.handleRequestTimout as TimerHandler, 5000);
       }
 
     // else: add message to pending quene and reconnect
