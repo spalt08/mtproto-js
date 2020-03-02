@@ -3,7 +3,8 @@ import { SchemaEntity } from './types';
 
 const cases: Record<string, SchemaEntity> = {
   'req_pq_multi nonce:int128 = ResPQ': {
-    id: '-1099002127',
+    id: '3195965169',
+    int32: 3195965169,
     predicate: 'req_pq_multi',
     params: [
       { name: 'nonce', type: 'int128' },

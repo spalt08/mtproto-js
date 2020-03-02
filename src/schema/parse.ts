@@ -16,13 +16,15 @@ export default function parse(formula: string): SchemaEntity {
 
   const output: SchemaEntity = {
     id: iPos < sPos ? parseInt(formula.slice(iPos + 1, sPos), 16).toString() : crc32(formula).toString(),
+    int32: 0,
     predicate: (iPos < sPos ? formula.slice(0, iPos) : formula.slice(0, sPos)),
     type: (ePos > -1 ? formula.slice(ePos + 2, lPos) : ''),
     params: [],
   };
 
   // todo: fix
-  output.id = (new Int32Array([parseInt(output.id, 10)]))[0].toString(10);
+  output.id = (+output.id >>> 0).toString(10);
+  output.int32 = +output.id >>> 0;
 
   let pos = sPos + 1;
 

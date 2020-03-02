@@ -6,58 +6,48 @@ import parse from './parse';
  * SchemaProvider is an adaptor to schema json for quering constructors and types
  */
 export default class SchemaProvider {
-  /* Flattened schema with list of constructors */
-  schema: SchemaEntity[] = [];
+  schema: Map<string | number, SchemaEntity>;
 
   /**
    * SchemaProvider can be made from list of Schemas (ex. MTProtoSchema, LayerSchema, EndToEndSchema)
-   * @param {Schema[]} schemas One schema object for parameter
-   * @constructs
    */
   constructor(...schemas: Schema[]) {
-    this.schema = [...MTProtoSchema.constructors, ...MTProtoSchema.methods];
+    this.schema = new Map();
+    this.put(MTProtoSchema.constructors);
+    this.put(MTProtoSchema.methods);
 
     for (let i = 0; i < schemas.length; i += 1) {
       const { constructors, methods } = schemas[i];
 
-      if (constructors) this.schema.push(...constructors);
-      if (methods) this.schema.push(...methods);
+      if (constructors) this.put(constructors);
+      if (methods) this.put(methods);
+    }
+  }
+
+  /**
+   * Fills map with schema entities
+   */
+  put(source: SchemaEntity[]) {
+    for (let i = 0; i < source.length; i += 1) {
+      const row = source[i];
+      const id = +row.id >>> 0;
+
+      row.int32 = id;
+
+      if (id) this.schema.set(id, row);
+      if (row.method) this.schema.set(row.method, source[i]);
+      if (row.predicate) this.schema.set(row.predicate, source[i]);
     }
   }
 
   /**
    * Method finds schema entity by predicate or ID.
    * If no results, it will parse schema from query string.
-   * @param {string | number} query Constructor predicate or ID
-   * @returns {SchemaEntity} Schema Entity
    */
-  find(query: string | number): SchemaEntity | null {
-    for (let i = 0; i < this.schema.length; i += 1) {
-      const s = this.schema[i];
+  find(query: string | number): SchemaEntity | undefined {
+    if (typeof query === 'number') query >>>= 0;
 
-      if (typeof query === 'number' && parseInt(s.id, 10) === query) {
-        return s;
-      }
-
-      if (typeof query === 'string' && (+s.id === +`0x${query.toString}`
-      || (s.predicate && s.predicate.toLowerCase() === query.toLowerCase())
-      || (s.method && s.method.toLowerCase() === query.toLowerCase()))) {
-        return s;
-      }
-    }
-
-    if (typeof query === 'number') throw new Error(`TL: Unknown constructor number ${query}`);
-
-    if (typeof query === 'string') {
-      const parsed = parse(query);
-
-      if (parsed && parsed.type) {
-        this.define(query);
-        return parsed;
-      }
-    }
-
-    return null;
+    return this.schema.get(query) || (typeof query === 'string' ? parse(query) : undefined);
   }
 
   /**
@@ -66,6 +56,7 @@ export default class SchemaProvider {
    */
   define(query: string) {
     const parsed = parse(query);
-    if (parsed && parsed.type) this.schema.push(parsed);
+
+    if (parsed && parsed.type) this.put([parsed]);
   }
 }

@@ -1,6 +1,7 @@
 /** SchemaEntity is a single json element of constructor or method */
 export type SchemaEntity = {
   id: string,
+  int32: number,
   predicate?: string,
   method?: string,
   type: string,
