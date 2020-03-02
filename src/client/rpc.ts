@@ -4,7 +4,7 @@ import TLConstructor from '../tl/constructor';
 import TLVector from '../tl/vector';
 import { logs } from '../utils/log';
 import { Message } from '../message';
-import { Bytes, uint, hex } from '../serialization';
+import { Bytes, hex } from '../serialization';
 import {
   RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestCallback, Transports, RequestRPC,
 } from './types';
@@ -146,7 +146,7 @@ export default class RPCService {
     if (!this.pendingAcks[key]) this.pendingAcks[key] = [];
 
     if (this.pendingAcks[key].length > 0) {
-      const ids = this.pendingAcks[key].map((id) => uint(id));
+      const ids = this.pendingAcks[key].map((id) => id);
 
       this.client.call('msgs_ack', { msg_ids: ids }, { dc, thread, force: true });
       this.pendingAcks[key] = [];
