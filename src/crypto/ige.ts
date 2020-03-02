@@ -9,7 +9,7 @@ const defaultOptions = {
 /**
  * Decrypts cipher text with AES-256-IGE mode.
  */
-export function decrypt(text: Bytes, key: Bytes, iv: Bytes, options: Record<string, any> = defaultOptions): Bytes {
+export function decrypt(text: Bytes | string, key: Bytes, iv: Bytes, options: Record<string, any> = defaultOptions): Bytes {
   const plainText = new Bytes(text.length);
   const cipher = new aesjs.AES(key.buffer);
 
@@ -17,7 +17,9 @@ export function decrypt(text: Bytes, key: Bytes, iv: Bytes, options: Record<stri
   let prevY = iv.slice(options.blockSize, iv.length);
 
   for (let i = 0; i < text.length; i += options.blockSize) {
-    const x = text.slice(i, i + options.blockSize);
+    let x = text.slice(i, i + options.blockSize);
+    if (!(x instanceof Bytes)) x = new Bytes(x);
+
     const yXOR = Bytes.xor(x, prevY);
 
     const bytesY = new Bytes(cipher.decrypt(yXOR.buffer));

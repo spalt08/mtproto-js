@@ -1,11 +1,11 @@
 /* eslint-disable max-len */
 import TLBytes from './bytes';
-import { hex, Bytes } from '../serialization';
+import { hex, Bytes, hex2raw } from '../serialization';
 
 const cases = [
   ['bytes', undefined, 0, hex('00000000')],
   ['string', 'Test case #1', 1, hex('000c546573742063617365202331000000')],
-  ['bytes', 'ff00ff01', 3, hex('00000004ff00ff01000000')],
+  ['bytes', hex2raw('ff00ff01'), 3, hex('00000004ff00ff01000000')],
   ['string', 'Максим', 0, hex('cd09cd0b0d0bad181d0b8d0bc000000')],
   [
     'string',
@@ -42,7 +42,7 @@ test('TLBytes | write', () => {
 
 test('TLBytes | check length', () => {
   const data = '42165fbad4e30d745fcd950fcff93f550c44e0d6cc27d2a0f15f900a0bb7a6eeed7d3f30e9dc41fd3c9ccb3cc3332b372dde2c9a1f190fc78e0cb8c5043c946da3b67d7e81eafb2e016a2dfeea863905f112e4eb12c2d13796f38afde676b419147bdb27c60dc5c80f121abbbae841f2d933577178d50c1e85bcb5f559a3a804b51174272d4ff01f1910f1e20ad1e9eeefe238d135b544cc71aedf4d57d3caadd20ac8e24256d1b4b0646a01bf4a1e59bf858ef38c49d354522155735da73234579dc34784b7f380c22b378f09a90361438a212ed1647af4ac8abd78efc8e574049a03c518776fcdeb4edf2b8e62c8605e9a57f4f4f3eb87f6a8dac012d4100';
-  const tl = new TLBytes('bytes', data);
+  const tl = new TLBytes('bytes', hex2raw(data));
 
   const empty = new Bytes(260);
   tl.write(empty, 0);

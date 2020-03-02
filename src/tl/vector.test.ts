@@ -1,6 +1,6 @@
 /* eslint-disable max-len */
 import TLVector from './vector';
-import { hex, Bytes } from '../serialization';
+import { hex, Bytes, hex2raw } from '../serialization';
 import { SchemaProvider } from '../schema';
 
 const cases = [
@@ -10,7 +10,7 @@ const cases = [
   ['int', [], 3, true, hex('00000000000000')],
   ['int', [1, 2, 3], 0, true, hex('03000000010000000200000003000000')],
   ['string', ['test', 'hello'], 0, false, hex('15C4B51C0200000004746573740000000568656c6c6f0000')],
-  ['bytes', ['abcdef', '123456', 'fefefe'], 0, false, hex('15C4B51C0300000003abcdef0312345603fefefe')],
+  ['bytes', [hex2raw('abcdef'), hex2raw('123456'), hex2raw('fefefe')], 0, false, hex('15C4B51C0300000003abcdef0312345603fefefe')],
 ];
 
 test('TLVector | read', () => {

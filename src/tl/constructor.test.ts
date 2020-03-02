@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 
 import TLConstructor from './constructor';
-import { hex, Bytes } from '../serialization';
+import { hex, Bytes, hex2raw } from '../serialization';
 import { SchemaProvider } from '../schema';
 import TypeLanguage from './tl';
 
@@ -22,7 +22,7 @@ const cases = [
       _: 'resPQ',
       nonce: hex('3E0549828CCA27E966B301A48FECE2FC').uint,
       server_nonce: hex('A5CF4D33F4A11EA877BA4AA573907330').uint,
-      pq: '17ed48941a08f981',
+      pq: hex2raw('17ed48941a08f981'),
       server_public_key_fingerprints: [
         hex('216BE86C022BB4C3').uint,
       ],
@@ -85,45 +85,48 @@ test('TLConstructor | parse', () => {
 test('TLConstructor | flags', () => {
   const tl = new TypeLanguage();
 
-  tl.schema.schema.push({
-    id: '531836966', method: 'help.getNearestDc', params: [], type: 'NearestDc',
-  });
-  tl.schema.schema.push({
-    id: '2018609336',
-    method: 'initConnection',
-    params: [{
-      name: 'flags',
-      type: '#',
-    }, {
-      name: 'api_id',
-      type: 'int',
-    }, {
-      name: 'device_model',
-      type: 'string',
-    }, {
-      name: 'system_version',
-      type: 'string',
-    }, {
-      name: 'app_version',
-      type: 'string',
-    }, {
-      name: 'system_lang_code',
-      type: 'string',
-    }, {
-      name: 'lang_pack',
-      type: 'string',
-    }, {
-      name: 'lang_code',
-      type: 'string',
-    }, {
-      name: 'proxy',
-      type: 'flags.0?InputClientProxy',
-    }, {
-      name: 'query',
-      type: '!X',
-    }],
-    type: 'X',
-  });
+  tl.schema.put([
+    {
+      id: '531836966', int32: 531836966, method: 'help.getNearestDc', params: [], type: 'NearestDc',
+    },
+    {
+      id: '2018609336',
+      int32: 2018609336,
+      method: 'initConnection',
+      params: [{
+        name: 'flags',
+        type: '#',
+      }, {
+        name: 'api_id',
+        type: 'int',
+      }, {
+        name: 'device_model',
+        type: 'string',
+      }, {
+        name: 'system_version',
+        type: 'string',
+      }, {
+        name: 'app_version',
+        type: 'string',
+      }, {
+        name: 'system_lang_code',
+        type: 'string',
+      }, {
+        name: 'lang_pack',
+        type: 'string',
+      }, {
+        name: 'lang_code',
+        type: 'string',
+      }, {
+        name: 'proxy',
+        type: 'flags.0?InputClientProxy',
+      }, {
+        name: 'query',
+        type: '!X',
+      }],
+      type: 'X',
+    },
+  ]);
 
   const init = tl.create('initConnection', {
     api_id: 1234,

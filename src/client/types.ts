@@ -1,5 +1,5 @@
 import { MTProtoTransport } from '../transport/protocol';
-import TypeLanguage, { TLConstructor } from '../tl';
+import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
 import { Message, PlainMessage } from '../message';
 
 /** Authorization key info with PFS */
@@ -69,7 +69,7 @@ export type ClientError = {
 } | null;
 
 /** Request callback */
-export type RequestCallback = (error: ClientError | null, result?: undefined | any) => void;
+export type RequestCallback = (error: ClientError | null, result?: undefined | TLAbstract) => void;
 
 /** DCService interface to avoid dependency cycle */
 export interface DCServiceInterface {

@@ -1,5 +1,5 @@
 import sha1 from '@cryptography/sha1';
-import { Bytes } from '../../serialization';
+import { Bytes, hex2raw } from '../../serialization';
 import TLConstructor from '../../tl/constructor';
 import SchemaProvider from '../../schema/provider';
 
@@ -40,7 +40,8 @@ export function parseKey(key: string): RSAKey {
       throw new Error(`RSA Key: Unknown key format ${keyType}`);
   }
 
-  const tlKey = new TLConstructor('rsa_public_key n:bytes e:bytes = RSAPublicKey', new SchemaProvider(), true, { n, e });
+  const tlKey = new TLConstructor('rsa_public_key n:bytes e:bytes = RSAPublicKey', new SchemaProvider(), true, { n: hex2raw(n), e: hex2raw(e) });
+
   const keyHash = new Bytes(sha1(tlKey.serialize().raw));
 
   return {

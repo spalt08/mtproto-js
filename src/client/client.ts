@@ -289,7 +289,7 @@ export default class Client {
 
       if (!request.cb) throw new Error(`Expected plain request callback for nonce ${nonce}`);
 
-      request.cb(error, result && result.json());
+      request.cb(error, result);
 
       return;
     }

@@ -35,7 +35,7 @@ type AuthContext = {
  * Step 1. Send random nonce.
  * @mtproto req_pq_multi
  */
-function authReqPQ(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
+function authReqPQ(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: TLConstructor) => void) {
   client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: ctx.nonce.uint }, ctx, (err, resPQ) => {
     if (err || !resPQ || resPQ._ !== 'resPQ') {
       log(ctx.dc, ctx.thread, 'Unexpected resPQ response');
@@ -44,7 +44,7 @@ function authReqPQ(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientE
       return;
     }
 
-    cb(null, resPQ);
+    cb(null, resPQ as TLConstructor);
   });
 }
 
@@ -53,7 +53,7 @@ function authReqPQ(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientE
  * Step 2. Request Diffie-Hellman params
  * @mtproto req_DH_params
  */
-function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: any) => void) {
+function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: TLConstructor) => void) {
   // check context
   if (!ctx.pq || ctx.pq.length === 0) throw new Error('Auth: Missing PQ param');
   if (!ctx.fingerprints || ctx.fingerprints.length === 0) throw new Error('Auth: Missing public key fingerprints');
@@ -75,9 +75,9 @@ function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: C
 
   // wrap p_q_inner_data
   const pqInner = client.tl.create(ctx.expiresAfter > 0 ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
-    pq: ctx.pq,
-    p: p.toString(16),
-    q: q.toString(16),
+    pq: hex2raw(ctx.pq),
+    p: hex2raw(p.toString(16)),
+    q: hex2raw(q.toString(16)),
     nonce: ctx.nonce.uint,
     server_nonce: ctx.serverNonce.uint,
     new_nonce: ctx.newNonce.uint,
@@ -105,10 +105,10 @@ function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: C
   const dhParams = {
     nonce: ctx.nonce.uint,
     server_nonce: ctx.serverNonce.uint,
-    p: p.toString(16),
-    q: q.toString(16),
+    p: hex2raw(p.toString(16)),
+    q: hex2raw(q.toString(16)),
     public_key_fingerprint: publicKey.fingerprint,
-    encrypted_data: encryptedPQ,
+    encrypted_data: hex2raw(encryptedPQ),
   };
 
   // call req_DH_params
@@ -124,8 +124,8 @@ function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: C
     }
 
     // decrypt encrypted_answer
-    const wrapper = resDH;
-    const decryptedDH = decrypt(hex(wrapper.encrypted_answer), ctx.aesKey, ctx.aesIv);
+    const wrapper = resDH as TLConstructor;
+    const decryptedDH = decrypt(wrapper.params.encrypted_answer.value, ctx.aesKey, ctx.aesIv);
     const serverDH = client.tl.parse(decryptedDH.slice(20));
 
     if (!(serverDH instanceof TLConstructor) || serverDH._ !== 'server_DH_inner_data') {
@@ -138,7 +138,7 @@ function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: C
       return;
     }
 
-    cb(null, serverDH.json());
+    cb(null, serverDH as TLConstructor);
   });
 }
 
@@ -167,7 +167,7 @@ function authSetClientDHParams(client: ClientInterface, ctx: AuthContext, cb: (_
     nonce: ctx.nonce.uint,
     server_nonce: ctx.serverNonce.uint,
     retry_id: 0,
-    g_b: gb,
+    g_b: hex2raw(gb),
   }).serialize();
 
   let len = 20 + clientDH.length;
@@ -226,10 +226,9 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
       return;
     }
 
-    ctx.serverNonce = new Bytes(16);
-    ctx.serverNonce.uint = resPQ.server_nonce;
-    ctx.fingerprints = resPQ.server_public_key_fingerprints;
-    ctx.pq = resPQ.pq;
+    ctx.serverNonce = resPQ.params.server_nonce.buf!;
+    ctx.fingerprints = resPQ.params.server_public_key_fingerprints.value;
+    ctx.pq = raw2hex(resPQ.params.pq.value);
     ctx.aesKey = new Bytes(32);
 
     ctx.aesKey.slice(0, 20).raw = sha1(ctx.newNonce.raw + ctx.serverNonce.raw);
@@ -242,16 +241,16 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
 
     // call req_DH_params
     authReqDHParams(client, ctx, (rerr, serverDH) => {
-      if (rerr) {
+      if (rerr || !serverDH) {
         if (cb) cb(rerr);
         return;
       }
 
       // todo: server time sync
       // todo: check dh prime, ga, gb
-      ctx.g = serverDH.g;
-      ctx.ga = serverDH.g_a;
-      ctx.dh = serverDH.dh_prime;
+      ctx.g = serverDH.params.g.value;
+      ctx.ga = raw2hex(serverDH.params.g_a.value);
+      ctx.dh = raw2hex(serverDH.params.dh_prime.value);
 
       authSetClientDHParams(client, ctx, (cerr, authKey) => {
         if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
@@ -322,7 +321,7 @@ export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: Au
   });
 
   client.call(query, { msgID, dc, force: true }, (err, res) => {
-    if (!err && res === true) {
+    if (!err && res && res.json() === true) {
       log(dc, 'temporary key successfuly binded');
       client.dc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
       if (cb) cb(true);
@@ -371,14 +370,14 @@ export function initConnection(client: ClientInterface, dc: number, cb?: (result
  */
 export function transferAuthorization(client: ClientInterface, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
   client.call('auth.exportAuthorization', { dc_id: dcTo }, { dc: dcFrom, force: true }, (err, res) => {
-    if (err || !res || res._ !== 'auth.exportedAuthorization') {
+    if (err || !(res instanceof TLConstructor) || res._ !== 'auth.exportedAuthorization') {
       if (cb) cb(false);
       return;
     }
 
-    const { bytes } = res;
+    const { bytes } = res.params;
 
-    client.call('auth.importAuthorization', { id: userID, bytes }, { dc: dcTo, force: true }, (err2, res2) => {
+    client.call('auth.importAuthorization', { id: userID, bytes: bytes.value }, { dc: dcTo, force: true }, (err2, res2) => {
       if (err2 || !(res2 instanceof TLConstructor) || res2._ !== 'auth.authorization') {
         if (cb) cb(false);
         return;

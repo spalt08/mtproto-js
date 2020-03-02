@@ -14,7 +14,7 @@ export default class TLConstructor extends TLAbstract {
   isBare: boolean = false;
 
   /* Schema Entity for mapping props */
-  declaration: SchemaEntity | null = null;
+  declaration?: SchemaEntity;
 
   /** Schema provider */
   schema: SchemaProvider;
@@ -46,7 +46,7 @@ export default class TLConstructor extends TLAbstract {
   /**
    * Fetches type language schema
    */
-  fetch(declaration: SchemaEntity | null) {
+  fetch(declaration?: SchemaEntity) {
     this.declaration = declaration;
     this._ = declaration ? (declaration.predicate || declaration.method || '') : '';
     this.params = {};
@@ -142,7 +142,7 @@ export default class TLConstructor extends TLAbstract {
 
     // write constructor id
     if (!this.isBare && this.declaration) {
-      this.buf.slice(0, 4).int32 = +this.declaration.id;
+      this.buf.slice(0, 4).int32 = this.declaration.int32;
       nextOffset += 4;
     }
 

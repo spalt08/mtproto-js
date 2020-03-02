@@ -18,9 +18,29 @@ export default class TLBytes extends TLAbstract {
   _: string = 'bytes';
 
   /** Stored value */
-  value: string = '';
+  _value: string = '';
 
-  unescapedValue: string = '';
+  length: number = 0;
+  padLength: number = 0;
+
+  get value() {
+    if (this.buf && !this._value) {
+      if (this._ === 'string') {
+        try {
+          this.value = decodeURIComponent(escape(this.buf.slice(this.padLength, this.padLength + this.length).raw));
+        } catch (e) {
+          throw new Error(`Unable to decode string value: ${e.toString()}`);
+        }
+      } else {
+        this.value = this.buf.slice(this.padLength, this.padLength + this.length).raw;
+      }
+    }
+    return this._value;
+  }
+
+  set value(data: string) {
+    this._value = data;
+  }
 
   /**
    * Creates TLString object from data
@@ -44,7 +64,7 @@ export default class TLBytes extends TLAbstract {
     if (this._ === 'string') {
       len = typeof this.value === 'string' ? unescape(encodeURIComponent(this.value)).length : 0;
     } else {
-      len = Math.ceil((typeof this.value === 'string' ? this.value.length : 0) / 2);
+      len = this.value.length || 0;
     }
 
     if (len < 0xFE) {
@@ -84,20 +104,13 @@ export default class TLBytes extends TLAbstract {
       tlen = 4;
     }
 
+    this.padLength = tlen;
+    this.length = len;
+
     this._byteSize = tlen + len;
     if (this._byteSize % 4) this._byteSize += 4 - (this._byteSize % 4);
 
     this.buf = buf.slice(offset, offset + this._byteSize);
-
-    if (this._ === 'string') {
-      try {
-        this.value = decodeURIComponent(escape(this.buf.slice(tlen, tlen + len).raw));
-      } catch (e) {
-        throw new Error(`Unable to decode string value: ${e.toString()}`);
-      }
-    } else {
-      this.value = this.buf.slice(tlen, tlen + len).hex;
-    }
 
     return offset + this._byteSize;
   }
@@ -116,7 +129,7 @@ export default class TLBytes extends TLAbstract {
       unescaped = unescape(encodeURIComponent(this.value));
       len = this.value ? unescaped.length : 0;
     } else {
-      len = Math.ceil((this.value.length || 0) / 2);
+      len = this.value.length || 0;
     }
 
     if (len < 0xFE) {
@@ -125,7 +138,10 @@ export default class TLBytes extends TLAbstract {
       tlen = 4;
     }
 
-    this.buf = buf.slice(offset, offset + this.byteSize);
+    this._byteSize = tlen + len;
+    if (this._byteSize % 4) this._byteSize += 4 - (this._byteSize % 4);
+
+    this.buf = buf.slice(offset, offset + this._byteSize);
 
     if (tlen === 1) {
       this.buf.slice(0, 1).uint = len;
@@ -137,9 +153,9 @@ export default class TLBytes extends TLAbstract {
     if (this._ === 'string') {
       this.buf.slice(tlen, tlen + len).raw = unescaped;
     } else {
-      this.buf.slice(tlen, tlen + len).hex = this.value;
+      this.buf.slice(tlen, tlen + len).raw = this.value;
     }
 
-    return offset + this.byteSize;
+    return offset + this._byteSize;
   }
 }

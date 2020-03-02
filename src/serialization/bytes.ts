@@ -168,8 +168,8 @@ export default class Bytes {
   get int32(): number {
     if (this.length > 4) throw new Error('Unsigned ints can be parsed from 4 byte only');
 
-    const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-    return view.getInt32(0, true);
+    const uint = this.uint as number;
+    return (uint << 32) >> 32;
   }
 
   /**
@@ -179,8 +179,7 @@ export default class Bytes {
   set int32(data: number) {
     if (this.length > 4) throw new Error('Unsigned ints can be parsed from 4 byte only');
 
-    const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-    view.setInt32(0, data, true);
+    this.uint = data >>> 0;
   }
 
   /**

@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 
 import TypeLanguage from './tl';
-import { hex } from '../serialization';
+import { hex, hex2raw } from '../serialization';
 import { TLConstructor } from '.';
 
 const tl = new TypeLanguage();
@@ -44,7 +44,7 @@ test('TypeLanguage | parse', () => {
   if (res instanceof TLConstructor) {
     expect(res.params.nonce.value).toEqual(hex('3E0549828CCA27E966B301A48FECE2FC').uint);
     expect(res.params.server_nonce.value).toEqual(hex('A5CF4D33F4A11EA877BA4AA573907330').uint);
-    expect(res.params.pq.value).toEqual('17ed48941a08f981');
+    expect(res.params.pq.value).toEqual(hex2raw('17ed48941a08f981'));
     expect(res.params.server_public_key_fingerprints.value).toEqual([hex('216BE86C022BB4C3').uint]);
   } else throw new Error('expected constructor');
 });

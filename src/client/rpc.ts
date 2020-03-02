@@ -89,7 +89,7 @@ export default class RPCService {
 
     // Process response
     debug(this.client.cfg, Date.now(), request.dc, '-> ', result._, `(request: ${id})`);
-    if (request.cb) request.cb(null, result.json());
+    if (request.cb) request.cb(null, result);
 
     delete this.requests[id];
 
