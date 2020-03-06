@@ -38,6 +38,14 @@ export default class TLBytes extends TLAbstract {
     return this._value;
   }
 
+  get buffer() {
+    if (this.buf) {
+      return this.buf.slice(this.padLength, this.padLength + this.length);
+    }
+
+    return undefined;
+  }
+
   set value(data: string) {
     this._value = data;
   }

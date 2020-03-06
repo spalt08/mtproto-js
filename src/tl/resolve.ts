@@ -30,7 +30,6 @@ export default function resolve(predicate: string, schema: SchemaProvider): TLAb
 
   if (type[0] === '%') {
     isBare = true;
-    type = type.slice(1);
   }
 
   // number

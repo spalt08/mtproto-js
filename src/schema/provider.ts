@@ -2,41 +2,47 @@ import { Schema, SchemaEntity } from './types';
 import MTProtoSchema from './mtproto.json';
 import parse from './parse';
 
+type SchemaMap = Map<string | number, SchemaEntity>;
+
 /**
  * SchemaProvider is an adaptor to schema json for quering constructors and types
  */
 export default class SchemaProvider {
-  schema: Map<string | number, SchemaEntity>;
+  mtproto: SchemaMap;
+  layer: SchemaMap;
 
   /**
    * SchemaProvider can be made from list of Schemas (ex. MTProtoSchema, LayerSchema, EndToEndSchema)
    */
   constructor(...schemas: Schema[]) {
-    this.schema = new Map();
-    this.put(MTProtoSchema.constructors);
-    this.put(MTProtoSchema.methods);
+    this.layer = new Map();
+    this.mtproto = new Map();
+
+    // default for mtproto schema
+    this.put(this.mtproto, MTProtoSchema.constructors);
+    this.put(this.mtproto, MTProtoSchema.methods);
 
     for (let i = 0; i < schemas.length; i += 1) {
       const { constructors, methods } = schemas[i];
 
-      if (constructors) this.put(constructors);
-      if (methods) this.put(methods);
+      if (constructors) this.put(this.layer, constructors);
+      if (methods) this.put(this.layer, methods);
     }
   }
 
   /**
    * Fills map with schema entities
    */
-  put(source: SchemaEntity[]) {
+  put(map: SchemaMap, source: SchemaEntity[]) {
     for (let i = 0; i < source.length; i += 1) {
       const row = source[i];
       const id = +row.id >>> 0;
 
       row.int32 = id;
 
-      if (id) this.schema.set(id, row);
-      if (row.method) this.schema.set(row.method, source[i]);
-      if (row.predicate) this.schema.set(row.predicate, source[i]);
+      if (id) map.set(id, row);
+      if (row.method) map.set(row.method, source[i]);
+      if (row.predicate) map.set(row.predicate, source[i]);
     }
   }
 
@@ -46,8 +52,9 @@ export default class SchemaProvider {
    */
   find(query: string | number): SchemaEntity | undefined {
     if (typeof query === 'number') query >>>= 0;
+    if (typeof query === 'string' && query[0] === '%') query = query.slice(1).toLowerCase();
 
-    return this.schema.get(query) || (typeof query === 'string' ? parse(query) : undefined);
+    return this.mtproto.get(query) || this.layer.get(query) || (typeof query === 'string' ? parse(query) : undefined);
   }
 
   /**
@@ -57,6 +64,6 @@ export default class SchemaProvider {
   define(query: string) {
     const parsed = parse(query);
 
-    if (parsed && parsed.type) this.put([parsed]);
+    if (parsed && parsed.type) this.put(this.layer, [parsed]);
   }
 }

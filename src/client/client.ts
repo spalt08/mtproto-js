@@ -68,6 +68,7 @@ export default class Client {
   /** Creates new client handler */
   constructor(tl: TypeLanguage, cfg: Record<string, any> = {}) {
     this.tl = tl;
+
     this.cfg = { ...defaultClientConfig, ...cfg };
 
     this.dc = new DCService(cfg.meta, (meta) => {
@@ -253,10 +254,9 @@ export default class Client {
     let message: ErrorMessage | EncryptedMessage | Message | PlainMessage = msg;
 
     if (msg instanceof ErrorMessage) {
-      if (msg.error.code === -1) {
+      if (msg.error.code === -1 && this.authState[cfg.dc] !== 1) {
         console.warn('switching auth key for dc', cfg.dc);
         this.dc.setMeta(cfg.dc, 'tempKey', null);
-        this.authorize(cfg.dc);
       }
     }
 

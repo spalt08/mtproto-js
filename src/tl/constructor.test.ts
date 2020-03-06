@@ -85,7 +85,7 @@ test('TLConstructor | parse', () => {
 test('TLConstructor | flags', () => {
   const tl = new TypeLanguage();
 
-  tl.schema.put([
+  tl.schema.put(tl.schema.layer, [
     {
       id: '531836966', int32: 531836966, method: 'help.getNearestDc', params: [], type: 'NearestDc',
     },

@@ -40,7 +40,9 @@ export default class RPCService {
    * Subscribes callback to message identificator
    */
   subscribe(message: Message, dc: number, thread: number, transport: Transports, cb?: RequestCallback) {
-    if (this.requests[message.id]) throw new Error('Message ID already waiting for response');
+    if (this.requests[message.id]) {
+      console.log('Message ID already waiting for response');
+    }
 
     this.requests[message.id] = {
       message,
@@ -57,6 +59,8 @@ export default class RPCService {
    * Call callback due to message id
    */
   emit(id: string, error: ClientError, data?: TLAbstract) {
+    if (!id) return;
+
     if (!this.requests[id]) {
       debug(this.client.cfg, 'unknown request for ', id);
       return;
@@ -114,7 +118,10 @@ export default class RPCService {
   resend(id: string, forceChangeSeq: boolean = false) {
     const request = this.requests[id];
 
-    if (!request) throw new Error(`Cannot resend missing request ${id}`);
+    if (!request) {
+      console.warn(`Cannot resend missing request ${id}`);
+      return;
+    }
 
     request.message.salt = this.client.dc.getSalt(request.dc);
     if (forceChangeSeq) request.message.seqNo = this.client.dc.nextSeqNo(request.dc, true);
@@ -157,6 +164,8 @@ export default class RPCService {
    * Processes RPC response messages
    */
   processMessage(result: TLAbstract, headers: RPCHeaders, ack: boolean = true) {
+    debug(this.client.cfg, headers.dc, '->', result._);
+
     switch (result._) {
       case 'msg_container': this.processMessageContainer(result, headers); break;
       case 'new_session_created': this.processSessionCreated(result, headers); break;

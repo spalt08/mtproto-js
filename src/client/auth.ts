@@ -185,7 +185,7 @@ function authSetClientDHParams(client: ClientInterface, ctx: AuthContext, cb: (_
   const clientDHParams = {
     nonce: ctx.nonce.uint,
     server_nonce: ctx.serverNonce.uint,
-    encrypted_data: encryptedDH.hex,
+    encrypted_data: encryptedDH.raw,
   };
 
   client.plainCall('set_client_DH_params', clientDHParams, ctx, (err, sDH) => {
@@ -317,7 +317,7 @@ export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: Au
     perm_auth_key_id: permAuthKeyID,
     nonce,
     expires_at: expiresAt,
-    encrypted_message: encryptedMsg.buf.hex,
+    encrypted_message: encryptedMsg.buf.raw,
   });
 
   client.call(query, { msgID, dc, force: true }, (err, res) => {
