@@ -64,7 +64,7 @@ export function genPasswordSRP(
   return {
     _: 'inputCheckPasswordSRP',
     srp_id: srpId,
-    A: AcBuf.hex,
-    M1: new Bytes(M1).hex,
+    A: AcBuf.raw,
+    M1: new Bytes(M1).raw,
   };
 }

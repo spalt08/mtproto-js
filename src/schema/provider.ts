@@ -19,8 +19,8 @@ export default class SchemaProvider {
     this.mtproto = new Map();
 
     // default for mtproto schema
-    this.put(this.mtproto, MTProtoSchema.constructors);
-    this.put(this.mtproto, MTProtoSchema.methods);
+    this.put(this.mtproto, MTProtoSchema.constructors as SchemaEntity[]);
+    this.put(this.mtproto, MTProtoSchema.methods as SchemaEntity[]);
 
     for (let i = 0; i < schemas.length; i += 1) {
       const { constructors, methods } = schemas[i];

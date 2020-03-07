@@ -27,5 +27,7 @@ export const Transport = {
 export { default as TypeLanguage } from './tl';
 
 export { Client } from './client';
+export { Transports, ClientError, AuthKey } from './client/types';
+export { TransportState } from './transport/abstract';
 
 export { hex, Bytes } from './serialization';

@@ -2,9 +2,10 @@ import { inflate } from 'pako/lib/inflate';
 import TLAbstract from '../tl/abstract';
 import TLConstructor from '../tl/constructor';
 import TLVector from '../tl/vector';
+import TLBytes from '../tl/bytes';
 import { logs } from '../utils/log';
 import { Message } from '../message';
-import { Bytes, hex } from '../serialization';
+import { Bytes } from '../serialization';
 import {
   RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestCallback, Transports, RequestRPC,
 } from './types';
@@ -81,10 +82,13 @@ export default class RPCService {
     let result = data;
 
     // Ungzip if gzipped
-    if (data instanceof TLConstructor && data._ === 'gzip_packed') {
-      const gz = hex(data.params.packed_data.value);
-      const buffer = new Bytes(inflate(gz.buffer).buffer);
-      result = this.client.tl.parse(buffer);
+    if (data instanceof TLConstructor && data._ === 'gzip_packed' && data.params.packed_data instanceof TLBytes) {
+      const gz = data.params.packed_data.buffer;
+
+      if (gz) {
+        const buffer = new Bytes(inflate(gz.buffer).buffer);
+        result = this.client.tl.parse(buffer);
+      }
     }
 
     if (result instanceof TLConstructor && result.declaration && result.declaration.type === 'Updates') {
@@ -201,9 +205,9 @@ export default class RPCService {
   processGzipped(result: TLAbstract, headers: RPCHeaders) {
     if (result instanceof TLConstructor) {
       try {
-        const gz = hex(result.params.packed_data.value);
+        const bytes = result.params.packed_data as TLBytes;
+        const gz = bytes.buffer as Bytes;
         const buffer = new Bytes(inflate(gz.buffer).buffer);
-
         this.processMessage(this.client.tl.parse(buffer), headers, false);
       } catch (e) {
         console.warn('Unable to decode gzip data', e);
