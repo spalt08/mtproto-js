@@ -91,7 +91,6 @@ export default class Client {
   }
 
   getPasswordKdfAsync(conf: any, password: string, cb: (result: object) => void): void {
-    console.log(conf);
     const srp = genPasswordSRP(
       raw2hex(conf.current_algo.salt1),
       raw2hex(conf.current_algo.salt2),
@@ -257,7 +256,7 @@ export default class Client {
 
     if (msg instanceof ErrorMessage) {
       if (msg.error.code === -1 && this.authState[cfg.dc] !== 1) {
-        console.warn('switching auth key for dc', cfg.dc);
+        console.warn('switching auth key for dc', cfg.dc); // eslint-disable-line no-console
         this.dc.setMeta(cfg.dc, 'tempKey', null);
       }
     }

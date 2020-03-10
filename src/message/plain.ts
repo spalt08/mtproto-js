@@ -3,6 +3,9 @@ import { Bytes } from '../serialization';
 import TLConstructor from '../tl/constructor';
 import { TLNumber } from '../tl';
 
+let lastGeneratedLo = 0;
+let lastGeneratedHi = 0;
+
 /**
  * MessagePlain is a buffer with 20 byte padding, which should not be encrypted.
  * Ref: https://core.telegram.org/mtproto/description#unencrypted-message
@@ -88,6 +91,18 @@ export default class PlainMessage {
     const nanosecond = Math.floor(time % 1000);
     const second = Math.floor(time / 1000);
 
-    return second.toString(16) + `0000${(nanosecond << 20 | nanosecond << 8 | 4).toString(16)}`.slice(-8);
+    let generatedHi = second;
+    let generatedLo = (nanosecond << 20 | nanosecond << 8 | 4);
+
+    // avoid collisions
+    if (lastGeneratedHi > generatedHi || (lastGeneratedHi === generatedHi && lastGeneratedLo >= generatedLo)) {
+      generatedHi = lastGeneratedHi;
+      generatedLo = lastGeneratedLo + 4;
+    }
+
+    lastGeneratedHi = generatedHi;
+    lastGeneratedLo = generatedLo;
+
+    return generatedHi.toString(16) + `0000${generatedLo.toString(16)}`.slice(-8);
   }
 }

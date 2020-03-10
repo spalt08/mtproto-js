@@ -42,7 +42,7 @@ export default class RPCService {
    */
   subscribe(message: Message, dc: number, thread: number, transport: Transports, cb?: RequestCallback) {
     if (this.requests[message.id]) {
-      console.log('Message ID already waiting for response');
+      console.warn('Message ID already waiting for response'); // eslint-disable-line no-console
     }
 
     this.requests[message.id] = {
@@ -123,7 +123,7 @@ export default class RPCService {
     const request = this.requests[id];
 
     if (!request) {
-      console.warn(`Cannot resend missing request ${id}`);
+      console.warn(`Cannot resend missing request ${id}`); // eslint-disable-line no-console
       return;
     }
 
@@ -178,21 +178,23 @@ export default class RPCService {
       case 'msgs_ack': break;
       case 'gzip_packed': this.processGzipped(result, headers); break;
       case 'rpc_result': this.processRPCResult(result, headers); break;
+      case 'msg_detailed_info': break;
 
       default:
+        // send acknowlegment
+        if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
+
         // updates
         if (result instanceof TLConstructor && result.declaration) {
           if (result.declaration.type === 'Updates') {
             this.client.updates.process(result);
+            break;
           }
-
-        // fallback
-        } else {
-          debug(this.client.cfg, headers.dc, '-> unknown %s', result._, result);
         }
 
-        // send acknowlegment
-        if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
+        console.warn('unknown', result._, result); // eslint-disable-line no-console
+        debug(this.client.cfg, headers.dc, '-> unknown %s', result._, result);
+
         break;
     }
 
@@ -210,7 +212,7 @@ export default class RPCService {
         const buffer = new Bytes(inflate(gz.buffer).buffer);
         this.processMessage(this.client.tl.parse(buffer), headers, false);
       } catch (e) {
-        console.warn('Unable to decode gzip data', e);
+        console.warn('Unable to decode gzip data', e); // eslint-disable-line no-console
       }
     }
   }
@@ -291,7 +293,6 @@ export default class RPCService {
     if (res instanceof TLConstructor) {
       const { result } = res.params;
       const reqID = res.params.req_msg_id.buf!.lhex;
-
 
       if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
