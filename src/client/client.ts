@@ -436,7 +436,7 @@ export default class Client {
     msg.salt = this.dc.getSalt(dc);
     msg.sessionID = this.dc.getSessionID(dc);
 
-    this.rpc.subscribe(msg, dc, thread, transport, cb);
+    if (isc) this.rpc.subscribe(msg, dc, thread, transport, cb);
 
     const instance = this.getInstance(transport, dc, thread);
 
