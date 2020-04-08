@@ -32,7 +32,8 @@
         "class-methods-use-this": "off",
         "@typescript-eslint/no-unused-vars": "off",
         "lines-between-class-members": "off",
-        "no-dupe-class-members": "off"
+        "no-dupe-class-members": "off",
+        "no-plusplus": "off"
     },
     "settings": {
       "import/resolver": {

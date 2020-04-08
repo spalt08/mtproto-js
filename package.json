@@ -12,11 +12,11 @@
     "test": "jest"
   },
   "dependencies": {
+    "@cryptography/aes": "^0.1.0",
     "@cryptography/pbkdf2": "^0.1.0",
     "@cryptography/sha1": "^0.1.0",
     "@cryptography/sha256": "^0.1.4",
     "@cryptography/sha512": "^0.1.2",
-    "aes-js": "^3.1.2",
     "big-integer": "^1.6.46",
     "pako": "^1.0.10"
   },
@@ -46,8 +46,10 @@
     "eslint-plugin-react": "^7.16.0",
     "flow-bin": "^0.109.0",
     "jest": "^24.9.0",
+    "jest-environment-node": "^25.3.0",
     "rimraf": "^3.0.1",
     "terser-webpack-plugin": "^2.1.2",
+    "text-encoding": "^0.7.0",
     "ts-jest": "^24.1.0",
     "ts-loader": "^6.2.1",
     "typescript": "^3.7.2",

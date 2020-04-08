@@ -28,6 +28,18 @@ export default class Bytes {
       return;
     }
 
+    if (src instanceof Uint32Array) {
+      this.buffer = new Uint8Array(src.length * 4);
+
+      for (let i = 0; i < src.length; i += 1) {
+        this.buffer[i * 4] = src[i] >>> 24;
+        this.buffer[i * 4 + 1] = (src[i] >>> 16) & 255;
+        this.buffer[i * 4 + 2] = (src[i] >>> 8) & 255;
+        this.buffer[i * 4 + 3] = src[i] & 255;
+      }
+      return;
+    }
+
     if (src instanceof ArrayBuffer) {
       let offset = 0;
       let len = src.byteLength;

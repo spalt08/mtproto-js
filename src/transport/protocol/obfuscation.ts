@@ -1,5 +1,5 @@
 /* eslint-disable new-cap */
-import aesjs from 'aes-js';
+import { CTR } from '@cryptography/aes';
 import { Bytes } from '../../serialization';
 
 /**
@@ -34,8 +34,8 @@ export default class Obfuscation {
     const decIv = reversedPayload.slice(40, 56);
 
     // to do: typing for aesjs
-    this.enc = new aesjs.ModeOfOperation.ctr(encKey.buffer, new aesjs.Counter(encIv.buffer));
-    this.dec = new aesjs.ModeOfOperation.ctr(decKey.buffer, new aesjs.Counter(decIv.buffer));
+    this.enc = new CTR(encKey.buffer, encIv.buffer);
+    this.dec = new CTR(decKey.buffer, decIv.buffer);
 
     const encrypted = new Bytes(this.enc.encrypt(initPayload.buffer));
 

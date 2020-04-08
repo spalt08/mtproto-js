@@ -1,4 +1,3 @@
-declare module 'aes-js'
 
 declare module '*.json' {
   const data: Record<string, any>;
