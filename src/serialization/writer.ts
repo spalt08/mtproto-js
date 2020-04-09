@@ -5,11 +5,11 @@ import { utf8encoder } from './utils';
  */
 export default class Writer32 {
   buf: Uint32Array;
-  private pos: number;
+  pos: number;
 
-  constructor(buf: Uint32Array) {
+  constructor(buf: Uint32Array, start: number = 0) {
     this.buf = buf;
-    this.pos = 0;
+    this.pos = start;
   }
 
   int32(number: number) {
@@ -43,7 +43,7 @@ export default class Writer32 {
     for (let i = 0; i < 2; i++) this.buf[this.pos++] = buf[i];
   }
 
-  bytes(src: ArrayBuffer | SharedArrayBuffer) {
+  bytes(src: ArrayBuffer | SharedArrayBuffer | Uint8Array) {
     const buf = new Uint8Array(src);
     const len = buf.byteLength;
     let i = 0;
@@ -57,9 +57,9 @@ export default class Writer32 {
       ) >>> 0;
     } else {
       this.buf[this.pos++] = (0xFE000000
-        ^ (len >>> 24) << 16
-        ^ ((len >> 16) & 0xFF) << 8
-        ^ ((len >> 8) & 0xFF)
+        ^ (len & 0xFF) << 16
+        ^ ((len >> 8) & 0xFF) << 8
+        ^ ((len >> 16) & 0xFF)
       ) >>> 0;
     }
 

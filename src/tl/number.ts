@@ -1,4 +1,4 @@
-import { Bytes } from '../serialization';
+import { Reader32, Writer32 } from '../serialization';
 import TLAbstract from './abstract';
 
 /**
@@ -44,24 +44,32 @@ export default class TLNumber extends TLAbstract {
   /**
    * Method reads part of buffer
    */
-  read(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
-    this.buf = buf.slice(offset, offset + this.byteSize);
-    this.value = this.buf.uint;
-
-    return offset + this.byteSize;
+  read(reader: Reader32) {
+    switch (this._) {
+      case 'int': this.value = reader.int32(); break;
+      case 'int64': this.value = reader.int64(); break;
+      case 'int128': this.value = reader.int128() as any; break;
+      case 'int256': this.value = reader.int256() as any; break;
+      case 'long': this.value = reader.long(); break;
+      case 'double': this.value = reader.double(); break;
+      default:
+        throw new Error(`TypeLanguage: Unknown number ${this._}`);
+    }
   }
 
   /**
    * Method writes part of buffer
    */
-  write(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
-    this.buf = buf.slice(offset, offset + this.byteSize);
-    this.buf.uint = this.value;
-
-    return offset + this.byteSize;
+  write(writer: Writer32) {
+    switch (this._) {
+      case 'int': writer.int32(this.value as number); break;
+      case 'int64': writer.int64(this.value as string); break;
+      case 'int128': writer.int128(this.value as any); break;
+      case 'int256': writer.int256(this.value as any); break;
+      case 'long': writer.long(this.value as string); break;
+      case 'double': writer.long(this.value as string); break;
+      default:
+        throw new Error(`TypeLanguage: Unknown number ${this._}`);
+    }
   }
 }

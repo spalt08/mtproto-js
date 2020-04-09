@@ -1,4 +1,4 @@
-import { Bytes } from '../serialization';
+import { Bytes, Reader32, Writer32 } from '../serialization';
 
 /** Abstract class for any type language constructor */
 export default class TLAbstract {
@@ -40,29 +40,21 @@ export default class TLAbstract {
   /**
    * Method reads part of buffer
    */
-  read(buf: Bytes, offset: number = 0): number {
+  read(reader: Reader32) {
     if (this.buf) throw new Error('Buffer already allocated');
 
     if (this.byteSize > 0) {
-      this.buf = buf.slice(offset, offset + this.byteSize);
-      this.value = this.buf.raw;
+      this.value = reader.int32();
     }
-
-    return offset + this.byteSize;
   }
 
   /**
    * Method writes part of buffer
    */
-  write(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
+  write(writer: Writer32) {
     if (this.byteSize > 0) {
-      this.buf = buf.slice(offset, offset + this.byteSize);
-      this.buf.raw = this.value;
+      writer.int32(this.value);
     }
-
-    return offset + this.byteSize;
   }
 
   /**

@@ -1,11 +1,16 @@
 import TLFlags from './flags';
-import Bytes from '../serialization/bytes';
+import { Reader32, Writer32 } from '../serialization';
 
 test('TLFlags | read', () => {
-  const data = new Bytes(new Uint8Array([10, 0, 0, 0]));
-
   const flags = new TLFlags();
-  flags.read(data, 0);
+
+  flags.read(
+    new Reader32(
+      new Uint32Array([
+        0x0a000000,
+      ]),
+    ),
+  );
 
   expect(flags.value).toBe(10);
   expect(flags.has(0)).toBe(false);
@@ -15,7 +20,7 @@ test('TLFlags | read', () => {
 });
 
 test('TLFlags | write', () => {
-  const empty = new Bytes(4);
+  const empty = new Writer32(new Uint32Array(1));
 
   const flags = new TLFlags();
 
@@ -23,7 +28,7 @@ test('TLFlags | write', () => {
   flags.set(4); // 16
   flags.set(8); // 256
 
-  flags.write(empty, 0);
+  flags.write(empty);
 
-  expect(empty.hex).toBe('14010000');
+  expect(empty.buf[0]).toBe(0x14010000);
 });

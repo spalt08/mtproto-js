@@ -760,9 +760,9 @@
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/@cryptography/sha1/-/sha1-0.1.0.tgz#ea3ef75b467d6fb45e963b80f999c92729efe793"
 
-"@cryptography/sha256@^0.1.4":
-  version "0.1.4"
-  resolved "https://registry.yarnpkg.com/@cryptography/sha256/-/sha256-0.1.4.tgz#bf0e6d5d995ac45b7a0491ad3c9eede2182f682d"
+"@cryptography/sha256@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@cryptography/sha256/-/sha256-0.2.0.tgz#45d785be6b5928fd44ab59465ef3d6f611769215"
 
 "@cryptography/sha512@^0.1.2":
   version "0.1.2"

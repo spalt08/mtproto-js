@@ -1,26 +1,26 @@
-import { Bytes } from '../../serialization';
-import Intermediate from './intermediate';
+import { randomize } from '../../serialization';
+import { wrap, unWrap } from './intermediate';
 
-test('transport | intermediate short', () => {
-  const protocol = new Intermediate();
-  const payload = new Bytes(40);
-  payload.randomize();
+test('transport | intermediate', () => {
+  const payload = new Uint32Array(10);
+  randomize(payload);
 
-  const enveloped = protocol.wrap(payload);
-  expect(enveloped.hex).toEqual(`28000000${payload.hex}`);
+  const enveloped = wrap(payload);
+  expect(enveloped[0]).toEqual(0x28000000);
+  expect(enveloped.subarray(1)).toEqual(payload);
 
-  const unenveloped = protocol.unWrap(enveloped);
-  expect(unenveloped.hex).toEqual(payload.hex);
+  const unenveloped = unWrap(enveloped);
+  expect(unenveloped).toEqual(payload);
 });
 
 test('transport | intermediate long', () => {
-  const protocol = new Intermediate();
-  const payload = new Bytes(1032);
-  payload.randomize();
+  const payload = new Uint32Array(258);
+  randomize(payload);
 
-  const enveloped = protocol.wrap(payload);
-  expect(enveloped.hex).toEqual(`08040000${payload.hex}`);
+  const enveloped = wrap(payload);
+  expect(enveloped[0]).toEqual(0x08040000);
+  expect(enveloped.subarray(1)).toEqual(payload);
 
-  const unenveloped = protocol.unWrap(enveloped);
-  expect(unenveloped.hex).toEqual(payload.hex);
+  const unenveloped = unWrap(enveloped);
+  expect(unenveloped).toEqual(payload);
 });

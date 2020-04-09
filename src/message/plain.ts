@@ -1,7 +1,5 @@
 /* eslint-disable no-mixed-operators */
-import { Bytes } from '../serialization';
-import TLConstructor from '../tl/constructor';
-import { TLNumber } from '../tl';
+import { Writer32, Reader32, i2h } from '../serialization';
 
 let lastGeneratedLo = 0;
 let lastGeneratedHi = 0;
@@ -12,75 +10,87 @@ let lastGeneratedHi = 0;
  */
 export default class PlainMessage {
   /** Byte data source of message */
-  buf: Bytes;
+  buf: Uint32Array;
+
+  _writer: Writer32;
+  _reader: Reader32;
 
   /** Length of message headers */
-  hlen = 20;
+  hlen = 5;
 
   /** Message nonce */
-  nonce: string = '';
+  nonce: Uint32Array;
 
   /**
    * Creates new Bytes object from:
    * - AraryBuffer
    * - TLConstructor
    */
-  constructor(src: Bytes | TLConstructor) {
-    if (src instanceof Bytes) {
-      this.buf = src;
-      this.nonce = this.buf.slice(24, 40).hex;
-      return;
-    }
+  constructor(src: Uint32Array, shouldWrap: boolean = false) {
+    this.buf = src;
 
-    if (src instanceof TLConstructor) {
-      this.buf = new Bytes(this.hlen + src.byteSize);
-      src.write(this.buf, this.hlen);
-
-      this.id = PlainMessage.GenerateID();
+    if (shouldWrap) {
+      this.buf = new Uint32Array(this.hlen + src.length);
+      this._writer = new Writer32(this.buf);
       this.len();
 
-      const { nonce } = src.params;
-      if (nonce && nonce instanceof TLNumber && nonce.buf) this.nonce = nonce.buf.hex;
-
-      return;
+      for (let i = 0; i < src.length; i++) this.buf[this.hlen + i] = src[i];
+    } else {
+      this.buf = src;
+      this._writer = new Writer32(this.buf);
     }
 
-    throw new Error(`Unable to create message with ${src}`);
+    this._reader = new Reader32(this.buf);
+    this._reader.pos = 6;
+    this.nonce = this._reader.int128();
   }
 
   /**
    * Method sets message identificator it to the 8-16 bytes
    */
   set id(id: string) {
-    this.buf.slice(8, 16).lhex = id;
+    this._writer.pos = 2;
+    this._writer.long(id);
   }
 
   /**
    * Method gets message identificator from the 8-16 bytes
    */
   get id(): string {
-    return this.buf.slice(8, 16).lhex;
+    this._reader.pos = 2;
+    return this._reader.long();
   }
 
   /**
    * Method sets 16-20 bytes with message_data_length
    */
   len(): void {
-    this.buf.slice(16, 20).uint = this.buf.length - this.hlen;
+    this._writer.pos = 4;
+    this._writer.int32((this.buf.length - this.hlen) * 4);
+  }
+
+
+  /**
+   * Method gets writer for buffer
+   */
+  get writer(): Writer32 {
+    this._writer.pos = this.hlen;
+    return this._writer;
   }
 
   /**
-   * Method sets encrypted_data from 20 byte
+   * Method gets reader for buffer
    */
-  set data(data: Bytes) {
-    this.buf.slice(20).raw = data.raw;
+  get reader(): Reader32 {
+    this._reader.pos = this.hlen;
+    return this._reader;
   }
 
   /**
-   * Method gets encrypted_data starts 20 byte
+   * Method gets encrypted_data starts 32 byte
    */
-  get data(): Bytes {
-    return this.buf.slice(20);
+  get data(): Uint32Array {
+    return this.buf.subarray(this.hlen);
   }
 
   /**
@@ -103,6 +113,6 @@ export default class PlainMessage {
     lastGeneratedHi = generatedHi;
     lastGeneratedLo = generatedLo;
 
-    return generatedHi.toString(16) + `0000${generatedLo.toString(16)}`.slice(-8);
+    return i2h(generatedHi) + i2h(generatedLo);
   }
 }

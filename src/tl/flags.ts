@@ -3,7 +3,7 @@ import TLNumber from './number';
 /** Represents flags handler for constructor */
 export default class TLFlags extends TLNumber {
   /** Type language notation name */
-  _: string = 'flags';
+  _: string = 'int';
 
   /** Stored value */
   value: number = 0;

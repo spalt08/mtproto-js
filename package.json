@@ -15,7 +15,7 @@
     "@cryptography/aes": "^0.1.0",
     "@cryptography/pbkdf2": "^0.1.0",
     "@cryptography/sha1": "^0.1.0",
-    "@cryptography/sha256": "^0.1.4",
+    "@cryptography/sha256": "^0.2.0",
     "@cryptography/sha512": "^0.1.2",
     "big-integer": "^1.6.46",
     "pako": "^1.0.10"

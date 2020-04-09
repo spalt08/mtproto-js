@@ -1,10 +1,7 @@
 // @flow
 
 import TLAbstract from './abstract';
-import { Bytes } from '../serialization';
-
-const TL_TRUE = 'b5757299';
-const TL_FALSE = '379779bc';
+import { Reader32, Writer32 } from '../serialization';
 
 /** TLBoolean is a param constructor view for message buffer */
 export default class TLBoolean extends TLAbstract {
@@ -49,28 +46,18 @@ export default class TLBoolean extends TLAbstract {
   /**
    * Method reads part of buffer
    */
-  read(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
+  read(reader: Reader32) {
     if (this.byteSize > 0) {
-      this.buf = buf.slice(offset, offset + this.byteSize);
-      this.value = this.buf.hex === TL_TRUE;
+      this.value = reader.bool();
     }
-
-    return offset + this.byteSize;
   }
 
   /**
    * Method writes part of buffer
    */
-  write(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
+  write(writer: Writer32) {
     if (this.byteSize > 0) {
-      this.buf = buf.slice(offset, offset + this.byteSize);
-      this.buf.hex = this.value === true ? TL_TRUE : TL_FALSE;
+      writer.bool(this.value === true);
     }
-
-    return offset + this.byteSize;
   }
 }

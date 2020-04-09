@@ -1,7 +1,4 @@
-export { default as IntermediatePadded } from './intermediate_padded';
-export { default as Intermediate } from './intermediate';
-export { default as Abridged } from './abridged';
-export { default as Full } from './full';
+export { wrap, unWrap, HEADER } from './intermediate';
 export { default as Obfuscation } from './obfuscation';
 
-export type MTProtoTransport = 'abridged' | 'intermediate' | 'intermediate_padded' | 'full';
+export type MTProtoTransport = 'intermediate'; // deprecated: | 'abridged' |'intermediate_padded' | 'full';

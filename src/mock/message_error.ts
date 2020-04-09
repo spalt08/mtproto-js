@@ -1,3 +1,1 @@
-import { hex } from '../serialization';
-
-export default hex('53feffff');
+export default new Uint32Array([0x53feffff]);

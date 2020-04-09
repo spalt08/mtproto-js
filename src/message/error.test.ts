@@ -1,11 +1,7 @@
 /* eslint-disable max-len */
-import ErrorMessage from './message';
+import ErrorMessage from './error';
 
 test('message | error message create', () => {
-  try {
-    // @ts-ignore
-    new ErrorMessage(); // eslint-disable-line
-  } catch (e) {
-    expect(e.message).toBe('Unable to create message with undefined');
-  }
+  const err = new ErrorMessage(0x53feffff);
+  expect(err.error.code).toBe(404);
 });

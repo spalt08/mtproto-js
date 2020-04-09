@@ -9,9 +9,7 @@ const defaultOptions = {
 /**
  * Decrypts cipher text with AES-256-IGE mode.
  */
-export function decrypt(text: Bytes | string, key: Bytes, iv: Bytes, _options: Record<string, any> = defaultOptions): Bytes {
-  const cipher = new IGE(key.buffer, iv.buffer);
-  return new Bytes(cipher.decrypt(typeof text === 'string' ? text : text.buffer));
+export function decrypt(text: Bytes | string, key: Bytes, iv: Bytes, _options: Record<string, any> = defaultOptions): Bytes {c
 }
 
 /**

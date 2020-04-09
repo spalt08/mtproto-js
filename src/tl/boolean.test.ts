@@ -1,36 +1,25 @@
 import TLBoolean from './boolean';
-import hex from '../serialization/hex';
-import Bytes from '../serialization/bytes';
+import { Reader32, Writer32 } from '../serialization';
 
 test('TLBoolean | read', () => {
-  const data = hex('00b575729900');
-
   const tl = new TLBoolean('Bool');
-  tl.read(data, 1);
 
-  expect(tl.value).toBe(true);
+  tl.read(
+    new Reader32(
+      new Uint32Array([
+        0xb5757299,
+      ]),
+    ),
+  );
 
-  const tl2 = new TLBoolean('true', false, true);
-  tl2.read(data, 1);
-
-  expect(tl2.value).toBe(false);
+  expect(tl.value).toBeTruthy();
 });
 
 test('TLBoolean | write', () => {
-  const empty = new Bytes(6);
+  const empty = new Writer32(new Uint32Array(1));
 
   const tl = new TLBoolean('Bool', true);
-  tl.write(empty, 1);
+  tl.write(empty);
 
-  expect(empty.hex).toBe('00b575729900');
-
-  const tl2 = new TLBoolean('Bool');
-  tl2.write(empty, 1);
-
-  expect(empty.hex).toBe('00379779bc00');
-
-  const tl3 = new TLBoolean('true', true, true);
-  tl3.write(empty, 1);
-
-  expect(empty.hex).toBe('00379779bc00');
+  expect(empty.buf[0]).toEqual(0xb5757299);
 });

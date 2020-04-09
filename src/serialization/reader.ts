@@ -5,11 +5,11 @@ import { i2h, utf8decoder } from './utils';
  */
 export default class Reader32 {
   private buf: Uint32Array;
-  private pos: number;
+  pos: number;
 
-  constructor(buf: Uint32Array) {
+  constructor(buf: Uint32Array, start: number = 0) {
     this.buf = buf;
-    this.pos = 0;
+    this.pos = start;
   }
 
   int32() {
@@ -44,9 +44,20 @@ export default class Reader32 {
   }
 
   double() {
-    const buf = new Float64Array(this.buf.subarray(this.pos, this.pos + 2));
     this.pos += 2;
-    return buf[0];
+
+    const int8 = new Uint8Array([
+      this.buf[this.pos - 2] >>> 24,
+      (this.buf[this.pos - 2] >> 16) & 0xFF,
+      (this.buf[this.pos - 2] >> 8) & 0xFF,
+      (this.buf[this.pos - 2]) & 0xFF,
+      this.buf[this.pos - 1] >>> 24,
+      (this.buf[this.pos - 1] >> 16) & 0xFF,
+      (this.buf[this.pos - 1] >> 8) & 0xFF,
+      (this.buf[this.pos - 1]) & 0xFF,
+    ]);
+
+    return new Float64Array(int8.buffer)[0];
   }
 
   bytes() {
@@ -86,5 +97,9 @@ export default class Reader32 {
 
   bool() {
     return this.int32() === 0x997275b5;
+  }
+
+  rollback() {
+    this.pos--;
   }
 }

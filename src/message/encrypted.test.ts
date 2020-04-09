@@ -1,33 +1,65 @@
-/* eslint-disable max-len */
 import EncryptedMessage from './encrypted';
-import { hex, Bytes } from '../serialization';
+import { Reader32, Writer32 } from '../serialization';
+
+test('message | encrypted parse', () => {
+  const data = new Uint32Array([
+    0xc18c59d4, 0xd3b6809d, 0x15f5716b, 0xaed3fca1, 0x2432ef57, 0x54dab007, 0xd9913153, 0xe4d91685, 0x223c44de, 0xd7038708,
+    0x4792d25e, 0xabc00fed, 0x0552ac04, 0x09930e8b,
+  ]);
+
+  const msg = new EncryptedMessage(data);
+
+  expect(msg.authKey).toBe('9d80b6d3d4598cc1');
+  expect(msg.key).toEqual(data.subarray(2, 6));
+
+  expect(msg.reader instanceof Reader32).toBeTruthy();
+  expect(msg.writer instanceof Writer32).toBeTruthy();
+});
 
 test('message | encrypted create', () => {
-  const data = new Bytes(32);
+  const data = new Uint32Array([
+    0xd9913153, 0xe4d91685, 0x223c44de, 0xd7038708,
+    0x4792d25e, 0xabc00fed, 0x0552ac04, 0x09930e8b,
+  ]);
 
-  data.randomize();
+  const msg = new EncryptedMessage(data, true);
 
-  const authKey = hex('0102030405060708').raw;
-  const msgKey = hex('fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0').raw;
+  msg.authKey = '9d80b6d3d4598cc1';
+  msg.key = new Uint32Array([0x15f5716b, 0xaed3fca1, 0x2432ef57, 0x54dab007]);
 
-  const msg = new EncryptedMessage(data.length);
-
-  msg.authKey = authKey;
-  msg.key = msgKey;
-  msg.data = data;
-
-  expect(msg.buf.length).toBe(24 + data.length);
-
-  expect(msg.buf.slice(0, 8).raw).toEqual(authKey);
-  expect(msg.buf.slice(8, 24).raw).toEqual(msgKey);
-  expect(msg.buf.slice(24).hex).toEqual(data.hex);
+  expect(msg.buf).toEqual(
+    new Uint32Array([
+      0xc18c59d4, 0xd3b6809d, 0x15f5716b, 0xaed3fca1, 0x2432ef57, 0x54dab007, 0xd9913153, 0xe4d91685, 0x223c44de, 0xd7038708,
+      0x4792d25e, 0xabc00fed, 0x0552ac04, 0x09930e8b,
+    ]),
+  );
 });
 
 test('message | decrypt', () => {
-  const data = hex('505e0d0a1e4b12fcfe178abbebbbf1f7e501af6e0338c1cc59d44475d70ea76ad28f9a8b87e644620577572003c2bf22cb69e57fb1947956efc04e63c4e2f1a4ea5f500d3282deb339d6617a8192be5a3de91fc2a6c674d020222aff6bbeefaa0940371d48cf10d729d3673103fb05f29df3a0c5f1ffd1837e8ef1a53405adb979a3e17169b9a8e5c751784b74b35475d4e7cd28626344c2776cf070343349477bd3a145206e07eb');
-  const msg = new EncryptedMessage(data);
-  const key = '56a0f05d8df1b0ff4d3c17515f3f3d133a17717aa053a709bb30db9f62ddac6591950fb5c3e042aa5988f11aa81a874aacf09679c5efa787b08e1ba416cc5f00010cc765393e9379a2ad8abf30db102c0d78551b4a34bf4135788e2448855bea978b48dbd901c143e5b53ce38eee7a31556f5f20f440e55aa08291283b768cf81e49153e45f79b9b9bbae28de7cedae5ce470273d4ee4dca4bce3d42549d2c9a4e6a4e02f12a52fc85e7de2e2dca42838f1e368b3e0121f063ff020edb0846660e802b565c2b4fc587496cf34bee44652e24da7400b191bf23573d54354bc9784a9aefd292476fd597b7dd3af5d390e1132f6f4de9cd411d2ec8927460ccba5b';
-  const decrypted = '8df55eb2ff2bfb31dfe57cf2c92a629c015cda873537245e0200000058000000dcf8f173020000000174d9873537245e010000001c0000000809c29e04c5500c3537245efed9f752cceb4c988df55eb2ff2bfb310154da873537245e020000001400000059b4d66215c4b51c0100000004c5500c3537245ed06c04d8c6caac8f3cc6b63f1ba9f484ff48da89f5d4591d';
+  const data = new Uint32Array([
+    0x505e0d0a, 0x1e4b12fc, 0xfe178abb, 0xebbbf1f7, 0xe501af6e, 0x0338c1cc, 0x59d44475, 0xd70ea76a, 0xd28f9a8b, 0x87e64462, 0x05775720,
+    0x03c2bf22, 0xcb69e57f, 0xb1947956, 0xefc04e63, 0xc4e2f1a4, 0xea5f500d, 0x3282deb3, 0x39d6617a, 0x8192be5a, 0x3de91fc2, 0xa6c674d0,
+    0x20222aff, 0x6bbeefaa, 0x0940371d, 0x48cf10d7, 0x29d36731, 0x03fb05f2, 0x9df3a0c5, 0xf1ffd183, 0x7e8ef1a5, 0x3405adb9, 0x79a3e171,
+    0x69b9a8e5, 0xc751784b, 0x74b35475, 0xd4e7cd28, 0x626344c2, 0x776cf070, 0x34334947, 0x7bd3a145, 0x206e07eb,
+  ]);
 
-  expect(msg.decrypt(key).buf.hex).toEqual(decrypted);
+  const key = new Uint32Array([
+    0x56a0f05d, 0x8df1b0ff, 0x4d3c1751, 0x5f3f3d13, 0x3a17717a, 0xa053a709, 0xbb30db9f, 0x62ddac65, 0x91950fb5, 0xc3e042aa, 0x5988f11a,
+    0xa81a874a, 0xacf09679, 0xc5efa787, 0xb08e1ba4, 0x16cc5f00, 0x010cc765, 0x393e9379, 0xa2ad8abf, 0x30db102c, 0x0d78551b, 0x4a34bf41,
+    0x35788e24, 0x48855bea, 0x978b48db, 0xd901c143, 0xe5b53ce3, 0x8eee7a31, 0x556f5f20, 0xf440e55a, 0xa0829128, 0x3b768cf8, 0x1e49153e,
+    0x45f79b9b, 0x9bbae28d, 0xe7cedae5, 0xce470273, 0xd4ee4dca, 0x4bce3d42, 0x549d2c9a, 0x4e6a4e02, 0xf12a52fc, 0x85e7de2e, 0x2dca4283,
+    0x8f1e368b, 0x3e0121f0, 0x63ff020e, 0xdb084666, 0x0e802b56, 0x5c2b4fc5, 0x87496cf3, 0x4bee4465, 0x2e24da74, 0x00b191bf, 0x23573d54,
+    0x354bc978, 0x4a9aefd2, 0x92476fd5, 0x97b7dd3a, 0xf5d390e1, 0x132f6f4d, 0xe9cd411d, 0x2ec89274, 0x60ccba5b,
+  ]);
+
+  const msg = new EncryptedMessage(data);
+
+  expect(msg.decrypt(key).buf).toEqual(
+    new Uint32Array([
+      0x8df55eb2, 0xff2bfb31, 0xdfe57cf2, 0xc92a629c, 0x015cda87, 0x3537245e, 0x02000000, 0x58000000, 0xdcf8f173, 0x02000000, 0x0174d987,
+      0x3537245e, 0x01000000, 0x1c000000, 0x0809c29e, 0x04c5500c, 0x3537245e, 0xfed9f752, 0xcceb4c98, 0x8df55eb2, 0xff2bfb31, 0x0154da87,
+      0x3537245e, 0x02000000, 0x14000000, 0x59b4d662, 0x15c4b51c, 0x01000000, 0x04c5500c, 0x3537245e, 0xd06c04d8, 0xc6caac8f, 0x3cc6b63f,
+      0x1ba9f484, 0xff48da89, 0xf5d4591d,
+    ]),
+  );
 });

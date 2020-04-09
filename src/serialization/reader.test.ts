@@ -41,3 +41,36 @@ test('serialization | reader32 string', () => {
 
   expect(reader.int32()).toBe(0x40);
 });
+
+test('serialization | reader32 int256', () => {
+  const buffer = new Uint32Array([
+    0x73756d20, 0x646f6c6f, 0x72207369, 0x7420616d,
+    0x65742c20, 0x636f6e73, 0x65637465, 0x74757220,
+  ]);
+
+  const reader = new Reader32(buffer);
+
+  expect(reader.int256()).toEqual(buffer);
+});
+
+test('serialization | reader32 bool', () => {
+  const buffer = new Uint32Array([
+    0xb5757299, 0x37bc7997,
+  ]);
+
+  const reader = new Reader32(buffer);
+
+  expect(reader.bool()).toEqual(true);
+  expect(reader.bool()).toEqual(false);
+});
+
+
+// test('serialization | reader32 double', () => {
+//   const buffer = new Uint32Array([
+//     0x3F880000, 0x00000000,
+//   ]);
+
+//   const reader = new Reader32(buffer);
+
+//   expect(reader.double()).toEqual(1.72325e-319);
+// });

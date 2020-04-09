@@ -1,6 +1,6 @@
-/* eslint-disable new-cap */
+/* eslint-disable prefer-destructuring */
 import { CTR } from '@cryptography/aes';
-import { Bytes } from '../../serialization';
+import { randomize, reverse32 } from '../../serialization';
 
 /**
  * Obfuscation for MTProto Transport Protocol
@@ -8,38 +8,41 @@ import { Bytes } from '../../serialization';
  */
 export default class Obfuscation {
   /** Encription Cipher */
-  enc: any;
+  enc?: CTR;
 
   /** Decription Cipher */
-  dec: any;
+  dec?: CTR;
 
   /**
    * Creates initialization payload for establishing web-socket connection
    */
-  init(header: string): Bytes {
-    const dcID = 'feff';
-    const initPayload = new Bytes(64);
+  init(header: number, randomized?: Uint32Array): Uint32Array {
+    let initPayload;
 
-    initPayload.randomize();
-    initPayload.buffer[0] = 0xFF;
-    initPayload.slice(60, 62).hex = dcID;
+    if (randomized) initPayload = randomized;
+    else {
+      initPayload = new Uint32Array(16);
+      randomize(initPayload);
+      initPayload[0] = 0xFFABCDEF; // avoid collisions
+    }
 
-    if (header.length > 0) initPayload.slice(56, 60).hex = header;
+    if (header) initPayload[14] = header;
 
-    const reversedPayload = initPayload.reverse();
+    const reversedPayload = reverse32(initPayload);
 
-    const encKey = initPayload.slice(8, 40);
-    const encIv = initPayload.slice(40, 56);
-    const decKey = reversedPayload.slice(8, 40);
-    const decIv = reversedPayload.slice(40, 56);
+    const encKey = initPayload.subarray(2, 10);
+    const encIv = initPayload.slice(10, 14);
+    const decKey = reversedPayload.slice(2, 10);
+    const decIv = reversedPayload.slice(10, 14);
 
     // to do: typing for aesjs
-    this.enc = new CTR(encKey.buffer, encIv.buffer);
-    this.dec = new CTR(decKey.buffer, decIv.buffer);
+    this.enc = new CTR(encKey, encIv);
+    this.dec = new CTR(decKey, decIv);
 
-    const encrypted = new Bytes(this.enc.encrypt(initPayload.buffer));
+    const encrypted = this.enc.encrypt(initPayload);
 
-    initPayload.slice(56).raw = encrypted.slice(56).raw;
+    initPayload[14] = encrypted[14];
+    initPayload[15] = encrypted[15];
 
     return initPayload;
   }
@@ -47,15 +50,17 @@ export default class Obfuscation {
   /**
    * Obfuscates data
    */
-  encode(payload: Bytes): Bytes {
-    return new Bytes(this.enc.encrypt(payload.buffer));
+  encode(payload: string | Uint32Array | Uint8Array): Uint32Array {
+    if (!this.enc) throw new Error('Must init first');
+    return this.enc.encrypt(payload);
   }
 
 
   /**
    * Decodes obfuscated data
    */
-  decode(data: Bytes): Bytes {
-    return new Bytes(this.dec.encrypt(data.buffer));
+  decode(data: string | Uint32Array | Uint8Array): Uint32Array {
+    if (!this.dec) throw new Error('Must init first');
+    return this.dec.encrypt(data);
   }
 }

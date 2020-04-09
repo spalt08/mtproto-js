@@ -1,6 +1,6 @@
 /* eslint-disable import/no-cycle */
 import { SchemaEntity, SchemaProvider } from '../schema';
-import { Bytes } from '../serialization';
+import { Reader32, Writer32 } from '../serialization';
 import TLAbstract from './abstract';
 import TLFlags from './flags';
 import resolve from './resolve';
@@ -84,22 +84,15 @@ export default class TLConstructor extends TLAbstract {
   /**
    * Method reads part of buffer
    */
-  read(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
-    let nextOffset = offset;
-
+  read(reader: Reader32) {
     // read constructor id
     if (!this.isBare) {
-      const cID = buf.slice(nextOffset, nextOffset + 4).int32;
+      const cID = reader.int32();
       this.fetch(this.schema.find(cID));
     }
-
-    nextOffset = this.isBare ? nextOffset : nextOffset + 4;
-
     // read flags
     if (this.flags != null) {
-      nextOffset = this.flags.read(buf, nextOffset);
+      this.flags.read(reader);
     }
 
     // read params
@@ -120,35 +113,24 @@ export default class TLConstructor extends TLAbstract {
 
         // other params
         if (!paramHandler.isOptional || (this.flags !== null && this.flags.has(paramHandler.flagIndex))) {
-          nextOffset = paramHandler.read(buf, nextOffset);
+          paramHandler.read(reader);
         }
       }
     }
-
-    this.buf = buf.slice(offset, offset + this.byteSize);
-
-    return nextOffset;
   }
 
   /**
    * Method writes part of buffer
    */
-  write(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
-    this.buf = buf.slice(offset, offset + this.byteSize);
-
-    let nextOffset = offset;
-
+  write(writer: Writer32) {
     // write constructor id
     if (!this.isBare && this.declaration) {
-      this.buf.slice(0, 4).int32 = this.declaration.int32;
-      nextOffset += 4;
+      writer.int32(this.declaration.int32);
     }
 
     // write flags
     if (this.flags !== null) {
-      nextOffset = this.flags.write(buf, nextOffset);
+      this.flags.write(writer);
     }
 
     // write params
@@ -165,13 +147,11 @@ export default class TLConstructor extends TLAbstract {
         }
 
         if (!paramHandler.isOptional || paramHandler.hasValue()) {
-          nextOffset = paramHandler.write(buf, nextOffset);
+          paramHandler.write(writer);
           if (this.flags !== null) this.flags.set(paramHandler.flagIndex);
         }
       }
     }
-
-    return nextOffset;
   }
 
   /**
@@ -262,11 +242,11 @@ export default class TLConstructor extends TLAbstract {
   /**
    * Method creates new buffer and writes data to it
    */
-  serialize(): Bytes {
-    const buf = new Bytes(this.byteSize);
-    this.write(buf, 0);
+  serialize(): Uint32Array {
+    const writer = new Writer32(new Uint32Array(Math.ceil(this.byteSize / 4)));
+    this.write(writer);
 
-    return buf;
+    return writer.buf;
   }
 
   /**

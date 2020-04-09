@@ -1,6 +1,6 @@
 /* eslint-disable import/no-cycle */
 import { SchemaProvider } from '../schema';
-import { Bytes } from '../serialization';
+import { Reader32, Writer32 } from '../serialization';
 import TLAbstract from './abstract';
 import resolve from './resolve';
 
@@ -73,24 +73,25 @@ export default class TLVector extends TLAbstract {
   /**
    * Method reads part of buffer
    */
-  read(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
+  read(reader: Reader32) {
     this.items = [];
 
+    let length = reader.int32();
+
     // check bareness
-    if (!this.isBare && buf.slice(offset, offset + 4).int32 !== TLVector.ConstructorNumber) this.isBare = true;
-
-    let nextOffset = offset + (this.isBare ? 0 : 4);
-    this._byteSize = this.isBare ? 4 : 8;
-
-    const length = buf.slice(nextOffset, nextOffset + 4).int32;
-    nextOffset += 4;
+    if (!this.isBare && length !== TLVector.ConstructorNumber) {
+      this.isBare = true;
+    } else {
+      length = reader.int32();
+    }
 
     // check for inner type
     if (!this.itemDeclaration && length > 0) {
-      const innerID = buf.slice(nextOffset, nextOffset + 4).int32;
+      const innerID = reader.int32();
       const declaration = this.schema.find(innerID);
+
+      reader.rollback();
+
       if (declaration && declaration.id) {
         this.itemDeclaration = declaration.predicate || declaration.method || '';
         this._ = `Vector<${this.itemDeclaration}>`;
@@ -102,42 +103,28 @@ export default class TLVector extends TLAbstract {
       const item = this.createItem();
 
       if (item) {
-        nextOffset = item.read(buf, nextOffset);
+        item.read(reader);
         this._byteSize += item.byteSize;
         this.items.push(item);
       }
     }
-
-    this.buf = buf.slice(offset, offset + this._byteSize);
-
-    return nextOffset;
   }
 
   /**
    * Method writes part of buffer
    */
-  write(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
-    this.buf = buf.slice(offset, offset + this.byteSize);
-
-    let nextOffset = 0;
-
+  write(writer: Writer32) {
     // write constructor id
     if (!this.isBare) {
-      this.buf.slice(0, 4).int32 = TLVector.ConstructorNumber;
-      nextOffset += 4;
+      writer.int32(TLVector.ConstructorNumber);
     }
 
     // write length
-    this.buf.slice(nextOffset, nextOffset + 4).int32 = this.items.length;
-    nextOffset = offset + nextOffset + 4;
+    writer.int32(this.items.length);
 
     for (let i = 0; i < this.items.length; i += 1) {
-      nextOffset = this.items[i].write(buf, nextOffset);
+      this.items[i].write(writer);
     }
-
-    return nextOffset;
   }
 
   /**

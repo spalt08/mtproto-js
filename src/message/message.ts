@@ -1,11 +1,9 @@
 import sha256 from '@cryptography/sha256';
-import sha1 from '@cryptography/sha1';
+import { IGE } from '@cryptography/aes';
 import PlainMessage from './plain';
 // eslint-disable-next-line
 import EncryptedMessage from './encrypted';
-import TLConstructor from '../tl/constructor';
-import { Bytes, hex } from '../serialization';
-import { encrypt } from '../crypto/ige';
+import { Writer32, Reader32, randomize } from '../serialization';
 
 /**
  * Message is a buffer with 32 byte padding, which should be encrypted.
@@ -13,10 +11,13 @@ import { encrypt } from '../crypto/ige';
  */
 export default class Message {
   /** Byte data source of message */
-  buf: Bytes;
+  buf: Uint32Array;
+
+  _writer: Writer32;
+  _reader: Reader32;
 
   /** Length of message headers */
-  hlen = 32;
+  hlen = 8;
 
   /** Padding length */
   plen: number = 0;
@@ -26,106 +27,123 @@ export default class Message {
 
   /**
    * Creates new Bytes object from:
-   * - AraryBuffer
-   * - TLConstructor
+   * - Uint32Array
    */
-  constructor(src: Bytes | TLConstructor) {
-    if (src instanceof Bytes) {
-      this.buf = src;
-      return;
-    }
+  constructor(src: Uint32Array, shouldWrap: boolean = false) {
+    if (shouldWrap) {
+      this.plen = this.getPaddingLen(src.length);
+      this.buf = new Uint32Array(this.hlen + src.length + this.plen);
+      this._writer = new Writer32(this.buf);
 
-    if (src instanceof TLConstructor) {
-      this.plen = this.getPaddingLen(src.byteSize);
-      this.buf = new Bytes(this.hlen + src.byteSize + this.plen);
-      src.write(this.buf, this.hlen);
-
-      this.id = Message.GenerateID();
       this.len();
       this.padding();
-      return;
+      for (let i = 0; i < src.length; i++) this.buf[this.hlen + i] = src[i];
+    } else {
+      this.buf = src;
+      this._writer = new Writer32(this.buf);
     }
 
-    throw new Error(`Unable to create message with ${src}`);
+    this._reader = new Reader32(this.buf);
   }
 
-  // eslint-disable-next-line
   getPaddingLen(len: number) {
-    return 32 - (len % 16); // + Math.floor(Math.random() * 20) * 16;
+    return 8 - (len % 4);
   }
+
+  // // eslint-disable-next-line
+  // getPaddingLen(len: number) {
+  //   return 32 - (len % 16); // + Math.floor(Math.random() * 20) * 16;
+  // }
 
   /**
    * Method sets message identificator it to the 16-24 bytes
    */
   set id(id: string) {
-    this.buf.slice(16, 24).lhex = id;
+    this._writer.pos = 4;
+    this._writer.long(id);
   }
 
   /**
    * Method gets message identificator from the 16-24 bytes
    */
   get id(): string {
-    return this.buf.slice(16, 24).lhex;
+    this._reader.pos = 4;
+    return this._reader.long();
   }
 
   /**
    * Method sets 28-32 bytes with message_data_length
    */
   len(): void {
-    this.buf.slice(28, 32).int32 = this.buf.length - this.hlen - this.plen;
+    this._writer.pos = 7;
+    this._writer.int32((this.buf.length - this.hlen - this.plen) * 4);
   }
 
   get dataLength(): number {
-    return this.buf.slice(28, 32).int32;
+    this._reader.pos = 7;
+    return this._reader.int32() / 4;
   }
 
   /**
    * Method sets first 8 bytes with salt header
    */
   set salt(salt: string) {
-    this.buf.slice(0, 8).hex = salt;
+    this._writer.pos = 0;
+    this._writer.long(salt);
   }
 
   /**
    * Method sets second 8-16 bytes with session_id header
    */
   set sessionID(sid: string) {
-    this.buf.slice(8, 16).hex = sid;
+    this._writer.pos = 2;
+    this._writer.long(sid);
   }
 
   /**
    * Method sets 24-28 bytes with seq_no header
    */
   set seqNo(seq: number) {
-    this.buf.slice(24, 28).int32 = seq;
+    this._writer.pos = 6;
+    this._writer.int32(seq);
   }
 
   /**
    * Method gets 24-28 bytes with seq_no header
    */
   get seqNo(): number {
-    return this.buf.slice(24, 28).int32;
+    this._reader.pos = 6;
+    return this._reader.int32();
   }
 
   /**
-   * Method sets encrypted_data from 32 byte
+   * Method gets writer for buffer
    */
-  set data(data: Bytes) {
-    this.buf.slice(32, 32 + this.dataLength).raw = data.raw;
+  get writer(): Writer32 {
+    this._writer.pos = this.hlen;
+    return this._writer;
+  }
+
+  /**
+   * Method gets reader for buffer
+   */
+  get reader(): Reader32 {
+    this._reader.pos = this.hlen;
+    return this._reader;
   }
 
   /**
    * Method gets encrypted_data starts 32 byte
    */
-  get data(): Bytes {
-    return this.buf.slice(32, 32 + this.dataLength);
+  get data(): Uint32Array {
+    return this.buf.subarray(this.hlen, this.hlen + this.dataLength);
   }
 
   /**
    * Method sets padding bytes with random data
    */
   padding() {
-    this.buf.slice(this.buf.length - this.plen).randomize();
+    randomize(this.buf, this.buf.length - this.plen);
   }
 
   /**
@@ -139,31 +157,30 @@ export default class Message {
    * Encrypts MessageData object with AES-256-IGE mode.
    * https://core.telegram.org/mtproto/description#protocol-description
    */
-  encrypt(authKey: string): EncryptedMessage {
-    const key = hex(authKey);
-    const data = this.buf;
-    const msgKeyLarge = sha256(key.slice(88, 120).raw + data.raw);
-    const msgKey = msgKeyLarge.slice(8, 24);
-    const sha256a = sha256(msgKey + key.slice(0, 36).raw);
-    const sha256b = sha256(key.slice(40, 76).raw + msgKey);
+  encrypt(key: Uint32Array, authKeyID: string): EncryptedMessage {
+    const msgKeyLarge = sha256.stream().update(key.subarray(22, 30)).update(this.buf).digest();
+    const msgKey = msgKeyLarge.subarray(2, 6);
+    const sha256a = sha256.stream().update(msgKey).update(key.subarray(0, 9)).digest();
+    const sha256b = sha256.stream().update(key.subarray(10, 19)).update(msgKey).digest();
 
-    const aesKey = new Bytes(32);
-    aesKey.slice(0, 8).raw = sha256a.slice(0, 8);
-    aesKey.slice(8, 24).raw = sha256b.slice(8, 24);
-    aesKey.slice(24, 32).raw = sha256a.slice(24, 32);
+    const a2 = sha256a[2];
+    const a3 = sha256a[3];
+    const a4 = sha256a[4];
+    const a5 = sha256a[5];
 
-    const aesIv = new Bytes(32);
-    aesIv.slice(0, 8).raw = sha256b.slice(0, 8);
-    aesIv.slice(8, 24).raw = sha256a.slice(8, 24);
-    aesIv.slice(24, 32).raw = sha256b.slice(24, 32);
+    for (let i = 2; i < 6; i++) sha256a[i] = sha256b[i];
 
-    const encryptedData = encrypt(data, aesKey, aesIv);
+    sha256b[2] = a2;
+    sha256b[3] = a3;
+    sha256b[4] = a4;
+    sha256b[5] = a5;
 
-    const encMsg = new EncryptedMessage(encryptedData.length);
+    const cipher = new IGE(sha256a, sha256b);
+    const encrypted = cipher.encrypt(this.buf);
+    const encMsg = new EncryptedMessage(encrypted, true);
 
-    encMsg.authKey = sha1(key.raw).slice(12, 20);
+    encMsg.authKey = authKeyID;
     encMsg.key = msgKey;
-    encMsg.data = encryptedData;
 
     return encMsg;
   }

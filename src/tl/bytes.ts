@@ -1,4 +1,4 @@
-import { Bytes } from '../serialization';
+import { Reader32, Writer32 } from '../serialization';
 import TLAbstract from './abstract';
 
 /**
@@ -18,25 +18,10 @@ export default class TLBytes extends TLAbstract {
   _: string = 'bytes';
 
   /** Stored value */
-  _value: string = '';
+  value: any = ''; // string | ArrayBuffer = '';
 
   length: number = 0;
   padLength: number = 0;
-
-  get value() {
-    if (this.buf && !this._value) {
-      if (this._ === 'string') {
-        try {
-          this.value = decodeURIComponent(escape(this.buf.slice(this.padLength, this.padLength + this.length).raw));
-        } catch (e) {
-          throw new Error(`Unable to decode string value: ${e.toString()}`);
-        }
-      } else {
-        this.value = this.buf.slice(this.padLength, this.padLength + this.length).raw;
-      }
-    }
-    return this._value;
-  }
 
   get buffer() {
     if (this.buf) {
@@ -44,10 +29,6 @@ export default class TLBytes extends TLAbstract {
     }
 
     return undefined;
-  }
-
-  set value(data: string) {
-    this._value = data;
   }
 
   /**
@@ -97,73 +78,16 @@ export default class TLBytes extends TLAbstract {
   /**
    * Method reads part of buffer
    */
-  read(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
-    const fb = buf.buffer[offset];
-    let tlen = 0;
-    let len = 0;
-
-    if (fb < 0xFE) {
-      len = fb;
-      tlen = 1;
-    } else {
-      len = buf.slice(offset + 1, offset + 4).uint as number;
-      tlen = 4;
-    }
-
-    this.padLength = tlen;
-    this.length = len;
-
-    this._byteSize = tlen + len;
-    if (this._byteSize % 4) this._byteSize += 4 - (this._byteSize % 4);
-
-    this.buf = buf.slice(offset, offset + this._byteSize);
-
-    return offset + this._byteSize;
+  read(reader: Reader32) {
+    if (this._ === 'string') this.value = reader.string();
+    else this.value = reader.bytes();
   }
 
   /**
    * Method writes part of buffer
    */
-  write(buf: Bytes, offset: number = 0): number {
-    if (this.buf) throw new Error('Buffer already allocated');
-
-    let tlen = 0;
-    let len = 0;
-    let unescaped = '';
-
-    if (this._ === 'string') {
-      unescaped = unescape(encodeURIComponent(this.value));
-      len = this.value ? unescaped.length : 0;
-    } else {
-      len = this.value.length || 0;
-    }
-
-    if (len < 0xFE) {
-      tlen = 1;
-    } else {
-      tlen = 4;
-    }
-
-    this._byteSize = tlen + len;
-    if (this._byteSize % 4) this._byteSize += 4 - (this._byteSize % 4);
-
-    this.buf = buf.slice(offset, offset + this._byteSize);
-
-    if (tlen === 1) {
-      this.buf.slice(0, 1).uint = len;
-    } else {
-      this.buf.slice(0, 1).uint = 0xFE;
-      this.buf.slice(1, 4).uint = len;
-    }
-
-    if (this._ === 'string') {
-      this.buf.slice(tlen, tlen + len).raw = unescaped;
-    } else {
-      this.buf.slice(tlen, tlen + len).raw = this.value;
-    }
-
-    return offset + this._byteSize;
+  write(writer: Writer32) {
+    if (this._ === 'string') writer.string(this.value);
+    else writer.bytes(this.value);
   }
 }

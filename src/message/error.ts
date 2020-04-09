@@ -8,24 +8,21 @@ type ErrorDetails = {
 
 export default class ErrorMessage {
   /** Packet hex to error message */
-  static Errors: Record<string, ErrorDetails> = {
-    '53feffff': {
+  static Errors: Record<number, ErrorDetails> = {
+    0xfffffe53: {
       code: 404,
       message: 'Invalid packet was sent',
     },
-    '6cfeffff': {
+    0xfffffe6c: {
       code: -1,
       message: 'Invalid auth key',
     },
   };
 
-  /** List of possbile packets */
-  static ErrorList: string[] = Object.keys(ErrorMessage.Errors);
-
   /** Details of received error */
   error: ErrorDetails;
 
-  constructor(err: string) {
+  constructor(err: number) {
     this.error = ErrorMessage.Errors[err];
   }
 }

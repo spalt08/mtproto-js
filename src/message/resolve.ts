@@ -1,32 +1,29 @@
-import { Bytes } from '../serialization';
 import ErrorMessage from './error';
 import EncryptedMessage from './encrypted';
 import PlainMessage from './plain';
+import { Reader32 } from '../serialization';
 
 // eight zero bytes
-const zeroAuthKey = new Bytes(8).uint;
+const zeroAuthKey = '0000000000000000';
 
-export default function bytesToMessage(data: Bytes): ErrorMessage | EncryptedMessage | PlainMessage {
+export default function bytesToMessage(data: Uint32Array): ErrorMessage | EncryptedMessage | PlainMessage {
+  const reader = new Reader32(data);
+
   // error message
-  if (data.length <= 4) {
-    const error = data.hex;
+  if (data.length <= 1) {
+    const error = reader.int32();
 
-    if (ErrorMessage.ErrorList.indexOf(error) !== -1) {
+    if (ErrorMessage.Errors[error]) {
       return new ErrorMessage(error);
     }
 
-    throw new Error(`Unexpected message: ${data.hex}`);
+    throw new Error(`Unexpected message: ${error.toString(16)}`);
   }
 
   // plain message
-  if (data.slice(0, 8).uint === zeroAuthKey) {
+  if (reader.long() === zeroAuthKey) {
     return new PlainMessage(data);
   }
-
-  // encrypted message: remove possible padding
-  let len = data.length;
-  len = len % 16 === 8 ? len : len - 16 + (len % 16);
-  len = len % 16 === 0 ? len + 8 : len;
 
   return new EncryptedMessage(data);
 }

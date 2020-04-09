@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 
 import TypeLanguage from './tl';
-import { hex, hex2raw } from '../serialization';
+import { hex, Reader32 } from '../serialization';
 import { TLConstructor } from '.';
 
 const tl = new TypeLanguage();
@@ -34,7 +34,12 @@ test('TypeLanguage | create', () => {
 
 
 test('TypeLanguage | parse', () => {
-  const data = hex('632416053E0549828CCA27E966B301A48FECE2FCA5CF4D33F4A11EA877BA4AA5739073300817ED48941A08F98100000015C4B51C01000000216BE86C022BB4C3');
+  const data = new Reader32(
+    new Uint32Array([
+      0x63241605, 0x3E054982, 0x8CCA27E9, 0x66B301A4, 0x8FECE2FC, 0xA5CF4D33, 0xF4A11EA8, 0x77BA4AA5, 0x73907330,
+      0x0817ED48, 0x941A08F9, 0x81000000, 0x15C4B51C, 0x01000000, 0x216BE86C, 0x022BB4C3,
+    ]),
+  );
 
   const res = tl.parse(data);
 
@@ -42,9 +47,6 @@ test('TypeLanguage | parse', () => {
   expect(res instanceof TLConstructor).toEqual(true);
 
   if (res instanceof TLConstructor) {
-    expect(res.params.nonce.value).toEqual(hex('3E0549828CCA27E966B301A48FECE2FC').uint);
-    expect(res.params.server_nonce.value).toEqual(hex('A5CF4D33F4A11EA877BA4AA573907330').uint);
-    expect(res.params.pq.value).toEqual(hex2raw('17ed48941a08f981'));
-    expect(res.params.server_public_key_fingerprints.value).toEqual([hex('216BE86C022BB4C3').uint]);
+    expect(res.params.server_public_key_fingerprints.value).toEqual(['c3b42b026ce86b21']);
   } else throw new Error('expected constructor');
 });
