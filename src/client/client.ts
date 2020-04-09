@@ -2,18 +2,12 @@ import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
 import Transport, { TransportConfig, TransportState } from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
-import {
-  Message, PlainMessage, EncryptedMessage, ErrorMessage,
-} from '../message';
-import {
-  createAuthKey, bindTempAuthKey, initConnection, transferAuthorization,
-} from './auth';
+import { Message, PlainMessage, EncryptedMessage, ErrorMessage } from '../message';
+import { createAuthKey, bindTempAuthKey, initConnection, transferAuthorization } from './auth';
 import RPCService from './rpc';
 import UpdatesService from './updates';
 import { genPasswordSRP } from '../crypto/srp';
-import {
-  ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey, Transports,
-} from './types';
+import { ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey, Transports } from './types';
 import { MTProtoTransport } from '../transport/protocol';
 import { logs } from '../utils/log';
 import { raw2hex } from '../serialization';
@@ -262,7 +256,7 @@ export default class Client {
     }
 
     if (msg instanceof EncryptedMessage) {
-      const authKey = this.dc.getAuthKey(cfg.dc);
+      const authKey = this.dc.keys[cfg.dc];
       if (!authKey) throw new Error(`Unable to decrypt message without auth key (dc: ${cfg.dc}`);
       message = msg.decrypt(authKey.key);
     }
@@ -279,12 +273,12 @@ export default class Client {
     let id = '';
 
     if (message instanceof PlainMessage || message instanceof Message) {
-      result = this.tl.parse(message.data);
+      result = this.tl.parse(message.reader);
       id = message.id;
     }
 
     if (message instanceof PlainMessage) {
-      const { nonce } = message;
+      const nonce = JSON.stringify(message.nonce);
       const request = this.plainRequests[nonce];
       delete this.plainRequests[nonce];
 
@@ -324,7 +318,7 @@ export default class Client {
       if (typeof args[0] === 'function') cb = args[0] as RequestCallback;
       if (typeof args[1] === 'function') cb = args[1] as RequestCallback;
     } else if (src instanceof TLConstructor) {
-      msg = new PlainMessage(src);
+      msg = new PlainMessage(src.serialize(), true);
 
       if (typeof args[0] === 'object') headers = args[0] as Record<string, any>;
       if (typeof args[0] === 'function') cb = args[0] as RequestCallback;
@@ -335,7 +329,8 @@ export default class Client {
       if (typeof args[0] === 'object') data = args[0] as Record<string, any>;
 
       msg = new PlainMessage(
-        this.tl.create(src, data),
+        this.tl.create(src, data).serialize(),
+        true,
       );
 
       if (typeof args[1] === 'object') headers = args[1] as Record<string, any>;
@@ -352,7 +347,7 @@ export default class Client {
 
     // Resolve plain message
     if (cb) {
-      this.plainRequests[msg.nonce] = {
+      this.plainRequests[JSON.stringify(msg.nonce)] = {
         dc,
         thread,
         transport,
@@ -366,10 +361,10 @@ export default class Client {
 
   /** Encrypt message */
   encrypt(msg: Message, dc: number): EncryptedMessage {
-    const authKey = this.dc.getAuthKey(dc);
+    const authKey = this.dc.keys[dc];
     if (!authKey) throw new Error(`Unable to encrypt message without auth key (dc: ${dc}`);
 
-    const encrypted = msg.encrypt(authKey.key);
+    const encrypted = msg.encrypt(authKey.key, authKey.id);
 
     encrypted.isContentRelated = msg.isContentRelated;
 
@@ -394,7 +389,7 @@ export default class Client {
       if (typeof args[0] === 'function') cb = args[0] as RequestCallback;
       if (typeof args[1] === 'function') cb = args[1] as RequestCallback;
     } else if (src instanceof TLConstructor) {
-      msg = new Message(src);
+      msg = new Message(src.serialize(), true);
 
       if (src._ === 'msgs_ack' || src._ === 'http_wait') isc = false;
 
@@ -407,7 +402,8 @@ export default class Client {
       if (typeof args[0] === 'object') data = args[0] as Record<string, any>;
 
       msg = new Message(
-        this.tl.create(src, data),
+        this.tl.create(src, data).serialize(),
+        true,
       );
 
       if (src === 'msgs_ack' || src === 'http_wait') isc = false;

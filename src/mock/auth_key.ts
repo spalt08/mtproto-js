@@ -1,7 +1,7 @@
 import { AuthKey } from '../client/types';
 
 const key: AuthKey = {
-  key: 'abc',
+  key: '0102030405060708',
   id: 'abc',
 };
 

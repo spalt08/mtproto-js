@@ -5,10 +5,8 @@ import TLVector from '../tl/vector';
 import TLBytes from '../tl/bytes';
 import { logs } from '../utils/log';
 import { Message } from '../message';
-import { Bytes } from '../serialization';
-import {
-  RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestCallback, Transports, RequestRPC,
-} from './types';
+import { ab2i, Reader32 } from '../serialization';
+import { RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestCallback, Transports, RequestRPC } from './types';
 
 const debug = (cfg: ClientConfig, ...rest: any[]) => {
   if (cfg.debug) logs('rpc')(...rest);
@@ -83,11 +81,11 @@ export default class RPCService {
 
     // Ungzip if gzipped
     if (data instanceof TLConstructor && data._ === 'gzip_packed' && data.params.packed_data instanceof TLBytes) {
-      const gz = data.params.packed_data.buffer;
+      const gz = new Uint8Array(data.params.packed_data.value);
 
       if (gz) {
-        const buffer = new Bytes(inflate(gz.buffer).buffer);
-        result = this.client.tl.parse(buffer);
+        const reader = new Reader32(ab2i(inflate(gz).buffer));
+        result = this.client.tl.parse(reader);
       }
     }
 
@@ -207,10 +205,9 @@ export default class RPCService {
   processGzipped(result: TLAbstract, headers: RPCHeaders) {
     if (result instanceof TLConstructor) {
       try {
-        const bytes = result.params.packed_data as TLBytes;
-        const gz = bytes.buffer as Bytes;
-        const buffer = new Bytes(inflate(gz.buffer).buffer);
-        this.processMessage(this.client.tl.parse(buffer), headers, false);
+        const gz = new Uint8Array(result.params.packed_data.value);
+        const reader = new Reader32(ab2i(inflate(gz).buffer));
+        this.processMessage(this.client.tl.parse(reader), headers, false);
       } catch (e) {
         console.warn('Unable to decode gzip data', e); // eslint-disable-line no-console
       }
@@ -226,11 +223,11 @@ export default class RPCService {
         const item = result.params.messages.items[i];
 
         if (item instanceof TLConstructor) {
-          this.ackMsg(headers.transport, headers.dc, headers.thread, item.params.msg_id.buf!.lhex);
+          this.ackMsg(headers.transport, headers.dc, headers.thread, item.params.msg_id.value);
 
           this.processMessage(item.params.body, {
             ...headers,
-            id: item.params.msg_id.buf!.lhex,
+            id: item.params.msg_id.value,
           }, false);
         }
       }
@@ -246,8 +243,8 @@ export default class RPCService {
     if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
     if (result instanceof TLConstructor) {
-      const msgID = result.params.bad_msg_id.buf!.lhex;
-      const newSalt = result.params.new_server_salt.buf!.hex;
+      const msgID = result.params.bad_msg_id.value;
+      const newSalt = result.params.new_server_salt.value;
 
       this.client.dc.setMeta(headers.dc, 'salt', newSalt);
       this.resend(msgID);
@@ -273,11 +270,11 @@ export default class RPCService {
    */
   processBadMsgNotification(result: TLAbstract, headers: RPCHeaders) {
     if (result instanceof TLConstructor) {
-      debug(this.client.cfg, headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.buf!.lhex, result.params.error_code.value, 'sec:',
+      debug(this.client.cfg, headers.dc, '-> bad_msg_notification', result.params.bad_msg_id.value, result.params.error_code.value, 'sec:',
         result.params.bad_msg_seqno.value);
 
       if (result.params.error_code.value === 32) {
-        this.resend(result.params.bad_msg_id.buf!.lhex, true);
+        this.resend(result.params.bad_msg_id.value, true);
       }
 
       // To Do: sync server time
@@ -292,7 +289,7 @@ export default class RPCService {
   processRPCResult(res: TLAbstract, headers: RPCHeaders) {
     if (res instanceof TLConstructor) {
       const { result } = res.params;
-      const reqID = res.params.req_msg_id.buf!.lhex;
+      const reqID = res.params.req_msg_id.value;
 
       if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 

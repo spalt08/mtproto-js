@@ -5,18 +5,24 @@ import { Message } from '../message';
 
 test('rpc service | common', () => {
   const service = new RPCService(client);
+  let raised = 0;
+
   const id = '51e57ac42770964a';
-  const msg = new Message(client.tl.create('help.getNearestDc'));
-  let fetched = false;
+  const dc = 1;
+  const thread = 1;
+  const transport = 'websocket';
+  const msg = new Message(client.tl.create('help.getNearestDc').serialize(), true);
   msg.id = id;
 
-  service.subscribe(msg, 1, 1, 'websocket', (err, result) => {
-    fetched = true;
+  // listen server answer
+  service.subscribe(msg, dc, thread, transport, (err, result) => {
+    raised++;
 
     if (err || !result) throw new Error('Expected result');
     expect(result._).toBe('nearestDc');
   });
 
+  // emulate response
   const result = client.tl.create('rpc_result', {
     req_msg_id: id,
     result: {
@@ -36,6 +42,6 @@ test('rpc service | common', () => {
     transport: 'websocket',
   });
 
-  expect(fetched).toBeTruthy();
+  expect(raised).toBe(1);
   expect(service.requests).toStrictEqual({});
 });

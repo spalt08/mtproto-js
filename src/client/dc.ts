@@ -26,9 +26,18 @@ export default class DCService {
   /** Datacenter meta data */
   meta: ClientMeta = {};
 
+  /** Datacenter auth keys */
+  keys: Record<number, { key: Uint32Array, id: string }> = {};
+
   constructor(initial: ClientMeta, callback?: MetaUpdateCallback) {
     this.meta = initial;
     this.callback = callback;
+
+    // eslint-disable-next-line guard-for-in, no-restricted-syntax
+    for (const dc in this.meta) {
+      const key = this.meta[dc].tempKey;
+      if (key) this.cacheKey(+dc, key);
+    }
   }
 
   /** Resolve hostname by dc id */
@@ -46,6 +55,7 @@ export default class DCService {
 
     this.meta[dc][param] = value;
 
+    if (param === 'tempKey') this.cacheKey(dc, value);
     if (this.callback) this.callback(this.meta);
   }
 
@@ -64,31 +74,43 @@ export default class DCService {
   }
 
   getAuthKey(dc: number): AuthKey {
-    if (!this.meta[dc]) return null;
+    if (!this.meta[dc]) this.meta[dc] = {};
     if (!this.meta[dc].tempKey) return null;
 
     return this.meta[dc].tempKey as AuthKey;
   }
 
   getPermKey(dc: number): AuthKey {
-    if (!this.meta[dc]) return null;
+    if (!this.meta[dc]) this.meta[dc] = {};
     if (!this.meta[dc].permKey) return null;
 
     return this.meta[dc].permKey as AuthKey;
   }
 
   getUserID(dc: number): number | null {
-    if (!this.meta[dc]) return null;
+    if (!this.meta[dc]) this.meta[dc] = {};
     if (!this.meta[dc].userID) return null;
 
     return this.meta[dc].userID as number;
   }
 
   getConnectionStatus(dc: number): boolean {
-    if (!this.meta[dc]) return false;
+    if (!this.meta[dc]) this.meta[dc] = {};
     if (!this.meta[dc].connectionInited) return false;
 
     return this.meta[dc].connectionInited as boolean;
+  }
+
+  cacheKey(dc: number, key: AuthKey) {
+    if (!key) return;
+
+    const key32 = new Uint32Array(key.key.length / 8);
+    for (let i = 0; i < key32.length; i++) key32[i] = +`0x${key.key.slice(i * 8, i * 8 + 8)}`;
+
+    this.keys[dc] = {
+      key: key32,
+      id: key.id,
+    };
   }
 
   /**

@@ -1,5 +1,5 @@
 import sha1 from '@cryptography/sha1';
-import { Bytes, hex2raw } from '../../serialization';
+import { Reader32 } from '../../serialization';
 import TLConstructor from '../../tl/constructor';
 import SchemaProvider from '../../schema/provider';
 
@@ -18,36 +18,38 @@ export function parseKey(key: string): RSAKey {
   if (!matches) throw new Error(`RSA Key: Unable to parse key \n ${key}`);
 
   const keyType = matches[1];
-  const raw = atob(matches[2].trim());
+  const buf = Uint8Array.from(atob(matches[2].trim()), (char) => char.charCodeAt(0));
 
-  const buf = new Bytes(raw.length);
-  buf.raw = raw;
-
-  let n: string; let e: string;
+  let n: Uint8Array; let e: Uint8Array;
 
   switch (keyType) {
     case 'RSA PUBLIC KEY':
-      n = buf.slice(9, 265).hex;
-      e = buf.slice(buf.length - 3).hex;
+      n = buf.slice(9, 265);
+      e = buf.slice(buf.byteLength - 3);
       break;
 
     case 'PUBLIC KEY':
-      n = buf.slice(33, 289).hex;
-      e = buf.slice(buf.length - 3).hex;
+      n = buf.slice(33, 289);
+      e = buf.slice(buf.byteLength - 3);
       break;
 
     default:
       throw new Error(`RSA Key: Unknown key format ${keyType}`);
   }
 
-  const tlKey = new TLConstructor('rsa_public_key n:bytes e:bytes = RSAPublicKey', new SchemaProvider(), true, { n: hex2raw(n), e: hex2raw(e) });
+  const tlKey = new TLConstructor('rsa_public_key n:bytes e:bytes = RSAPublicKey', new SchemaProvider(), true, { n: n.buffer, e: e.buffer });
+  const keyHash = sha1(tlKey.serialize());
+  const reader = new Reader32(keyHash, 3);
 
-  const keyHash = new Bytes(sha1(tlKey.serialize().raw));
+  let nhex = '';
+  let ehex = '';
+  for (let i = 0; i < n.length; i++) nhex += `0${n[i].toString(16)}`.slice(-2);
+  for (let i = 0; i < e.length; i++) ehex += `0${e[i].toString(16)}`.slice(-2);
 
   return {
-    fingerprint: keyHash.slice(keyHash.length - 8).hex,
-    n,
-    e,
+    fingerprint: reader.long(),
+    n: nhex,
+    e: ehex,
   };
 }
 
