@@ -8788,7 +8788,7 @@ export interface ConstructorDeclMap {
 /* METHODS */
 
 export type Req_pq = {
-  nonce: string,
+  nonce: Uint32Array,
 };
 
 export type Req_pq_multi = {

@@ -30,7 +30,7 @@ export function genPasswordSRP(
   let pwdhash;
   pwdhash = sha256(clientSalt.raw + password + clientSalt.raw);
   pwdhash = sha256(serverSalt.raw + pwdhash + serverSalt.raw);
-  pwdhash = pbkdf2(pwdhash, clientSalt.raw, 100000, 64, sha512);
+  pwdhash = pbkdf2(pwdhash as any, clientSalt.raw, 100000, 64, sha512);
   pwdhash = new Bytes(sha256(serverSalt.raw + pwdhash + serverSalt.raw));
 
   const x = BigInt(pwdhash.hex, 16);

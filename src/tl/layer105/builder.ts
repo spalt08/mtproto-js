@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase, @typescript-eslint/no-use-before-define */
 
-import { MethodDeclMap } from './types';
+import { Writer32 } from '../../serialization';
 
 /**
  * This file was automatically generated (https://github.com/misupov/tg-schema-generator).
@@ -12,26 +12,13 @@ import { MethodDeclMap } from './types';
  * Time: Thursday, 09 April 2020 07:57:16 (UTC)
  */
 
-interface Writer {
-  int32(value: number) : void;
-  int64(value: string): void;
-  int128(value: Uint32Array): void;
-  int256(value: Uint32Array): void;
-  double(value: number): void;
-  string(value: string): void;
-  bytes(value: ArrayBuffer | SharedArrayBuffer | Uint8Array): void;
-}
+const sharedBuffer = new Uint32Array(256);
+const w = new Writer32(sharedBuffer);
 
-let w: Writer;
-
-type AnyMethod = keyof MethodDeclMap;
-type AnyMethodParams = {
-  [K in AnyMethod]: { _: K } & MethodDeclMap[K]['req']
-}[AnyMethod];
-
-export default function build(writer: Writer, o: AnyMethodParams) {
-  w = writer;
-  return obj(o);
+export default function build(o: any): Uint32Array {
+  w.pos = 0;
+  obj(o);
+  return w.buf.subarray(0, w.pos);
 }
 
 const _resPQ = (o: any) => {

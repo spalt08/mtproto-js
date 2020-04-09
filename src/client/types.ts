@@ -1,6 +1,6 @@
 import { MTProtoTransport } from '../transport/protocol';
-import TypeLanguage, { TLConstructor, TLAbstract } from '../tl';
-import { Message, PlainMessage } from '../message';
+import TypeLanguage, { TLConstructor, TLAbstract, MethodDeclMap } from '../tl';
+import { Message } from '../message';
 
 /** Authorization key info with PFS */
 export type AuthKey = null | {
@@ -71,6 +71,9 @@ export type ClientError = {
 /** Request callback */
 export type RequestCallback = (error: ClientError | null, result?: undefined | TLAbstract) => void;
 
+/** Request callback */
+export type PlainCallback<K extends keyof MethodDeclMap> = (error: ClientError | null, result?: MethodDeclMap[K]['res']) => void;
+
 /** DCService interface to avoid dependency cycle */
 export interface DCServiceInterface {
   setMeta(dc: number, param: 'userID', value: number): void;
@@ -92,10 +95,8 @@ export interface ClientInterface {
   tl: TypeLanguage;
   dc: DCServiceInterface;
   updates: UpdateServiceInterface;
-  plainCall(src: TLConstructor | PlainMessage, cb: RequestCallback): void;
-  plainCall(src: TLConstructor | PlainMessage, headers: Record<string, any>, cb: RequestCallback): void;
-  plainCall(method: string, data: Record<string, any>, cb: RequestCallback): void;
-  plainCall(method: string, data: Record<string, any>, headers: Record<string, any>, cb: RequestCallback): void;
+  plainCall<K extends keyof MethodDeclMap>(data: { _: K } & MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
+  plainCall<K extends keyof MethodDeclMap>(data: { _: K } & MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
   call(src: TLConstructor | Message, cb?: RequestCallback): void;
   call(src: TLConstructor | Message, headers: Record<string, any>, cb?: RequestCallback): void;
   call(method: string, data: Record<string, any>, cb?: RequestCallback): void;
@@ -124,4 +125,11 @@ export type RPCHeaders = {
   dc: number,
   thread: number,
   transport: string,
+};
+
+export type CallHeaders = {
+  dc?: number,
+  thread?: number,
+  transport?: Transports,
+  msgID?: string,
 };
