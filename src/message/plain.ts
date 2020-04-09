@@ -1,5 +1,5 @@
 /* eslint-disable no-mixed-operators */
-import { Writer32, Reader32, i2h } from '../serialization';
+import { Writer32, Reader32, i2h, i2ab } from '../serialization';
 
 let lastGeneratedLo = 0;
 let lastGeneratedHi = 0;
@@ -114,5 +114,9 @@ export default class PlainMessage {
     lastGeneratedLo = generatedLo;
 
     return i2h(generatedHi) + i2h(generatedLo);
+  }
+
+  get arrayBuffer(): ArrayBuffer | SharedArrayBuffer {
+    return i2ab(this.buf);
   }
 }

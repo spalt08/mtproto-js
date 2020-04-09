@@ -63,3 +63,17 @@ test('message | decrypt', () => {
     ]),
   );
 });
+
+test('message | encrypted array buffer', () => {
+  const data = new Uint32Array([
+    0xd9913153, 0xe4d91685, 0x223c44de, 0xd7038708,
+    0x4792d25e, 0xabc00fed, 0x0552ac04, 0x09930e8b,
+  ]);
+
+  const msg = new EncryptedMessage(data);
+  const buffer = msg.arrayBuffer;
+
+  expect(buffer.byteLength).toEqual(data.byteLength);
+  expect(new Uint8Array(buffer)[0]).toBe(0xd9);
+  expect(new Uint8Array(buffer)[buffer.byteLength - 1]).toBe(0x8b);
+});

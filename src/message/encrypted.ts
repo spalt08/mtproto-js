@@ -3,7 +3,7 @@ import sha256 from '@cryptography/sha256';
 import { IGE } from '@cryptography/aes';
 // eslint-disable-next-line import/no-cycle
 import Message from './message';
-import { Writer32, Reader32 } from '../serialization';
+import { Writer32, Reader32, i2ab } from '../serialization';
 
 /**
  * MessageEncrypted is a buffer with 24 byte padding, which has been encrypted.
@@ -114,5 +114,9 @@ export default class EncryptedMessage {
 
     const cipher = new IGE(sha256a, sha256b);
     return new Message(cipher.decrypt(this.data));
+  }
+
+  get arrayBuffer(): ArrayBuffer | SharedArrayBuffer {
+    return i2ab(this.buf);
   }
 }

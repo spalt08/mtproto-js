@@ -1,24 +1,12 @@
 /* eslint-disable no-restricted-globals */
 import Transport, { TransportConfig, TransportCallback, TransportState } from './abstract';
 import { logs } from '../utils/log';
-import { Bytes } from '../serialization';
-import {
-  PlainMessage,
-  bytesToMessage,
-  EncryptedMessage,
-} from '../message';
-import {
-  Abridged,
-  Intermediate,
-  IntermediatePadded,
-  Full,
-  Obfuscation,
-} from './protocol';
+import { i2ab, ab2i } from '../serialization';
+import { PlainMessage, bytesToMessage, EncryptedMessage } from '../message';
+import { wrap, unWrap, HEADER, Obfuscation } from './protocol';
 
 /** Configuration object for WebSocket transport */
-type SocketConfig = TransportConfig & {
-  protocol: string,
-};
+type SocketConfig = TransportConfig;
 
 /** Format debug messages if debug flag is enabled */
 const debug = (cfg: SocketConfig, ...rest: any[]) => {
@@ -37,9 +25,6 @@ export default class Socket extends Transport {
 
   /** Instance transport */
   transport = 'websocket';
-
-  /** Transport protocol */
-  protocol?: Abridged | Intermediate | IntermediatePadded | Full;
 
   /** Transport obfuscation */
   obfuscation?: Obfuscation;
@@ -119,20 +104,12 @@ export default class Socket extends Transport {
 
     this.obfuscation = new Obfuscation();
 
-    // select protocol
-    switch (this.cfg.protocol) {
-      case 'abridged': this.protocol = new Abridged(); break;
-      case 'intermediate_padded': this.protocol = new IntermediatePadded(); break;
-      case 'full': this.protocol = new Full(); break;
-      default: this.protocol = new Intermediate();
-    }
-
     // notify client
     this.notify('connected');
 
     // init obfuscation with first packet
-    const initPayload = this.obfuscation.init(this.protocol.header);
-    this.ws.send(initPayload.buffer.buffer);
+    const initPayload = this.obfuscation.init(HEADER);
+    this.ws.send(i2ab(initPayload));
 
     // release pending messages
     this.releasePending();
@@ -157,13 +134,13 @@ export default class Socket extends Transport {
    * Handles onmessage event at websocket object
    */
   handleMessage = (event: MessageEvent) => {
-    if (!event.data || !this.protocol || !this.obfuscation) return;
+    if (!event.data || !this.obfuscation) return;
 
     // notify client
     if (this.state !== 'connected') this.notify('connected');
 
     // process message
-    const data = this.protocol.unWrap(this.obfuscation.decode(new Bytes(event.data)));
+    const data = unWrap(this.obfuscation.decode(ab2i(event.data)));
     const msg = bytesToMessage(data);
 
     // flush request timer
@@ -193,9 +170,9 @@ export default class Socket extends Transport {
    */
   send(msg: PlainMessage | EncryptedMessage) {
     // send if socket is ready
-    if (this.obfuscation && this.protocol && this.ws && this.ws.readyState === 1) {
-      const frame = this.obfuscation.encode(this.protocol.wrap(msg.buf)).buffer.buffer;
-      this.ws.send(frame);
+    if (this.obfuscation && this.ws && this.ws.readyState === 1) {
+      const frame = this.obfuscation.encode(wrap(msg.buf));
+      this.ws.send(i2ab(frame));
       debug(this.cfg, '<-', msg);
 
       // delay request timeout handler

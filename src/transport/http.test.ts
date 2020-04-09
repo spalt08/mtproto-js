@@ -1,25 +1,45 @@
 import Http from './http';
-import { TypeLanguage } from '..';
-import { hex } from '../serialization';
 import configMock from '../mock/transport_config';
-import { PlainMessage } from '../message';
+import { PlainMessage, ErrorMessage } from '../message';
 import { TransportCallback } from './abstract';
+import plainMock from '../mock/message_plain';
 
-test('Transort | http plain call', () => {
-  const tl = new TypeLanguage();
-  const nonce = hex('3E0549828CCA27E966B301A48FECE2FC').uint;
-  const query = tl.create('req_pq', { nonce });
-  const msg = new PlainMessage(query);
+test('Transport | http plain call', () => {
+  const async = new Promise<PlainMessage>((resolve) => {
+    const receiver: TransportCallback = (cfg, message) => {
+      if (!(message instanceof PlainMessage)) throw new Error('Should receive plain message');
 
-  const receiver: TransportCallback = (cfg, message) => {
-    if (!(message instanceof PlainMessage)) throw new Error('Should receive plain message');
+      expect(cfg).toBe(configMock);
+      expect(message instanceof PlainMessage).toBeTruthy();
 
-    expect(cfg).toBe(configMock);
-    expect(message instanceof PlainMessage).toBeTruthy();
-    expect(message.nonce).toBe(nonce);
-  };
+      resolve(message);
+    };
 
-  const http = new Http(receiver, configMock);
+    const http = new Http(receiver, configMock);
+    http.send(plainMock);
+  });
 
-  http.send(msg);
+  return async.then((message) => {
+    expect(message.nonce).toEqual(plainMock.nonce);
+  });
+});
+
+test('Transport | http plain error', () => {
+  const async = new Promise<ErrorMessage>((resolve) => {
+    const errMsg = new PlainMessage(plainMock.buf.slice(0));
+
+    errMsg.buf[0] = 0xFF;
+
+    const receiver: TransportCallback = (cfg, message) => {
+      expect(cfg).toBe(configMock);
+      resolve(message as ErrorMessage);
+    };
+
+    const http = new Http(receiver, configMock);
+    http.send(errMsg);
+  });
+
+  return async.then((message) => {
+    expect(message instanceof ErrorMessage).toBeTruthy();
+  });
 });
