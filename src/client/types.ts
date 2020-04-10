@@ -95,8 +95,8 @@ export interface ClientInterface {
   tl: TypeLanguage;
   dc: DCServiceInterface;
   updates: UpdateServiceInterface;
-  plainCall<K extends keyof MethodDeclMap>(data: { _: K } & MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
-  plainCall<K extends keyof MethodDeclMap>(data: { _: K } & MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
+  plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
+  plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
   call(src: TLConstructor | Message, cb?: RequestCallback): void;
   call(src: TLConstructor | Message, headers: Record<string, any>, cb?: RequestCallback): void;
   call(method: string, data: Record<string, any>, cb?: RequestCallback): void;

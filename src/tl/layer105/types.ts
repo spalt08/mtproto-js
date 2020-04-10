@@ -26,8 +26,8 @@ export type ResPQ =
 export namespace ResPQ {
   export type resPQ = {
     _: 'resPQ',
-    nonce: string,
-    server_nonce: string,
+    nonce: Uint32Array,
+    server_nonce: Uint32Array,
     pq: ArrayBuffer,
     server_public_key_fingerprints: string[],
   };
@@ -45,12 +45,12 @@ export type P_Q_inner_data =
 export namespace P_Q_inner_data {
   export type p_q_inner_data = {
     _: 'p_q_inner_data',
-    pq: ArrayBuffer,
-    p: ArrayBuffer,
-    q: ArrayBuffer,
-    nonce: string,
-    server_nonce: string,
-    new_nonce: string,
+    pq: ArrayBuffer | Uint8Array,
+    p: ArrayBuffer | Uint8Array,
+    q: ArrayBuffer | Uint8Array,
+    nonce: Uint32Array,
+    server_nonce: Uint32Array,
+    new_nonce: Uint32Array,
   };
   export type p_q_inner_data_dc = {
     _: 'p_q_inner_data_dc',
@@ -64,12 +64,12 @@ export namespace P_Q_inner_data {
   };
   export type p_q_inner_data_temp = {
     _: 'p_q_inner_data_temp',
-    pq: ArrayBuffer,
-    p: ArrayBuffer,
-    q: ArrayBuffer,
-    nonce: string,
-    server_nonce: string,
-    new_nonce: string,
+    pq: ArrayBuffer | Uint8Array,
+    p: ArrayBuffer | Uint8Array,
+    q: ArrayBuffer | Uint8Array,
+    nonce: Uint32Array,
+    server_nonce: Uint32Array,
+    new_nonce: Uint32Array,
     expires_in: number,
   };
 }
@@ -8792,22 +8792,22 @@ export type Req_pq = {
 };
 
 export type Req_pq_multi = {
-  nonce: string,
+  nonce: Uint32Array,
 };
 
 export type Req_DH_params = {
-  nonce: string,
-  server_nonce: string,
-  p: ArrayBuffer,
-  q: ArrayBuffer,
+  nonce: Uint32Array,
+  server_nonce: Uint32Array,
+  p: ArrayBuffer | Uint8Array,
+  q: ArrayBuffer | Uint8Array,
   public_key_fingerprint: string,
-  encrypted_data: ArrayBuffer,
+  encrypted_data: ArrayBuffer | Uint8Array,
 };
 
 export type Set_client_DH_params = {
-  nonce: string,
-  server_nonce: string,
-  encrypted_data: ArrayBuffer,
+  nonce: Uint32Array,
+  server_nonce: Uint32Array,
+  encrypted_data: ArrayBuffer | Uint8Array,
 };
 
 export type Rpc_drop_answer = {

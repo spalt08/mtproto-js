@@ -301,13 +301,15 @@ export default class Client {
   };
 
   /** Create plain message and send it to the server */
-  public plainCall<K extends keyof MethodDeclMap>(data: { _: K } & MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
-  public plainCall<K extends keyof MethodDeclMap>(data: { _: K } & MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
-  public plainCall<K extends keyof MethodDeclMap>(data: { _: K } & MethodDeclMap[K]['req'], ...args: unknown[]): void {
+  public plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
+  public plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
+  public plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], ...args: unknown[]): void {
     let cb: PlainCallback<K> | undefined;
     let headers: CallHeaders = {};
 
-    const msg = new PlainMessage(build(data), true);
+    const payload = data as any;
+    payload._ = method;
+    const msg = new PlainMessage(build(payload), true);
 
     if (typeof args[0] === 'object') headers = args[0] as CallHeaders;
     if (typeof args[0] === 'function') cb = args[0] as PlainCallback<K>;

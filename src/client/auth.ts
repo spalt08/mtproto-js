@@ -2,273 +2,225 @@
 import BigInt from 'big-integer';
 import sha1 from '@cryptography/sha1';
 import { IGE } from '@cryptography/aes';
-import { TLConstructor } from '../tl';
+import { TLConstructor, parse, build } from '../tl';
 import { getKeyByFingerprints } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
 import { Bytes, hex, randomize, i2h, i2ab, Reader32, ab2i } from '../serialization';
 import { MessageV1, PlainMessage } from '../message';
 import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
-import { ClientError, AuthKey, ClientInterface } from './types';
-import { hex2raw } from '../serialization/conv';
+import { ClientError, AuthKey, ClientInterface, CallHeaders } from './types';
+import { Req_DH_params, Set_client_DH_params } from '../tl/layer105/types';
 
 const log = logs('auth');
 
-type AuthContext = {
-  dc: number,
-  thread: number,
-  transport: string,
+export type KeyExchangeContext = {
   expiresAfter: number,
   nonce: Uint32Array,
+  newNonce: Uint32Array,
   serverNonce?: Uint32Array,
   pq?: Uint8Array,
+  p?: Uint8Array,
+  q?: Uint8Array,
   fingerprints?: string[],
-  newNonce: Uint32Array,
-  aesKey?: Uint32Array,
-  aesIv?: Uint32Array,
+  fingerprint?: string,
   cipher?: IGE,
   g?: number,
   ga?: Uint8Array,
   dh?: Uint8Array,
+  key?: Uint32Array,
 };
 
+export type KeyExchangeCallback = (err: ClientError | null, key?: AuthKey) => void;
+
 /**
- * Auth Flow
- * Step 1. Send random nonce.
- * @mtproto req_pq_multi
+ *
  */
-function authReqPQ(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: TLConstructor) => void) {
-  client.plainCall('req_pq_multi nonce:int128 = ResPQ', { nonce: ctx.nonce }, ctx, (err, resPQ) => {
-    if (err || !resPQ || resPQ._ !== 'resPQ') {
-      log(ctx.dc, ctx.thread, 'Unexpected resPQ response');
+export function createCipher(ctx: KeyExchangeContext) {
+  const sha1a = sha1.stream().update(ctx.newNonce).update(ctx.serverNonce!).digest();
+  const sha1b = sha1.stream().update(ctx.serverNonce!).update(ctx.newNonce).digest();
+  const sha1c = sha1.stream().update(ctx.newNonce).update(ctx.newNonce).digest();
 
-      cb(err);
-      return;
-    }
+  const aesKey = new Uint32Array([
+    sha1a[0], sha1a[1], sha1a[2], sha1a[3], sha1a[4], sha1b[0], sha1b[1], sha1b[2],
+  ]);
 
-    cb(null, resPQ as TLConstructor);
-  });
+  const aesIv = new Uint32Array([
+    sha1b[3], sha1b[4], sha1c[0], sha1c[1], sha1c[2], sha1c[3], sha1c[4], ctx.newNonce[0],
+  ]);
+
+  return new IGE(aesKey, aesIv);
 }
 
 /**
- * Auth Flow
- * Step 2. Request Diffie-Hellman params
- * @mtproto req_DH_params
+ *
  */
-function authReqDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, _result?: TLConstructor) => void) {
-  // check context
-  if (!ctx.pq || ctx.pq.length === 0) throw new Error('Auth: Missing PQ param');
-  if (!ctx.fingerprints || ctx.fingerprints.length === 0) throw new Error('Auth: Missing public key fingerprints');
-  if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
+export function createDHRequestParams(ctx: KeyExchangeContext, random?: Uint32Array): Req_DH_params {
+  const [p, q] = BrentPrime(BigInt.fromArray(Array.from(ctx.pq!), 0x100));
+  const publicKey = getKeyByFingerprints(ctx.fingerprints!);
 
-  // factorize PQ and find RSA key
-  const [p, q] = BrentPrime(BigInt.fromArray(Array.from(ctx.pq), 16));
-  const publicKey = getKeyByFingerprints(ctx.fingerprints);
-
-  if (!publicKey) {
-    log(ctx.dc, ctx.thread, 'Unknown RSA public key fingerprint:', ctx.fingerprints.join(', '));
-    cb({
-      type: 'internal',
-      code: 0,
-      message: 'Unknown RSA public key fingerprint',
-    });
-    return;
-  }
+  ctx.p = new Uint8Array(p.toArray(0x100).value);
+  ctx.q = new Uint8Array(q.toArray(0x100).value);
 
   // wrap p_q_inner_data
-  const pqInner = client.tl.create(ctx.expiresAfter > 0 ? 'p_q_inner_data_temp' : 'p_q_inner_data', {
-    pq: ctx.pq.buffer,
-    p: new Uint32Array(p.toArray(16).value).buffer,
-    q: new Uint32Array(q.toArray(16).value).buffer,
+  const pqInner: Record<string, any> = {
+    _: 'p_q_inner_data',
+    pq: ctx.pq,
+    p: ctx.p,
+    q: ctx.q,
     nonce: ctx.nonce,
     server_nonce: ctx.serverNonce,
     new_nonce: ctx.newNonce,
-  });
-
-  if (ctx.expiresAfter > 0) pqInner.params.expires_in.value = ctx.expiresAfter;
-
-  // encrypt pq_inner_data
-  const data = pqInner.serialize();
-  const dataToEncrypt = new Bytes(255);
-  const dataBytes = new Bytes(new Uint8Array(i2ab(data)));
-  dataToEncrypt.slice(0, 20).raw = sha1(data, 'binary');
-  dataToEncrypt.slice(20, 20 + data.length).raw = dataBytes.raw;
-  dataToEncrypt.slice(20 + data.length).randomize();
-
-  let encryptedPQ = RSAEncrypt(dataToEncrypt.hex, publicKey.n, publicKey.e);
-
-  // fix: length should be === 255;
-  if (encryptedPQ.length <= 510) {
-    do {
-      encryptedPQ = '00' + encryptedPQ;
-    } while (encryptedPQ.length <= 510);
-  }
-
-  const encryptedBytes = new Bytes(encryptedPQ.length / 2);
-  encryptedBytes.hex = encryptedPQ;
-
-  const dhParams = {
-    nonce: ctx.nonce,
-    server_nonce: ctx.serverNonce,
-    p: new Uint32Array(p.toArray(16).value).buffer,
-    q: new Uint32Array(q.toArray(16).value).buffer,
-    public_key_fingerprint: publicKey.fingerprint,
-    encrypted_data: encryptedBytes.buffer.buffer,
   };
 
-  // call req_DH_params
-  client.plainCall('req_DH_params', dhParams, ctx, (errd, resDH) => {
-    if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
-    if (!ctx.cipher) throw new Error('Auth: Missing aes_key');
+  // wrap p_q_inner_data_temp
+  if (ctx.expiresAfter > 0) {
+    pqInner._ = 'p_q_inner_data_temp';
+    pqInner.expires_in = ctx.expiresAfter;
+  }
 
-    if (errd || !resDH || resDH._ !== 'server_DH_params_ok') {
-      log(ctx.dc, ctx.thread, 'Unexpected req_DH_params response');
-      cb(errd);
-      return;
-    }
+  // encrypt pq_inner_data
+  const data = build(pqInner);
+  const dataToEncrypt = new Uint32Array(64);
+  const dataHash = sha1(data);
 
-    // decrypt encrypted_answer
-    const wrapper = resDH as TLConstructor;
-    const decryptedDH = ctx.cipher.decrypt(new Uint8Array(wrapper.params.encrypted_answer.value));
-    const serverDH = client.tl.parse(new Reader32(decryptedDH.subarray(5)));
+  if (!random) {
+    random = new Uint32Array(59 - data.length);
+    randomize(random);
+  }
 
-    if (!(serverDH instanceof TLConstructor) || serverDH._ !== 'server_DH_inner_data') {
-      log(ctx.dc, ctx.thread, 'Unable to decrypt aes-256-ige');
-      cb({
-        type: 'internal',
-        code: 0,
-        message: 'Unable to decrypt aes-256-ige',
-      });
-      return;
-    }
+  for (let i = 0; i < 5; i++) dataToEncrypt[i] = dataHash[i];
+  for (let i = 0; i < data.length; i++) dataToEncrypt[5 + i] = data[i];
+  for (let i = 0; i < 59 - data.length; i++) dataToEncrypt[5 + data.length + i] = random[i];
 
-    cb(null, serverDH as TLConstructor);
-  });
+  let encryptedPQ = RSAEncrypt(new Uint8Array(i2ab(dataToEncrypt)).slice(0, 255), publicKey.n, publicKey.e);
+
+  // fix: length should be === 255;
+  if (encryptedPQ.byteLength !== 255) {
+    const buf = new Uint8Array(255);
+    for (let i = 254; i >= 0; i--) buf[i] = encryptedPQ[encryptedPQ.length - 255 + i];
+    encryptedPQ = buf;
+  }
+
+  ctx.fingerprint = publicKey.fingerprint;
+
+  return {
+    nonce: ctx.nonce,
+    server_nonce: ctx.serverNonce!,
+    p: ctx.p!,
+    q: ctx.q!,
+    public_key_fingerprint: ctx.fingerprint!,
+    encrypted_data: encryptedPQ,
+  };
 }
 
 /**
- * @mtproto set_client_DH_params
+ *
  */
-function authSetClientDHParams(client: ClientInterface, ctx: AuthContext, cb: (_err: ClientError | null, authKey?: AuthKey) => void) {
-  // check context
-  if (!ctx.g) throw new Error('Auth: Missing g param');
-  if (!ctx.ga || ctx.ga.length === 0) throw new Error('Auth: Missing g_a param');
-  if (!ctx.dh || ctx.dh.length === 0) throw new Error('Auth: Missing dh_prime param');
-  if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
-  if (!ctx.cipher) throw new Error('Auth: Missing aes_key');
+export function createClientDHParams(ctx: KeyExchangeContext, rand?: Uint8Array, padding?: Uint32Array): Set_client_DH_params {
+  if (!rand) {
+    rand = new Uint8Array(255);
+    randomize(rand);
+  }
 
   // generate key;
-  const g = BigInt(ctx.g);
-  const ga = BigInt.fromArray(Array.from(ctx.ga), 16);
-  const dhPrime = BigInt.fromArray(Array.from(ctx.dh), 16);
-  const b = BigInt(new Bytes(255).randomize().hex, 16);
-  const gb = g.modPow(b, dhPrime).toString(16);
-  const key = new Uint8Array(ga.modPow(b, dhPrime).toArray(16).value);
+  const g = BigInt(ctx.g!);
+  const ga = BigInt.fromArray(Array.from(ctx.ga!), 0x100);
+  const dhPrime = BigInt.fromArray(Array.from(ctx.dh!), 0x100);
+  const b = BigInt.fromArray(Array.from(rand), 0x100);
+  const gb = new Uint8Array(g.modPow(b, dhPrime).toArray(0x100).value);
+
+  ctx.key = new Uint32Array(ga.modPow(b, dhPrime).toArray(0x100000000).value);
 
   // inner content for client_DH_inner_data
-  const clientDH = client.tl.create('client_DH_inner_data', {
+  const clientDH = build({
+    _: 'client_DH_inner_data',
     nonce: ctx.nonce,
     server_nonce: ctx.serverNonce,
-    retry_id: 0,
-    g_b: hex2raw(gb),
-  }).serialize();
+    retry_id: '0000000000000000',
+    g_b: gb,
+  });
 
-  let len = 20 + clientDH.length * 4;
-  len += 16 - (len % 16);
+  let len = 5 + clientDH.length;
+  len += 4 - (len % 4);
 
-  const plain = new Uint32Array(len / 4);
-  plain.set(sha1(clientDH), 0);
-  plain.set(clientDH, 5);
+  const plain = new Uint32Array(len);
+  const dataHash = sha1(clientDH);
 
-  randomize(plain, 5 + clientDH.length);
+  if (!padding) {
+    padding = new Uint32Array(len - 5 - clientDH.length);
+    randomize(padding);
+  }
+
+  for (let i = 0; i < 5; i++) plain[i] = dataHash[i];
+  for (let i = 0; i < clientDH.length; i++) plain[5 + i] = clientDH[i];
+  for (let i = 0; i < padding.length; i++) plain[5 + clientDH.length + i] = padding[i];
 
   // encrypt client_DH_inner_data
-  const encryptedDH = ctx.cipher.encrypt(plain);
+  const encryptedDH = ctx.cipher!.encrypt(plain);
 
   // params for set_client_DH_params
-  const clientDHParams = {
+  return {
     nonce: ctx.nonce,
-    server_nonce: ctx.serverNonce,
+    server_nonce: ctx.serverNonce!,
     encrypted_data: i2ab(encryptedDH),
   };
-
-  client.plainCall('set_client_DH_params', clientDHParams, ctx, (err, sDH) => {
-    if (err || !sDH || sDH._ !== 'dh_gen_ok') {
-      log(ctx.dc, ctx.thread, 'Unexpected set_client_DH_params response');
-      cb(err);
-      return;
-    }
-
-    const keyId = sha1(ab2i(key.buffer));
-    cb(null, {
-      id: i2h(keyId[3]) + i2h(keyId[4]),
-      key: new Bytes(key).hex,
-    });
-  });
 }
 
 /**
  * Creates AuthKey using DH-exchange
  * Ref: https://core.telegram.org/mtproto/auth_key
  */
-export function createAuthKey(client: ClientInterface, dc: number, thread: number, expiresAfter: number,
-  cb?: (err: ClientError | null, key?: AuthKey) => void) {
-  const ctx: AuthContext = {
-    dc,
-    thread,
-    transport: 'websocket',
-    expiresAfter,
+export function createAuthKey(client: ClientInterface, dc: number, thread: number, expiresAfter: number, cb: KeyExchangeCallback) {
+  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key`);
+
+  const ctx: KeyExchangeContext = {
     nonce: new Uint32Array(4),
     newNonce: new Uint32Array(8),
+    expiresAfter,
   };
 
   randomize(ctx.nonce);
   randomize(ctx.newNonce);
 
-  log(dc, `creating ${expiresAfter > 0 ? 'temporary' : 'permanent'} key (${ctx.transport}, thread: ${ctx.thread})`);
+  const headers: CallHeaders = { dc, thread, transport: 'websocket' };
 
-  // call req_pq_multi
-  authReqPQ(client, ctx, (err, resPQ) => {
-    if (err || !resPQ) {
-      if (cb) cb(err);
+  /**
+   * Auth Flow
+   * Step 1. Send random nonce.
+   * @mtproto req_pq_multi
+   */
+  client.plainCall('req_pq_multi', { nonce: ctx.nonce }, headers, (err, resPQ) => {
+    if (err || !resPQ || resPQ._ !== 'resPQ') {
+      log(dc, 'Unexpected resPQ response');
+      cb(err);
       return;
     }
 
-    ctx.serverNonce = resPQ.params.server_nonce.value;
-    ctx.fingerprints = resPQ.params.server_public_key_fingerprints.value;
-    ctx.pq = new Uint8Array(resPQ.params.pq.value.slice(0));
+    ctx.serverNonce = resPQ.server_nonce;
+    ctx.fingerprints = resPQ.server_public_key_fingerprints;
+    ctx.pq = new Uint8Array(resPQ.pq.slice(0));
+    ctx.cipher = createCipher(ctx);
 
-    ctx.aesKey = new Uint32Array(8);
-    ctx.aesIv = new Uint32Array(8);
+    /**
+     * Auth Flow
+     * Step 2. Request Diffie-Hellman params
+     * @mtproto req_DH_params
+     */
+    client.plainCall('req_DH_params', createDHRequestParams(ctx), headers, (errd, resDH) => {
+      if (errd || !resDH || resDH._ !== 'server_DH_params_ok') {
+        log(dc, thread, 'Unexpected req_DH_params response');
+        cb(errd);
+        return;
+      }
 
-    const sha1a = sha1.stream().update(ctx.newNonce).update(ctx.serverNonce!).digest();
-    const sha1b = sha1.stream().update(ctx.serverNonce!).update(ctx.newNonce).digest();
-    const sha1c = sha1.stream().update(ctx.newNonce).update(ctx.newNonce).digest();
+      // decrypt encrypted_answer
+      const decryptedDH = ctx.cipher!.decrypt(new Uint8Array(resDH.encrypted_answer));
+      const serverDH = parse(new Reader32(decryptedDH.subarray(5)));
 
-    ctx.aesKey[0] = sha1a[0];
-    ctx.aesKey[1] = sha1a[1];
-    ctx.aesKey[2] = sha1a[2];
-    ctx.aesKey[3] = sha1a[3];
-    ctx.aesKey[4] = sha1a[4];
-    ctx.aesKey[5] = sha1b[0];
-    ctx.aesKey[6] = sha1b[1];
-    ctx.aesKey[7] = sha1b[2];
-
-    ctx.aesIv[0] = sha1b[3];
-    ctx.aesIv[1] = sha1b[4];
-    ctx.aesIv[2] = sha1c[0];
-    ctx.aesIv[3] = sha1c[1];
-    ctx.aesIv[4] = sha1c[2];
-    ctx.aesIv[5] = sha1c[3];
-    ctx.aesIv[6] = sha1c[4];
-    ctx.aesIv[7] = ctx.newNonce[0];
-
-    ctx.cipher = new IGE(ctx.aesKey, ctx.aesIv);
-
-    // call req_DH_params
-    authReqDHParams(client, ctx, (rerr, serverDH) => {
-      if (rerr || !serverDH) {
-        if (cb) cb(rerr);
+      if (!serverDH || serverDH._ !== 'server_DH_inner_data') {
+        log(dc, thread, 'Unable to decrypt aes-256-ige');
+        cb({ type: 'internal', code: 0, message: 'Unable to decrypt aes-256-ige' });
         return;
       }
 
@@ -278,28 +230,36 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
       ctx.ga = new Uint8Array(serverDH.params.g_a.value);
       ctx.dh = new Uint8Array(serverDH.params.dh_prime.value);
 
-      authSetClientDHParams(client, ctx, (cerr, authKey) => {
-        if (!ctx.serverNonce) throw new Error('Auth: Missing server_nonce param');
-
-        if (cerr || !authKey) {
-          if (cb) cb(cerr);
+      /**
+       * Auth Flow
+       * Step 3. Send Client Diffie-Hellman params
+       * @mtproto set_client_DH_params
+       */
+      client.plainCall('set_client_DH_params', createClientDHParams(ctx), headers, (errs, sDH) => {
+        if (errs || !sDH || sDH._ !== 'dh_gen_ok') {
+          log(dc, thread, 'Unexpected set_client_DH_params response');
+          cb(err);
           return;
         }
+
+        const keyId = sha1(ab2i(ctx.key!));
+
+        const authKey: AuthKey = {
+          id: i2h(keyId[3]) + i2h(keyId[4]),
+          key: new Bytes(ctx.key!).hex,
+        };
 
         if (expiresAfter > 0) {
           authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
           authKey.binded = false;
 
-          ctx.serverNonce[0] ^= ctx.newNonce[0];
-          ctx.serverNonce[1] ^= ctx.newNonce[1];
-
-          client.dc.setMeta(dc, 'salt', i2h(ctx.serverNonce[0] ^ ctx.newNonce[0]) + i2h(ctx.serverNonce[1] ^ ctx.newNonce[1]));
+          client.dc.setMeta(dc, 'salt', i2h(ctx.serverNonce![0] ^ ctx.newNonce[0]) + i2h(ctx.serverNonce![1] ^ ctx.newNonce[1]));
         }
 
         if (expiresAfter > 0) client.dc.setMeta(dc, 'tempKey', authKey);
         else client.dc.setMeta(dc, 'permKey', authKey);
 
-        log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (${ctx.transport}, thread: ${thread})`);
+        log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (thread: ${thread})`);
 
         if (cb) cb(null, authKey);
       });

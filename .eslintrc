@@ -34,7 +34,8 @@
         "lines-between-class-members": "off",
         "no-dupe-class-members": "off",
         "no-plusplus": "off",
-        "object-curly-newline": "off"
+        "object-curly-newline": "off",
+        "@typescript-eslint/camelcase": "off"
     },
     "settings": {
       "import/resolver": {
