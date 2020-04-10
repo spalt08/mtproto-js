@@ -22,12 +22,13 @@ export default class Writer32 {
   }
 
   int64(number: string) {
-    this.int32(+`0x${number.slice(8, 16)}`);
-    this.int32(+`0x${number.slice(0, 8)}`);
+    this.buf[this.pos++] = +`0x${number.slice(0, 8)}`;
+    this.buf[this.pos++] = +`0x${number.slice(8, 16)}`;
   }
 
   long(number: string) {
-    this.int64(number);
+    this.int32(+`0x${number.slice(8, 16)}`);
+    this.int32(+`0x${number.slice(0, 8)}`);
   }
 
   int128(src: Uint32Array) {

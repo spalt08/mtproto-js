@@ -14,7 +14,7 @@
 
 interface Reader {
   int32(): number;
-  int64(): string;
+  long(): string;
   int128(): Uint32Array;
   int256(): Uint32Array;
   double(): number;
@@ -3363,7 +3363,7 @@ const parserMap = new Map<number, () => any>([
 
 const u = undefined;
 const i32 = () => r.int32();
-const i64 = () => r.int64();
+const i64 = () => r.long();
 const i128 = () => r.int128();
 const i256 = () => r.int256();
 const f64 = () => r.double();

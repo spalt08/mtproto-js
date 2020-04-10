@@ -5,12 +5,12 @@ import { IGE } from '@cryptography/aes';
 import { TLConstructor, parse, build } from '../tl';
 import { getKeyByFingerprints } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
-import { Bytes, hex, randomize, i2h, i2ab, Reader32, ab2i } from '../serialization';
+import { randomize, i2h, i2ab, Reader32 } from '../serialization';
 import { MessageV1, PlainMessage } from '../message';
 import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
 import { ClientError, AuthKey, ClientInterface, CallHeaders } from './types';
-import { Req_DH_params, Set_client_DH_params } from '../tl/layer105/types';
+import { Req_DH_params, Set_client_DH_params, Server_DH_inner_data } from '../tl/layer105/types';
 
 const log = logs('auth');
 
@@ -93,14 +93,7 @@ export function createDHRequestParams(ctx: KeyExchangeContext, random?: Uint32Ar
   for (let i = 0; i < data.length; i++) dataToEncrypt[5 + i] = data[i];
   for (let i = 0; i < 59 - data.length; i++) dataToEncrypt[5 + data.length + i] = random[i];
 
-  let encryptedPQ = RSAEncrypt(new Uint8Array(i2ab(dataToEncrypt)).slice(0, 255), publicKey.n, publicKey.e);
-
-  // fix: length should be === 255;
-  if (encryptedPQ.byteLength !== 255) {
-    const buf = new Uint8Array(255);
-    for (let i = 254; i >= 0; i--) buf[i] = encryptedPQ[encryptedPQ.length - 255 + i];
-    encryptedPQ = buf;
-  }
+  const encrypted = RSAEncrypt(new Uint8Array(i2ab(dataToEncrypt)).slice(0, 255), publicKey.n, publicKey.e);
 
   ctx.fingerprint = publicKey.fingerprint;
 
@@ -110,7 +103,7 @@ export function createDHRequestParams(ctx: KeyExchangeContext, random?: Uint32Ar
     p: ctx.p!,
     q: ctx.q!,
     public_key_fingerprint: ctx.fingerprint!,
-    encrypted_data: encryptedPQ,
+    encrypted_data: i2ab(encrypted),
   };
 }
 
@@ -216,7 +209,7 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
 
       // decrypt encrypted_answer
       const decryptedDH = ctx.cipher!.decrypt(new Uint8Array(resDH.encrypted_answer));
-      const serverDH = parse(new Reader32(decryptedDH.subarray(5)));
+      const serverDH = parse(new Reader32(decryptedDH.subarray(5))) as Server_DH_inner_data;
 
       if (!serverDH || serverDH._ !== 'server_DH_inner_data') {
         log(dc, thread, 'Unable to decrypt aes-256-ige');
@@ -226,9 +219,9 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
 
       // todo: server time sync
       // todo: check dh prime, ga, gb
-      ctx.g = serverDH.params.g.value;
-      ctx.ga = new Uint8Array(serverDH.params.g_a.value);
-      ctx.dh = new Uint8Array(serverDH.params.dh_prime.value);
+      ctx.g = serverDH.g;
+      ctx.ga = new Uint8Array(serverDH.g_a);
+      ctx.dh = new Uint8Array(serverDH.dh_prime);
 
       /**
        * Auth Flow
@@ -242,11 +235,15 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
           return;
         }
 
-        const keyId = sha1(ab2i(ctx.key!));
+        const keyhash = new Reader32(sha1(ctx.key!), 12);
+        const keyid = keyhash.long();
+
+        let keyhex = '';
+        for (let i = 0; i < ctx.key!.length; i++) keyhex += i2h(ctx.key![i]);
 
         const authKey: AuthKey = {
-          id: i2h(keyId[3]) + i2h(keyId[4]),
-          key: new Bytes(ctx.key!).hex,
+          id: keyid,
+          key: keyhex,
         };
 
         if (expiresAfter > 0) {
@@ -271,46 +268,51 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
  * Binds temp auth key to permenent
  * Ref: https://core.telegram.org/method/auth.bindTempAuthKey
  */
-export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: AuthKey, tempKey: AuthKey, cb?: (result: boolean) => void) {
+export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: AuthKey, tempKey: AuthKey, cb: (result: boolean) => void) {
+  if (!tempKey || !permKey) {
+    cb(false);
+    return;
+  }
+
   log(dc, 'binding temporary key');
 
-  if (!permKey || !tempKey) throw new Error('Missing keys');
-
-  const permAuthKeyID = hex(permKey.id).uint;
-  const tempAuthKeyID = hex(tempKey.id).uint;
-
-  const nonce = new Bytes(8).randomize().uint;
-  const tmpSessionID = new Bytes(8).randomize();
-  const expiresAt = tempKey.expires;
+  const rand = new Uint32Array(2);
+  const nonce = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
+  const tmpSessionID = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
   const msgID = PlainMessage.GenerateID();
 
-  client.dc.setMeta(dc, 'sessionID', tmpSessionID.hex);
+  client.dc.setMeta(dc, 'sessionID', tmpSessionID);
 
-  const q = client.tl.create('bind_auth_key_inner', {
-    nonce,
-    temp_auth_key_id: tempAuthKeyID,
-    perm_auth_key_id: permAuthKeyID,
-    temp_session_id: tmpSessionID.uint,
-    expires_at: expiresAt,
-  });
+  const bindMsg = new MessageV1(
+    build({
+      _: 'bind_auth_key_inner',
+      nonce,
+      temp_auth_key_id: tempKey.id,
+      perm_auth_key_id: permKey.id,
+      temp_session_id: tmpSessionID,
+      expires_at: tempKey.expires,
+    }),
+    true,
+  );
 
-  const bindMsg = new MessageV1(q.serialize());
-
-  bindMsg.salt = new Bytes(8).randomize().hex;
-  bindMsg.sessionID = new Bytes(8).randomize().hex;
+  bindMsg.salt = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
+  bindMsg.sessionID = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
   bindMsg.id = msgID;
 
-  const encryptedMsg = bindMsg.encrypt(permKey.key as any, permAuthKeyID as string);
+  const key32 = new Uint32Array(permKey.key.length / 8);
+  for (let i = 0; i < key32.length; i++) key32[i] = +`0x${permKey.key.slice(i * 8, i * 8 + 8)}`;
 
-  const query = client.tl.create('auth.bindTempAuthKey', {
-    perm_auth_key_id: permAuthKeyID,
+  const encryptedMsg = bindMsg.encrypt(key32, permKey.id);
+
+  const params = {
+    perm_auth_key_id: permKey.id,
     nonce,
-    expires_at: expiresAt,
+    expires_at: tempKey.expires || 0,
     encrypted_message: i2ab(encryptedMsg.buf),
-  });
+  };
 
-  client.call(query, { msgID, dc, force: true }, (err, res) => {
-    if (!err && res && res.json() === true) {
+  client.call('auth.bindTempAuthKey', params, { msgID, dc, force: true }, (err, res) => {
+    if (!err && res === true) {
       log(dc, 'temporary key successfuly binded');
       client.dc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
       if (cb) cb(true);
@@ -324,25 +326,22 @@ export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: Au
  * Calls initConnection method invoked with layer
  */
 export function initConnection(client: ClientInterface, dc: number, cb?: (result: boolean) => void) {
-  const query = client.tl.create('help.getNearestDc');
-
-  const connectionWrapper = client.tl.create('initConnection', {
-    api_id: client.cfg.APIID,
-    device_model: client.cfg.deviceModel,
-    system_version: client.cfg.systemVersion,
-    app_version: client.cfg.appVersion,
-    system_lang_code: client.cfg.langCode,
-    lang_pack: '',
-    lang_code: client.cfg.langCode,
-    query,
-  });
-
-  const invokeWrapper = client.tl.create('invokeWithLayer', {
+  const invokePrams = {
     layer: client.cfg.APILayer,
-    query: connectionWrapper,
-  });
+    query: {
+      _: 'initConnection',
+      api_id: client.cfg.APIID,
+      device_model: client.cfg.deviceModel,
+      system_version: client.cfg.systemVersion,
+      app_version: client.cfg.appVersion,
+      system_lang_code: client.cfg.langCode,
+      lang_pack: '',
+      lang_code: client.cfg.langCode,
+      query: { _: 'help.getNearestDc' },
+    },
+  };
 
-  client.call(invokeWrapper, { dc, force: true }, (err, res) => {
+  client.call('invokeWithLayer', invokePrams, { dc, force: true }, (err, res) => {
     if (err || !res) {
       log('Unexpected initConnection response');
       if (cb) cb(false);
@@ -359,14 +358,14 @@ export function initConnection(client: ClientInterface, dc: number, cb?: (result
  */
 export function transferAuthorization(client: ClientInterface, userID: number, dcFrom: number, dcTo: number, cb?: (res: boolean) => void) {
   client.call('auth.exportAuthorization', { dc_id: dcTo }, { dc: dcFrom, force: true }, (err, res) => {
-    if (err || !(res instanceof TLConstructor) || res._ !== 'auth.exportedAuthorization') {
+    if (err || !res || res._ !== 'auth.exportedAuthorization') {
       if (cb) cb(false);
       return;
     }
 
-    const { bytes } = res.params;
+    const { bytes } = res;
 
-    client.call('auth.importAuthorization', { id: userID, bytes: bytes.value }, { dc: dcTo, force: true }, (err2, res2) => {
+    client.call('auth.importAuthorization', { id: userID, bytes }, { dc: dcTo, force: true }, (err2, res2) => {
       if (err2 || !(res2 instanceof TLConstructor) || res2._ !== 'auth.authorization') {
         if (cb) cb(false);
         return;

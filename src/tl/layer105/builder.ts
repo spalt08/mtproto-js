@@ -7336,7 +7336,7 @@ const builderMap: Record<string, [number, ((o: any) => void)?]> = {
 };
 
 const i32 = (value: number) => w.int32(value);
-const i64 = (value: string) => w.int64(value);
+const i64 = (value: string) => w.long(value);
 const i128 = (value: Uint32Array) => w.int128(value);
 const i256 = (value: Uint32Array) => w.int256(value);
 const f64 = (value: number) => w.double(value);

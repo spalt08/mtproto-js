@@ -1,6 +1,6 @@
 import { TLConstructor, TLVector } from '../tl';
 import { logs } from '../utils/log';
-import { ClientInterface, RequestCallback } from './types';
+import { ClientInterface, PlainCallback } from './types';
 
 // debug helper
 const debug = (client?: ClientInterface, ...rest: any[]) => {
@@ -28,7 +28,7 @@ export default class UpdateService {
   }
 
   /** Fetches update state */
-  fetch(cb?: RequestCallback) {
+  fetch(cb?: PlainCallback<'updates.getState'>) {
     if (!this.client) throw new Error('Unable to fetch updates without client instance');
     this.client.call('updates.getState', {}, cb);
   }

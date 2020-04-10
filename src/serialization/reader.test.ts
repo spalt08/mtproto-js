@@ -9,7 +9,7 @@ test('serialization | reader32 res_pq', () => {
   const reader = new Reader32(buffer);
 
   expect(reader.long()).toBe('00'.repeat(8));
-  expect(reader.int64()).toBe('51e57ac91e83c801');
+  expect(reader.long()).toBe('51e57ac91e83c801');
   expect(reader.int32()).toBe(64);
   expect(reader.int32()).toBe(0x05162463);
   expect(reader.int128()).toEqual(new Uint32Array([0x3E054982, 0x8CCA27E9, 0x66B301A4, 0x8FECE2FC]));
@@ -64,6 +64,15 @@ test('serialization | reader32 bool', () => {
   expect(reader.bool()).toEqual(false);
 });
 
+test('serialization | reader32 int64', () => {
+  const buffer = new Uint32Array([
+    0x3E054982, 0x8CCA27E9,
+  ]);
+
+  const reader = new Reader32(buffer);
+
+  expect(reader.int64()).toEqual('3e0549828cca27e9');
+});
 
 // test('serialization | reader32 double', () => {
 //   const buffer = new Uint32Array([

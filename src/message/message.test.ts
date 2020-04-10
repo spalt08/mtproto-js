@@ -25,9 +25,9 @@ test('message | message create', () => {
 
   const reader = new Reader32(msg.buf);
 
-  expect(reader.int64()).toBe(salt);
-  expect(reader.int64()).toBe(sid);
-  expect(reader.int64()).toBe(msgid);
+  expect(reader.long()).toBe(salt);
+  expect(reader.long()).toBe(sid);
+  expect(reader.long()).toBe(msgid);
   expect(reader.int32()).toBe(seq);
   expect(reader.int32()).toBe(payload.length * 4);
   expect(msg.data).toEqual(payload);
@@ -40,7 +40,6 @@ test('message | message create', () => {
 });
 
 test('message | message encrypt', () => {
-  const keyid = '9d80b6d3d4598cc1';
   const key = new Uint32Array([
     0x12f3e1fc, 0xeeaf1761, 0x5e74203d, 0xab70feb2, 0xb63f3523, 0x927a15de, 0xe19d42d3, 0x3c59fb2a, 0xc7241193, 0x56912674,
     0x264af9cf, 0xb19574f7, 0xf4dcfaa0, 0xf7094ade, 0x8eaf1e3e, 0x317aeab5, 0xdaf543c7, 0xf06b8c95, 0x0e45884e, 0xf2837e8d,
@@ -50,6 +49,8 @@ test('message | message encrypt', () => {
     0x9eecd692, 0x409a5f3e, 0x3829c9a8, 0x43cc891e, 0xd131e26b, 0x1afcd31f, 0x48578579, 0xe37255d2, 0x17e26415, 0x1bd47c81,
     0xae22d928, 0xf20e0f01, 0x7aadedd7, 0x19b92ac1,
   ]);
+
+  const keyid = '9d80b6d3d4598cc1';
 
   const message = new Message(new Uint32Array([0x3212D579, 0xEE35452E, 0xD23E0D0C, 0x92841AA7, 0xD31B2E9B, 0xDEF2151E, 0x80D15860, 0x311C85DB]));
 

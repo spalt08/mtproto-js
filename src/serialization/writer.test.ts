@@ -4,7 +4,7 @@ test('serialization | writer32 res_pq', () => {
   const writer = new Writer32(new Uint32Array(21));
 
   writer.long('00'.repeat(8));
-  writer.int64('51e57ac91e83c801');
+  writer.long('51e57ac91e83c801');
 
   expect(writer.buf).toEqual(
     new Uint32Array([
@@ -20,7 +20,7 @@ test('serialization | writer32 res_pq', () => {
   writer.bytes(new Uint8Array([0x17, 0xED, 0x48, 0x94, 0x1A, 0x08, 0xF9, 0x81]).buffer);
   writer.int32(0x1cb5c415);
   writer.int32(1);
-  writer.int64('c3b42b026ce86b21');
+  writer.long('c3b42b026ce86b21');
 
   expect(writer.buf).toEqual(
     new Uint32Array([
@@ -39,6 +39,18 @@ test('serialization | writer32 int256', () => {
   ]);
 
   writer.int256(buf);
+
+  expect(writer.buf).toEqual(buf);
+});
+
+test('serialization | writer32 int64', () => {
+  const writer = new Writer32(new Uint32Array(2));
+
+  const buf = new Uint32Array([
+    0x3E054982, 0x8CCA27E9,
+  ]);
+
+  writer.int64('3E0549828CCA27E9');
 
   expect(writer.buf).toEqual(buf);
 });

@@ -7,10 +7,10 @@ import BigInt from 'big-integer';
  * @param {string} exponent RSA Key Exponent, hex-string
  * @returns {string} Encrypted data, hex-string
  */
-export default function encrypt(data: Uint8Array, modulus: Uint32Array, exponent: number): Uint8Array {
+export default function encrypt(data: Uint8Array, modulus: Uint32Array, exponent: number): Uint32Array {
   const x = BigInt.fromArray(Array.from(data), 0x100);
   const n = BigInt.fromArray(Array.from(modulus), 0x100000000);
   const e = BigInt(exponent);
 
-  return new Uint8Array(x.modPow(e, n).toArray(0x100).value);
+  return new Uint32Array(x.modPow(e, n).toArray(0x100000000).value);
 }

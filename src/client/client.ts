@@ -1,4 +1,4 @@
-import TypeLanguage, { TLConstructor, TLAbstract, MethodDeclMap, build, parse } from '../tl';
+import TypeLanguage, { MethodDeclMap, build, parse } from '../tl';
 import Transport, { TransportConfig, TransportState } from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
@@ -10,6 +10,7 @@ import { ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKe
 import { MTProtoTransport } from '../transport/protocol';
 import { logs } from '../utils/log';
 import { raw2hex } from '../serialization';
+import { createAuthKey, bindTempAuthKey, initConnection, transferAuthorization } from './auth';
 
 type ClientEventListener = (...payload: any[]) => any;
 
@@ -98,69 +99,70 @@ export default class Client {
   }
 
   /** Performs DH-exchange for temp and perm auth keys, binds them and invoking layer */
-  authorize(_dc: number, _cb?: (key: AuthKey) => void): void {
-    // // Change state to block user requests
-    // if (!this.authState[dc] || this.authState[dc] !== 1) this.authState[dc] = 1;
-    // if (!this.authRetries[dc]) this.authRetries[dc] = 0;
+  authorize(dc: number, cb?: (key: AuthKey) => void): void {
+    // Change state to block user requests
+    if (!this.authState[dc] || this.authState[dc] !== 1) this.authState[dc] = 1;
+    if (!this.authRetries[dc]) this.authRetries[dc] = 0;
 
-    // // this.authRetries[dc] += 1;
 
-    // // if (this.authRetries[dc] > 6) {
-    // //   this.authState[dc] = 0;
-    // //   this.authRetries[dc] = 0;
-    // //   return;
-    // // }
+    // this.authRetries[dc] += 1;
 
-    // const expiresAfter = 3600 * 5;
-    // const permKey = this.dc.getPermKey(dc);
-    // const tempKey = this.dc.getAuthKey(dc);
-
-    // if (permKey === null) {
-    //   this.dc.setMeta(dc, 'tempKey', null);
-
-    //   let calls = 0;
-
-    //   const onKeyCreated = () => {
-    //     calls += 1;
-    //     if (calls === 2) this.authorize(dc, cb);
-    //   };
-
-    //   createAuthKey(this, dc, 2, 0, onKeyCreated);
-    //   createAuthKey(this, dc, 1, expiresAfter, onKeyCreated);
+    // if (this.authRetries[dc] > 6) {
+    //   this.authState[dc] = 0;
+    //   this.authRetries[dc] = 0;
     //   return;
     // }
 
-    // if (tempKey === null || (tempKey.expires && tempKey.expires < Date.now() / 1000)) {
-    //   createAuthKey(this, dc, 1, expiresAfter, () => this.authorize(dc, cb));
-    //   return;
-    // }
+    const expiresAfter = 3600 * 5;
+    const permKey = this.dc.getPermKey(dc);
+    const tempKey = this.dc.getAuthKey(dc);
 
-    // if (permKey && tempKey.binded === false) {
-    //   bindTempAuthKey(this, dc, permKey, tempKey, () => this.authorize(dc, cb));
-    //   return;
-    // }
+    if (permKey === null) {
+      this.dc.setMeta(dc, 'tempKey', null);
 
-    // if (this.dc.getConnectionStatus(dc) === false) {
-    //   initConnection(this, dc, () => {
-    //     this.authorize(dc, cb);
-    //   });
-    //   return;
-    // }
+      let calls = 0;
 
-    // const uid = this.dc.getUserID(this.cfg.dc);
+      const onKeyCreated = () => {
+        calls += 1;
+        if (calls === 2) this.authorize(dc, cb);
+      };
 
-    // // transfer auth if exists
-    // if (dc !== this.cfg.dc && uid !== null && uid > 0 && this.dc.getUserID(dc) !== uid) {
-    //   transferAuthorization(this, uid, this.cfg.dc, dc, () => this.authorize(dc, cb));
-    //   return;
-    // }
+      createAuthKey(this, dc, 2, 0, onKeyCreated);
+      createAuthKey(this, dc, 1, expiresAfter, onKeyCreated);
+      return;
+    }
 
-    // // Unlock dc state to perform user requests
-    // this.authState[dc] = 2;
-    // this.authRetries[dc] = 0;
-    // this.resendPending(dc);
+    if (tempKey === null || (tempKey.expires && tempKey.expires < Date.now() / 1000)) {
+      createAuthKey(this, dc, 1, expiresAfter, () => this.authorize(dc, cb));
+      return;
+    }
 
-    // if (cb) cb(null);
+    if (permKey && tempKey.binded === false) {
+      bindTempAuthKey(this, dc, permKey, tempKey, () => this.authorize(dc, cb));
+      return;
+    }
+
+    if (this.dc.getConnectionStatus(dc) === false) {
+      initConnection(this, dc, () => {
+        this.authorize(dc, cb);
+      });
+      return;
+    }
+
+    const uid = this.dc.getUserID(this.cfg.dc);
+
+    // transfer auth if exists
+    if (dc !== this.cfg.dc && uid !== null && uid > 0 && this.dc.getUserID(dc) !== uid) {
+      transferAuthorization(this, uid, this.cfg.dc, dc, () => this.authorize(dc, cb));
+      return;
+    }
+
+    // Unlock dc state to perform user requests
+    this.authState[dc] = 2;
+    this.authRetries[dc] = 0;
+    this.resendPending(dc);
+
+    if (cb) cb(null);
   }
 
   /** Create new connection instance */
@@ -268,7 +270,7 @@ export default class Client {
       };
     }
 
-    let result: TLAbstract | undefined;
+    let result: any;
     let id = '';
 
     if (message instanceof PlainMessage || message instanceof Message) {
@@ -288,7 +290,7 @@ export default class Client {
       return;
     }
 
-    if (!error && result instanceof TLAbstract) {
+    if (!error && result) {
       this.rpc.processMessage(result, {
         id,
         dc: cfg.dc,
@@ -316,7 +318,7 @@ export default class Client {
     if (typeof args[1] === 'function') cb = args[1] as PlainCallback<K>;
 
     if (headers.msgID) msg.id = headers.msgID;
-    if (!msg.id) msg.id = PlainMessage.GenerateID();
+    if (msg.id === '0000000000000000') msg.id = PlainMessage.GenerateID();
 
     const dc = headers.dc || this.cfg.dc;
     const thread = headers.thread || 1;
@@ -349,52 +351,30 @@ export default class Client {
   }
 
   /** Create message, encrypt it and send it to the server */
-  public call(src: TLConstructor | Message, cb?: RequestCallback): void;
-  public call(src: TLConstructor | Message, headers: Record<string, any>, cb?: RequestCallback): void;
-  public call(method: string, data: Record<string, any>, cb?: RequestCallback): void;
-  public call(method: string, data: Record<string, any>, headers: Record<string, any>, cb?: RequestCallback): void;
-  public call(src: TLConstructor | Message | string, ...args: unknown[]): void {
-    let msg: Message;
-    let cb: RequestCallback | undefined;
-    let headers: Record<string, any> = {};
-    let isc = true;
+  public call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
+  public call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
+  public call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], ...args: unknown[]): void {
+    let cb: PlainCallback<K> | undefined;
+    let headers: CallHeaders = {};
 
-    if (src instanceof Message) {
-      msg = src;
+    const payload = data as any;
+    payload._ = method;
+    const msg = new Message(build(payload), true);
 
-      if (typeof args[0] === 'object') headers = args[0] as Record<string, any>;
-      if (typeof args[0] === 'function') cb = args[0] as RequestCallback;
-      if (typeof args[1] === 'function') cb = args[1] as RequestCallback;
-    } else if (src instanceof TLConstructor) {
-      msg = new Message(src.serialize(), true);
+    if (typeof args[0] === 'object') headers = args[0] as CallHeaders;
+    if (typeof args[0] === 'function') cb = args[0] as PlainCallback<K>;
+    if (typeof args[1] === 'function') cb = args[1] as PlainCallback<K>;
 
-      if (src._ === 'msgs_ack' || src._ === 'http_wait') isc = false;
+    headers.method = method;
+    this.send(msg, headers, cb);
+  }
 
-      if (typeof args[0] === 'object') headers = args[0] as Record<string, any>;
-      if (typeof args[0] === 'function') cb = args[0] as RequestCallback;
-      if (typeof args[1] === 'function') cb = args[1] as RequestCallback;
-    } else if (typeof src === 'string') {
-      let data: Record<string, any> = {};
-
-      if (typeof args[0] === 'object') data = args[0] as Record<string, any>;
-
-      msg = new Message(
-        this.tl.create(src, data).serialize(),
-        true,
-      );
-
-      if (src === 'msgs_ack' || src === 'http_wait') isc = false;
-
-      if (typeof args[1] === 'object') headers = args[1] as Record<string, any>;
-      if (typeof args[1] === 'function') cb = args[1] as RequestCallback;
-      if (typeof args[2] === 'function') cb = args[2] as RequestCallback;
-    } else throw new Error(`Unable to create request with ${src}`);
-
+  public send(msg: Message, headers: CallHeaders, cb?: PlainCallback<any>) {
     if (headers.msgID) {
       msg.id = headers.msgID;
     } else {
       // refetch callback
-      if (msg.id && this.rpc.requests[msg.id]) {
+      if (msg.id !== '0000000000000000' && this.rpc.requests[msg.id]) {
         cb = this.rpc.requests[msg.id].cb;
         delete this.rpc.requests[msg.id];
       }
@@ -405,6 +385,7 @@ export default class Client {
     const dc = headers.dc || this.cfg.dc;
     const thread = headers.thread || 1;
     const transport = headers.transport || this.cfg.transport;
+    const isc = (headers.method !== 'msgs_ack' && headers.method !== 'http_wait');
 
     msg.salt = this.dc.getSalt(dc);
     msg.sessionID = this.dc.getSessionID(dc);
@@ -423,7 +404,7 @@ export default class Client {
         instance.send(this.encrypt(msg, dc));
       }
 
-      debug(this.cfg.debug && src !== 'msgs_ack', Date.now(), msg.id, 'seq:', msg.seqNo, 'call', src);
+      debug(this.cfg.debug && headers.method !== 'msgs_ack', Date.now(), msg.id, 'seq:', msg.seqNo, 'call', headers.method);
     } else {
       this.addPendingMsg(transport, dc, thread, msg);
     }
@@ -446,7 +427,7 @@ export default class Client {
         const thread = key >= 1000 ? Math.floor((key - 1000) / 10) : Math.floor(key / 10);
         const transport = key >= 1000 ? 'websocket' : 'http';
         for (let j = 0; j < this.pending[key].length; j += 1) {
-          this.call(this.pending[key][j], { dc, thread, transport });
+          this.send(this.pending[key][j], { dc, thread, transport });
         }
         this.pending[key] = [];
       }

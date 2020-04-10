@@ -1,12 +1,28 @@
-/* eslint-disable max-len */
-// import MessageV1 from './message.v1';
-// import { hex } from '../serialization';
+import MessageV1 from './message.v1';
 
 test('message.v1 | encrypt', () => {
-  // const key = '1634f1e1213cf354131aa0f664a11125d323cf4522cceffa8d892b5e0bed9147cd496c1a4dbd50bf68c2e09915faa7911a903fbaeb82badad313d231340da176d429584021adece0e56466c2d612d09cb569fb0afc26605f70f1c41e41d93a19ae9d244f7572371113c056ead341bd6b29b5207dfd98d0fc46459054aae92ac28949aeab01d374e7e2f7b2906c485d63f99bf14cd51e3a23e5c63eb58cc0e3b4587a829c2fbbde45a0f6f54d2f2909cce8d1dc31b62b499b11753523ae1a60873b9eeee23beaa13e985222cd008b5346d8101893646916c7220b74d71039823ddeb4372143d7347c1592e167c5ca74a0e9c64f908d0a02ed09ece490b4c53cde';
-  // const data = hex('2aff4d2973bea7f10842c5218f982e4804a6600af338245e000000002800000065f7a375b26b3fe01918dcd568e75982a8306df4e5a62ebe098fd6daaf2aa7a1bc7fadda437f245eb157d6a9a552c25e');
-  // const message = new MessageV1(data);
-  // const encrypted = 'e5a62ebe098fd6daf8ebfa774c049b4e8ae768986e905194976bd960ae5ad3d8dc67740fe1df05de5e0c5864d9f96f64ad5a48193017219f528c543e29f5a3187517b1265be1ec6467290b7fdbae0a016fe44c259e21dd052c71fbaa09145ed699c1f26858385bc2';
+  const keyid = 'dad68f09be2ea6e5';
+  const key = new Uint32Array([
+    0x1634f1e1, 0x213cf354, 0x131aa0f6, 0x64a11125, 0xd323cf45, 0x22cceffa, 0x8d892b5e, 0x0bed9147, 0xcd496c1a, 0x4dbd50bf, 0x68c2e099, 0x15faa791,
+    0x1a903fba, 0xeb82bada, 0xd313d231, 0x340da176, 0xd4295840, 0x21adece0, 0xe56466c2, 0xd612d09c, 0xb569fb0a, 0xfc26605f, 0x70f1c41e, 0x41d93a19,
+    0xae9d244f, 0x75723711, 0x13c056ea, 0xd341bd6b, 0x29b5207d, 0xfd98d0fc, 0x46459054, 0xaae92ac2, 0x8949aeab, 0x01d374e7, 0xe2f7b290, 0x6c485d63,
+    0xf99bf14c, 0xd51e3a23, 0xe5c63eb5, 0x8cc0e3b4, 0x587a829c, 0x2fbbde45, 0xa0f6f54d, 0x2f2909cc, 0xe8d1dc31, 0xb62b499b, 0x11753523, 0xae1a6087,
+    0x3b9eeee2, 0x3beaa13e, 0x985222cd, 0x008b5346, 0xd8101893, 0x646916c7, 0x220b74d7, 0x1039823d, 0xdeb43721, 0x43d7347c, 0x1592e167, 0xc5ca74a0,
+    0xe9c64f90, 0x8d0a02ed, 0x09ece490, 0xb4c53cde,
+  ]);
 
-  // expect(message.encrypt(key).buf.hex).toEqual(encrypted);
+  const data = new Uint32Array([
+    0x2aff4d29, 0x73bea7f1, 0x0842c521, 0x8f982e48, 0x04a6600a, 0xf338245e, 0x00000000, 0x28000000, 0x65f7a375, 0xb26b3fe0, 0x1918dcd5, 0x68e75982,
+    0xa8306df4, 0xe5a62ebe, 0x098fd6da, 0xaf2aa7a1, 0xbc7fadda, 0x437f245e, 0xb157d6a9, 0xa552c25e,
+  ]);
+
+  const message = new MessageV1(data);
+
+  expect(message.encrypt(key, keyid).buf).toEqual(
+    new Uint32Array([
+      0xe5a62ebe, 0x098fd6da, 0xf8ebfa77, 0x4c049b4e, 0x8ae76898, 0x6e905194, 0x976bd960, 0xae5ad3d8, 0xdc67740f, 0xe1df05de, 0x5e0c5864, 0xd9f96f64,
+      0xad5a4819, 0x3017219f, 0x528c543e, 0x29f5a318, 0x7517b126, 0x5be1ec64, 0x67290b7f, 0xdbae0a01, 0x6fe44c25, 0x9e21dd05, 0x2c71fbaa, 0x09145ed6,
+      0x99c1f268, 0x58385bc2,
+    ]),
+  );
 });

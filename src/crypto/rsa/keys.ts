@@ -45,7 +45,7 @@ export function parseKey(key: string): RSAKey {
   const reader = new Reader32(keyHash, 3);
 
   return {
-    fingerprint: reader.int64(),
+    fingerprint: reader.long(),
     n: ab2i(n),
     e: (e[0] << 16) ^ (e[1] << 8) ^ e[0],
   };

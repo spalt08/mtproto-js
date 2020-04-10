@@ -10506,6 +10506,7 @@ export type AccountGetThemes = {
 };
 
 export interface MethodDeclMap {
+  'msgs_ack': { req: { msg_ids: string[] }, res: undefined }
   'req_pq': { req: Req_pq, res: ResPQ },
   'req_pq_multi': { req: Req_pq_multi, res: ResPQ },
   'req_DH_params': { req: Req_DH_params, res: Server_DH_Params },

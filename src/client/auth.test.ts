@@ -1,4 +1,4 @@
-import { KeyExchangeContext, createCipher, createDHRequestParams, createClientDHParams, createAuthKey } from './auth';
+import { KeyExchangeContext, createCipher, createDHRequestParams, createClientDHParams, createAuthKey, initConnection, bindTempAuthKey } from './auth';
 import { ab2i } from '../serialization';
 import Client from './client';
 import tl from '../mock/tl';
@@ -53,7 +53,7 @@ test('auth | createDHRequestParams', () => {
       0xc4, 0xad, 0x91, 0xfe, 0x51, 0x9b, 0x7b, 0x53, 0xc7, 0x39, 0xb4, 0x80, 0xd2, 0xb4, 0xf7, 0x67, 0xd8, 0x61, 0xca, 0xd0, 0x12, 0xd9, 0x05, 0x31,
       0xf8, 0xfd, 0x5f, 0x32, 0x57, 0xb1, 0x13, 0x66, 0x3c, 0xde, 0xe1, 0xb0, 0x06, 0x01, 0xa9, 0xdc, 0x06, 0x2e, 0x62, 0x76, 0x87, 0x0d, 0x43, 0x69,
       0xcb, 0xe3, 0xa3, 0xdb, 0x66, 0x51, 0x8d, 0x41, 0x24, 0x91, 0x0a, 0x49, 0xe1, 0xb8, 0x47, 0xd3,
-    ]),
+    ]).buffer,
   );
 });
 
@@ -162,49 +162,43 @@ test('auth | create key', () => {
   });
 }, 60000);
 
-// test('Auth | binding and init session', () => {
-//   const tl = new TypeLanguage();
+test('Auth | binding and init session', () => {
+  const client = new Client(tl, {
+    test: true,
+    dc: 2,
+    autoConnect: false,
+    meta: {},
+    debug: false,
+  });
 
-//   tl.schema.define('auth.bindTempAuthKey#cdd42a05 perm_auth_key_id:long nonce:long expires_at:int encrypted_message:bytes = Bool');
-//   tl.schema.define('initConnection#785188b8 flags:# api_id:int device_model:string system_version:string app_version:string system_lang_code:string lang_pack:string lang_code:string proxy:flags.0?InputClientProxy query:!X = X');
-//   tl.schema.define('help.getNearestDc#1fb33026 = NearestDc');
-//   tl.schema.define('boolTrue#997275b5 = Bool');
+  const async = new Promise<boolean>((resolve, reject) => {
+    createAuthKey(client, 2, 1, 0, (err, k) => {
+      if (err) reject(err);
+      if (!k) {
+        reject(new Error('Expected perm auth key'));
+        return;
+      }
 
-//   const client = new Client(tl, {
-//     test: true,
-//     dc: 2,
-//     autoConnect: false,
-//     meta: {},
-//   });
+      const permKey = k;
 
-//   const async = new Promise<boolean>((resolve, reject) => {
-//     createAuthKey(client, 2, 1, 0, (err, k) => {
-//       if (err) reject(err);
-//       if (!k) {
-//         reject(new Error('Expected perm auth key'));
-//         return;
-//       }
+      createAuthKey(client, 2, 1, 3600 * 1, (errp, kp) => {
+        if (errp) reject(errp);
+        if (!kp) {
+          reject(new Error('Expected temp auth key'));
+          return;
+        }
 
-//       const permKey = k;
+        const tempKey = kp;
 
-//       createAuthKey(client, 2, 1, 3600 * 1, (errp, kp) => {
-//         if (errp) reject(errp);
-//         if (!kp) {
-//           reject(new Error('Expected temp auth key'));
-//           return;
-//         }
+        bindTempAuthKey(client, 2, permKey, tempKey, (res) => {
+          if (!res) reject(new Error('Expected binding'));
+          else initConnection(client, 2, resolve);
+        });
+      });
+    });
+  });
 
-//         const tempKey = kp;
-
-//         bindTempAuthKey(client, 2, permKey, tempKey, (res) => {
-//           if (!res) reject(new Error('Expected binding'));
-//           else initConnection(client, 2, resolve);
-//         });
-//       });
-//     });
-//   });
-
-//   return async.then((result) => {
-//     expect(result).toBeTruthy();
-//   });
-// }, 150000);
+  return async.then((result) => {
+    expect(result).toBeTruthy();
+  });
+}, 150000);

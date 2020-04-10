@@ -1,11 +1,3 @@
-import {
-  Abridged,
-  Intermediate,
-  IntermediatePadded,
-  Full,
-  Obfuscation,
-} from './transport/protocol';
-
 export {
   TLConstructor,
   TLBytes,
@@ -15,14 +7,6 @@ export {
   TLAbstract,
   TLVector,
 } from './tl';
-
-export const Transport = {
-  Abridged,
-  Intermediate,
-  IntermediatePadded,
-  Full,
-  Obfuscation,
-};
 
 export { default as TypeLanguage } from './tl';
 

@@ -1,8 +1,10 @@
+/* eslint-disable prefer-destructuring, newline-per-chained-call */
+import sha1 from '@cryptography/sha1';
+import { IGE } from '@cryptography/aes';
 import Message from './message';
 import EncryptedMessage from './encrypted';
 
 export default class MessageV1 extends Message {
-  // eslint-disable-next-line
   getPaddingLen(len: number) {
     return 16 - (len % 16);
   }
@@ -12,35 +14,33 @@ export default class MessageV1 extends Message {
    * Encrypts MessageData object with AES-256-IGE mode.
    * https://core.telegram.org/mtproto/description_v1
    */
-  encrypt(key: Uint32Array, _authKeyID: string): EncryptedMessage {
-    // const data = this.buf;
-    // const key = hex(authKey);
+  encrypt(key: Uint32Array, keyid: string): EncryptedMessage {
+    const msgKeyLarge = sha1(this.buf.subarray(0, this.hlen + this.dataLength));
+    const msgKey = msgKeyLarge.subarray(1, 5);
 
-    // const msgKey = sha1(data.slice(0, this.hlen + this.dataLength).raw).slice(4, 20);
-    // const sha1a = sha1(msgKey + key.slice(0, 32).raw);
-    // const sha1b = sha1(key.slice(32, 48).raw + msgKey + key.slice(48, 64).raw);
-    // const sha1c = sha1(key.slice(64, 96).raw + msgKey);
-    // const sha1d = sha1(msgKey + key.slice(96, 128).raw);
+    const sha1a = sha1.stream().update(msgKey).update(key.subarray(0, 8)).digest();
+    const sha1b = sha1.stream().update(key.subarray(8, 12)).update(msgKey).update(key.subarray(12, 16)).digest();
+    const sha1c = sha1.stream().update(key.subarray(16, 24)).update(msgKey).digest();
+    const sha1d = sha1.stream().update(msgKey).update(key.subarray(24, 32)).digest();
 
-    // const aesKey = new Bytes(32);
-    // aesKey.slice(0, 8).raw = sha1a.slice(0, 8);
-    // aesKey.slice(8, 20).raw = sha1b.slice(8, 20);
-    // aesKey.slice(20, 32).raw = sha1c.slice(4, 16);
+    const aesKey = new Uint32Array(8);
+    for (let i = 0; i < 2; i++) aesKey[i] = sha1a[i];
+    for (let i = 2; i < 5; i++) aesKey[i] = sha1b[i];
+    for (let i = 5; i < 8; i++) aesKey[i] = sha1c[i - 4];
 
-    // const aesIv = new Bytes(32);
-    // aesIv.slice(0, 12).raw = sha1a.slice(8, 20);
-    // aesIv.slice(12, 20).raw = sha1b.slice(0, 8);
-    // aesIv.slice(20, 24).raw = sha1c.slice(16, 20);
-    // aesIv.slice(24, 32).raw = sha1d.slice(0, 8);
+    const aesIv = new Uint32Array(8);
+    for (let i = 0; i < 3; i++) aesIv[i] = sha1a[i + 2];
+    for (let i = 3; i < 5; i++) aesIv[i] = sha1b[i - 3];
+    for (let i = 6; i < 8; i++) aesIv[i] = sha1d[i - 6];
+    aesIv[5] = sha1c[4];
 
-    // const encryptedData = encrypt(data, aesKey, aesIv);
+    const cipher = new IGE(aesKey, aesIv);
+    const encrypted = cipher.encrypt(this.buf);
+    const encMsg = new EncryptedMessage(encrypted, true);
 
-    // const encMsg = new EncryptedMessage(encryptedData.length);
+    encMsg.authKey = keyid;
+    encMsg.key = msgKey;
 
-    // encMsg.authKey = sha1(key.raw).slice(12, 20);
-    // encMsg.key = msgKey;
-    // encMsg.data = encryptedData;
-
-    return new EncryptedMessage(key);
+    return encMsg;
   }
 }

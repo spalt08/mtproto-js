@@ -58,7 +58,7 @@ export type RequestRPC = {
   dc: number,
   thread: number,
   transport: Transports,
-  cb?: RequestCallback,
+  cb?: PlainCallback<any>,
 };
 
 /** Generic error for mtproto client */
@@ -97,10 +97,9 @@ export interface ClientInterface {
   updates: UpdateServiceInterface;
   plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
   plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
-  call(src: TLConstructor | Message, cb?: RequestCallback): void;
-  call(src: TLConstructor | Message, headers: Record<string, any>, cb?: RequestCallback): void;
-  call(method: string, data: Record<string, any>, cb?: RequestCallback): void;
-  call(method: string, data: Record<string, any>, headers: Record<string, any>, cb?: RequestCallback): void;
+  call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
+  call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
+  send(msg: Message, headers: CallHeaders, cb?: PlainCallback<any>): void;
 }
 
 /** Datacenter info */
@@ -132,4 +131,6 @@ export type CallHeaders = {
   thread?: number,
   transport?: Transports,
   msgID?: string,
+  force?: boolean,
+  method?: string,
 };

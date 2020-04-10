@@ -10,6 +10,7 @@ const ClientMock: ClientInterface = {
   updates,
   plainCall: () => {},
   call: () => {},
+  send: () => {},
 };
 
 export default ClientMock;

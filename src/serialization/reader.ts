@@ -24,13 +24,13 @@ export default class Reader32 {
   }
 
   int64() {
-    const lo = this.int32();
-    const hi = this.int32();
-    return i2h(hi) + i2h(lo);
+    return i2h(this.buf[this.pos++]) + i2h(this.buf[this.pos++]);
   }
 
   long() {
-    return this.int64();
+    const lo = this.int32();
+    const hi = this.int32();
+    return i2h(hi) + i2h(lo);
   }
 
   int128() {
