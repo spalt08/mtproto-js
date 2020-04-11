@@ -235,7 +235,7 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
           return;
         }
 
-        const keyhash = new Reader32(sha1(ctx.key!), 12);
+        const keyhash = new Reader32(sha1(ctx.key!), 3);
         const keyid = keyhash.long();
 
         let keyhex = '';
@@ -250,7 +250,11 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
           authKey.expires = Math.floor(Date.now() / 1000) + expiresAfter;
           authKey.binded = false;
 
-          client.dc.setMeta(dc, 'salt', i2h(ctx.serverNonce![0] ^ ctx.newNonce[0]) + i2h(ctx.serverNonce![1] ^ ctx.newNonce[1]));
+          ctx.serverNonce![0] ^= ctx.newNonce[0];
+          ctx.serverNonce![1] ^= ctx.newNonce[1];
+
+          const saltReader = new Reader32(ctx.serverNonce!);
+          client.dc.setMeta(dc, 'salt', saltReader.long());
         }
 
         if (expiresAfter > 0) client.dc.setMeta(dc, 'tempKey', authKey);
@@ -276,9 +280,11 @@ export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: Au
 
   log(dc, 'binding temporary key');
 
-  const rand = new Uint32Array(2);
-  const nonce = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
-  const tmpSessionID = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
+  const rand = new Uint32Array(8);
+  randomize(rand);
+
+  const nonce = i2h(rand[0]) + i2h(rand[1]);
+  const tmpSessionID = i2h(rand[2]) + i2h(rand[3]);
   const msgID = PlainMessage.GenerateID();
 
   client.dc.setMeta(dc, 'sessionID', tmpSessionID);
@@ -295,8 +301,8 @@ export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: Au
     true,
   );
 
-  bindMsg.salt = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
-  bindMsg.sessionID = i2h(rand[0]) + i2h(rand[1]); randomize(rand);
+  bindMsg.salt = i2h(rand[4]) + i2h(rand[5]);
+  bindMsg.sessionID = i2h(rand[6]) + i2h(rand[7]);
   bindMsg.id = msgID;
 
   const key32 = new Uint32Array(permKey.key.length / 8);

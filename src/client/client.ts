@@ -237,6 +237,7 @@ export default class Client {
               const message = this.encrypt(this.rpc.requests[id].message, this.rpc.requests[id].dc);
               this.getInstance(cfg.transport, cfg.dc, cfg.thread).send(message);
             } else {
+              if (!this.pending[cfg.dc]) this.pending[cfg.dc] = [];
               this.pending[cfg.dc].push(this.rpc.requests[id].message);
             }
           }
@@ -250,6 +251,8 @@ export default class Client {
     let message: ErrorMessage | EncryptedMessage | Message | PlainMessage = msg;
 
     if (msg instanceof ErrorMessage) {
+      debug(this.cfg.debug, cfg.transport, cfg.dc, cfg.thread, '->', msg);
+
       if (msg.error.code === -1 && this.authState[cfg.dc] !== 1) {
         console.warn('switching auth key for dc', cfg.dc); // eslint-disable-line no-console
         this.dc.setMeta(cfg.dc, 'tempKey', null);
@@ -274,6 +277,8 @@ export default class Client {
     let id = '';
 
     if (message instanceof PlainMessage || message instanceof Message) {
+      debug(this.cfg.debug, cfg.transport, cfg.dc, cfg.thread, '->', message);
+
       result = parse(message.reader);
       id = message.id;
     }
@@ -335,6 +340,7 @@ export default class Client {
       };
     }
 
+    debug(this.cfg.debug, transport, dc, thread, '<-', msg, payload);
     this.getInstance(transport, dc, thread).send(msg);
   }
 
@@ -395,16 +401,13 @@ export default class Client {
     const instance = this.getInstance(transport, dc, thread);
 
     if (this.authState[dc] === 2 || headers.force === true) {
-      if (msg instanceof PlainMessage) {
-        instance.send(msg);
-      } else {
-        msg.isContentRelated = isc;
-        msg.seqNo = this.dc.nextSeqNo(dc, isc);
+      msg.isContentRelated = isc;
+      msg.seqNo = this.dc.nextSeqNo(dc, isc);
 
-        instance.send(this.encrypt(msg, dc));
-      }
+      instance.send(this.encrypt(msg, dc));
 
       debug(this.cfg.debug && headers.method !== 'msgs_ack', Date.now(), msg.id, 'seq:', msg.seqNo, 'call', headers.method);
+      debug(this.cfg.debug, transport, dc, thread, '<-', msg);
     } else {
       this.addPendingMsg(transport, dc, thread, msg);
     }

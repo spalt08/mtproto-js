@@ -4,6 +4,7 @@ import PlainMessage from './plain';
 // eslint-disable-next-line
 import EncryptedMessage from './encrypted';
 import { Writer32, Reader32, randomize } from '../serialization';
+import { parse } from '../tl';
 
 /**
  * Message is a buffer with 32 byte padding, which should be encrypted.
@@ -144,6 +145,11 @@ export default class Message {
    */
   padding() {
     randomize(this.buf, this.buf.length - this.plen);
+  }
+
+  // for debug purpose
+  get parsed(): any {
+    return parse(this.reader);
   }
 
   /**

@@ -14,3 +14,5 @@ declare module 'pako/lib/inflate' {
     inflate, Inflate, inflateRaw, ungzip,
   } from 'pako';
 }
+
+declare module 'aes-js'

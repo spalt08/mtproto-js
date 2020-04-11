@@ -159,6 +159,8 @@ test('auth | create key', () => {
   return async.then((key: AuthKey) => {
     if (!key) throw new Error('Key is nullable');
     expect(key.id.length).toBe(16);
+    expect(key.key.length).toBe(64);
+    expect(key.id).not.toBe('0000000000000000');
   });
 }, 60000);
 

@@ -748,9 +748,9 @@
     exec-sh "^0.3.2"
     minimist "^1.2.0"
 
-"@cryptography/aes@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@cryptography/aes/-/aes-0.1.0.tgz#5b5e9257eab4400d6bf0d46002545f0b6663126a"
+"@cryptography/aes@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@cryptography/aes/-/aes-0.1.1.tgz#0096726a6a2a2cfc2e8bddf3997e98e49f1a224d"
 
 "@cryptography/pbkdf2@^0.1.0":
   version "0.1.0"
@@ -1246,6 +1246,10 @@ acorn@^6.0.1, acorn@^6.0.7, acorn@^6.2.1:
 acorn@^7.1.0:
   version "7.1.0"
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.1.0.tgz#949d36f2c292535da602283586c2477c57eb2d6c"
+
+aes-js@^3.1.2:
+  version "3.1.2"
+  resolved "https://registry.yarnpkg.com/aes-js/-/aes-js-3.1.2.tgz#db9aabde85d5caabbfc0d4f2a4446960f627146a"
 
 aggregate-error@^3.0.0:
   version "3.0.0"

@@ -1,5 +1,6 @@
 /* eslint-disable no-mixed-operators */
 import { Writer32, Reader32, i2h, i2ab } from '../serialization';
+import { parse } from '../tl';
 
 let lastGeneratedLo = 0;
 let lastGeneratedHi = 0;
@@ -91,6 +92,11 @@ export default class PlainMessage {
    */
   get data(): Uint32Array {
     return this.buf.subarray(this.hlen);
+  }
+
+  // for debug purpose
+  get parsed(): any {
+    return parse(this.reader);
   }
 
   /**
