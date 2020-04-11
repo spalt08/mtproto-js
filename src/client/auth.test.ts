@@ -1,5 +1,9 @@
-import { KeyExchangeContext, createCipher, createDHRequestParams, createClientDHParams, createAuthKey, initConnection, bindTempAuthKey } from './auth';
-import { ab2i } from '../serialization';
+/* eslint-disable max-len */
+import {
+  KeyExchangeContext, createCipher, createDHRequestParams, createClientDHParams, createAuthKey, initConnection,
+  bindTempAuthKey, createBindingEncryptedPayload,
+} from './auth';
+import { ab2i, i2ab } from '../serialization';
 import Client from './client';
 import tl from '../mock/tl';
 import { AuthKey } from './types';
@@ -137,6 +141,30 @@ test('auth | createClientDHParams', () => {
       0x0a9749df, 0x978e072e, 0x4c8c2900, 0x93d56be0, 0x19fe403b, 0x7ba12a3e, 0xe87ac221, 0x14c3a1a5, 0xe133ed4b, 0xf3e5595d, 0xd44afa2a, 0xe2e380ac,
       0xf63c93f3, 0xe63d556b, 0x4fc9e07b, 0x0310162c,
     ]),
+  );
+});
+
+test('auth | createBindingEncryptedPayload', () => {
+  const permKey = {
+    id: 'ae73908158c55a02',
+    key: '6b65b83e739b5db589b66bfdc6fc6925a5e8f5ef354086d2a533f0bad4c4f68e82629098e5596726750a346bc9a3dbdd162fd3a6b0fdd6ec48a59516aef9f4294aa5751b4b6ee3b42b07aa7a8b6c213e2b1ed6ecb9772a8ba5774b7f195c48e178d67e5f912e0c430a7406be0aafa2a1cc0a218de81d7ebd861cc65de7d05f94a0cd3bb3b4e7ce87a483c0d3de04a6b1c064488f75500dfbb11b5758a33fa5d1eba87db5809364ce21682543b414a176a9c82f461bbc9a49a34464dd3122beb684162ff23f72c9edf58e30232cd0c4eee0a6e843fbce7fe6a7902bd0bf32c86f203b2184e2588192c231cc542a2794eda471953aff941623c8a7fb851cb59d6f',
+  };
+
+  const tempKey = {
+    id: '513f796a3f2e348d',
+    key: 'e326ac88a5a6ade5039daa8487022f448ba7057b1f5ca416799c581ab0e2e270211de0f1c21cc94abd28e949055c8720d412fa77a2af7939fd05da1769ada1bf07a424dd89aa8585549cda43e52665c3ed3e956f21e2646e1a23fa6ae552c9db540e04eb80e7612e602eea54c7bc76bca4a3510ed4dde340b0f4723562c7c64c7aa9a2bec95140dbd0447e64d4f4fe6a32fa64d4b543400fdcffb6f9c685378acc6a386220b4ad3fef04f6e4c5dcf12e483ce06a69147430fee1458cb5b19e47fc91cd582620beb17d378bacc4944e1da2ff4cb47e0d37f7bda8ab69ed3a21dc8bb25af3ee1e8524dbb89ba30b3ff0973b096ccca7e8494e689ffef1a4e66f4',
+    expires: 1586617179,
+    binded: false,
+  };
+
+  const random = new Uint32Array([0x62ea5e03, 0x3752b489, 0x6b419502, 0x33f86792, 0x2ee19a5f, 0x76fe7921, 0x4a61f3b2, 0x71e1b4cf, 0x6286e493, 0x67d7f671]);
+
+  const msgID = '5e91cd4b16b16b04';
+
+  expect(createBindingEncryptedPayload(permKey, tempKey, msgID, random).encrypted_message).toEqual(
+    i2ab(new Uint32Array([
+      0x025ac558, 0x819073ae, 0xa36e99ab, 0xf32ae054, 0x4cb833d1, 0x11865a20, 0x308cd877, 0x7d067ffb, 0x978dbdfd, 0x474fa019, 0xe288c5ce, 0x7954d4a4, 0x3a4c7042, 0xcd05df01, 0xac6a32ad, 0x868c5eed, 0xb01ccf62, 0xf742e418, 0xb9815b82, 0xea8cc203, 0x6f7a1431, 0x9089885a, 0x18ea8c93, 0x491d2015, 0xfecdda33, 0x83442c4d,
+    ])),
   );
 });
 

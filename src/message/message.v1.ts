@@ -6,7 +6,7 @@ import EncryptedMessage from './encrypted';
 
 export default class MessageV1 extends Message {
   getPaddingLen(len: number) {
-    return 16 - (len % 16);
+    return 4 - (len % 4);
   }
 
   /**

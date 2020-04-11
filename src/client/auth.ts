@@ -9,8 +9,8 @@ import { randomize, i2h, i2ab, Reader32 } from '../serialization';
 import { MessageV1, PlainMessage } from '../message';
 import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
-import { ClientError, AuthKey, ClientInterface, CallHeaders } from './types';
-import { Req_DH_params, Set_client_DH_params, Server_DH_inner_data } from '../tl/layer105/types';
+import { ClientError, AuthKey, ClientInterface, CallHeaders, AuthKeyNotNull } from './types';
+import { Req_DH_params, Set_client_DH_params, Server_DH_inner_data, AuthBindTempAuthKey } from '../tl/layer105/types';
 
 const log = logs('auth');
 
@@ -268,26 +268,14 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
   });
 }
 
-/**
- * Binds temp auth key to permenent
- * Ref: https://core.telegram.org/method/auth.bindTempAuthKey
- */
-export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: AuthKey, tempKey: AuthKey, cb: (result: boolean) => void) {
-  if (!tempKey || !permKey) {
-    cb(false);
-    return;
+export function createBindingEncryptedPayload(permKey: AuthKeyNotNull, tempKey: AuthKeyNotNull, msgID: string, rand?: Uint32Array): AuthBindTempAuthKey {
+  if (!rand) {
+    rand = new Uint32Array(10);
+    randomize(rand);
   }
-
-  log(dc, 'binding temporary key');
-
-  const rand = new Uint32Array(8);
-  randomize(rand);
 
   const nonce = i2h(rand[0]) + i2h(rand[1]);
   const tmpSessionID = i2h(rand[2]) + i2h(rand[3]);
-  const msgID = PlainMessage.GenerateID();
-
-  client.dc.setMeta(dc, 'sessionID', tmpSessionID);
 
   const bindMsg = new MessageV1(
     build({
@@ -304,25 +292,45 @@ export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: Au
   bindMsg.salt = i2h(rand[4]) + i2h(rand[5]);
   bindMsg.sessionID = i2h(rand[6]) + i2h(rand[7]);
   bindMsg.id = msgID;
+  bindMsg.buf[18] = rand[8];
+  bindMsg.buf[19] = rand[9];
 
-  const key32 = new Uint32Array(permKey.key.length / 8);
+  const key32 = new Uint32Array(permKey!.key.length / 8);
   for (let i = 0; i < key32.length; i++) key32[i] = +`0x${permKey.key.slice(i * 8, i * 8 + 8)}`;
 
-  const encryptedMsg = bindMsg.encrypt(key32, permKey.id);
-
-  const params = {
+  return {
     perm_auth_key_id: permKey.id,
-    nonce,
+    nonce: i2h(rand[0]) + i2h(rand[1]),
     expires_at: tempKey.expires || 0,
-    encrypted_message: i2ab(encryptedMsg.buf),
+    encrypted_message: i2ab(bindMsg.encrypt(key32, permKey!.id).buf),
   };
+}
 
-  client.call('auth.bindTempAuthKey', params, { msgID, dc, force: true }, (err, res) => {
+/**
+ * Binds temp auth key to permenent
+ * Ref: https://core.telegram.org/method/auth.bindTempAuthKey
+ */
+export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: AuthKey, tempKey: AuthKey, cb: (result: boolean) => void) {
+  if (!tempKey || !permKey) {
+    cb(false);
+    return;
+  }
+
+  log(dc, 'binding temporary key');
+
+  const msgID = PlainMessage.GenerateID();
+  const rand = new Uint32Array(10);
+  randomize(rand);
+
+  client.dc.setMeta(dc, 'sessionID', i2h(rand[2]) + i2h(rand[3]));
+
+  client.call('auth.bindTempAuthKey', createBindingEncryptedPayload(permKey, tempKey, msgID, rand), { msgID, dc, force: true }, (err, res) => {
     if (!err && res === true) {
       log(dc, 'temporary key successfuly binded');
       client.dc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
       if (cb) cb(true);
     } else {
+      // cb(false);
       throw new Error('Auth: Binding temp auth key failed');
     }
   });

@@ -3,12 +3,14 @@ import TypeLanguage, { TLConstructor, TLAbstract, MethodDeclMap } from '../tl';
 import { Message } from '../message';
 
 /** Authorization key info with PFS */
-export type AuthKey = null | {
+export type AuthKeyNotNull = {
   key: string,
   id: string,
   expires?: number,
   binded?: boolean,
 };
+
+export type AuthKey = null | AuthKeyNotNull;
 
 export type Transports = 'http' | 'websocket';
 
