@@ -1,70 +1,105 @@
-import BigInt from 'big-integer';
+/* eslint-disable newline-per-chained-call */
+import BigInt, { BigInteger } from 'big-integer';
 import sha256 from '@cryptography/sha256';
 import pbkdf2 from '@cryptography/pbkdf2';
 import sha512 from '@cryptography/sha512';
-import { hex, Bytes } from '../serialization';
+import { ab2i, randomize, i2ab } from '../serialization';
+import { InputCheckPasswordSRP } from '../tl';
 
-function phex(size: number, value: string): Bytes {
-  let str = '';
-  for (let i = 0; i < size - value.length / 2; i += 1) {
-    str += '00';
+function uintTo64(src: Uint8Array): Uint32Array {
+  const buf = new Uint32Array(64);
+
+  for (let i = src.length - 1, j = 63; i >= 0 && j >= 0; i -= 4, j--) {
+    buf[j] = (
+      src[i - 3] << 24
+    ^ src[i - 2] << 16
+    ^ src[i - 1] << 8
+    ^ src[i]
+    );
   }
 
-  return hex((str + value).slice(-size * 2));
+  return buf;
+}
+
+function bintTo64(src: BigInteger): Uint32Array {
+  const srcBuf = src.toArray(0x100000000).value;
+
+  if (srcBuf.length === 64) return new Uint32Array(srcBuf);
+
+  const buf = new Uint32Array(64);
+
+  for (let i = buf.length, j = srcBuf.length; i >= 0 && j >= 0; i--, j--) buf[i] = srcBuf[j];
+
+  return buf;
 }
 
 export function genPasswordSRP(
-  salt1: string, salt2: string, cg: number, cp: string, srpId: string, csrpB: string, password: string, rand?: string,
-): any {
-  const clientSalt = hex(salt1);
-  const serverSalt = hex(salt2);
+  salt1: Uint8Array, salt2: Uint8Array, cg: number, cp: Uint8Array, srpId: string, csrpB: Uint8Array, password: string, rand?: Uint32Array,
+): InputCheckPasswordSRP.inputCheckPasswordSRP {
+  let clientSaltString = '';
+  for (let i = 0; i < salt1.length; i++) clientSaltString += String.fromCharCode(salt1[i]);
+
+  const clientSalt = ab2i(salt1);
+  const serverSalt = ab2i(salt2);
   const g = BigInt(cg);
-  const p = BigInt(cp, 16);
+  const p = BigInt.fromArray(Array.from(cp), 0x100);
 
-  const gBuf = phex(256, g.toString(16));
-  const pBuf = phex(256, cp);
+  const gBuf = new Uint32Array(64);
+  const pBuf = uintTo64(cp);
 
-  const srpB = BigInt(csrpB, 16);
-  const srpBBuf = phex(256, csrpB);
+  gBuf[63] = 3;
 
-  let pwdhash;
-  pwdhash = sha256(clientSalt.raw + password + clientSalt.raw);
-  pwdhash = sha256(serverSalt.raw + pwdhash + serverSalt.raw);
-  pwdhash = pbkdf2(pwdhash as any, clientSalt.raw, 100000, 64, sha512);
-  pwdhash = new Bytes(sha256(serverSalt.raw + pwdhash + serverSalt.raw));
+  const srpB = BigInt.fromArray(Array.from(csrpB), 0x100);
+  const srpBBuf = uintTo64(csrpB);
 
-  const x = BigInt(pwdhash.hex, 16);
+  let pwdhash = sha256(clientSaltString + password + clientSaltString);
+  pwdhash = sha256.stream().update(serverSalt).update(pwdhash).update(serverSalt).digest();
+  pwdhash = pbkdf2(pwdhash, clientSaltString, 100000, sha512, 64);
+  pwdhash = sha256.stream().update(serverSalt).update(pwdhash).update(serverSalt).digest();
+
+  const x = BigInt.fromArray(Array.from(pwdhash), 0x100000000);
   const gx = g.modPow(x, p);
 
-  const k = BigInt(new Bytes(sha256(pBuf.raw + gBuf.raw)).hex, 16);
+  const k = BigInt.fromArray(Array.from(sha256.stream().update(pBuf).update(gBuf).digest()), 0x100000000);
   const kgx = k.multiply(gx).mod(p);
 
-  const aBuf = rand ? hex(rand) : new Bytes(256).randomize();
-  const a = BigInt(aBuf.hex, 16);
+  if (!rand) {
+    rand = new Uint32Array(64);
+    randomize(rand);
+  }
+  const a = BigInt.fromArray(Array.from(rand), 0x100000000);
   const Ac = g.modPow(a, p);
-  const AcBuf = phex(256, Ac.toString(16));
+  const AcBuf = bintTo64(Ac);
 
   let bkgx = srpB.subtract(kgx);
   if (bkgx.lesser(BigInt.zero)) bkgx = bkgx.add(p);
 
-  const u = BigInt(new Bytes(sha256(AcBuf.raw + srpBBuf.raw)).hex, 16);
+  const u = BigInt.fromArray(Array.from(sha256.stream().update(AcBuf).update(srpBBuf).digest()), 0x100000000);
   const ux = u.multiply(x);
   const uxa = ux.add(a);
 
   const S = bkgx.modPow(uxa, p);
-  const SBuf = phex(256, S.toString(16));
+  const SBuf = bintTo64(S);
 
-  const K = sha256(SBuf.raw);
-  const h1 = sha256(pBuf.raw);
-  const h2 = sha256(gBuf.raw);
-  const h12 = Bytes.xor(new Bytes(h1), new Bytes(h2));
+  const K = sha256(SBuf);
+  const h1 = sha256(pBuf);
+  const h2 = sha256(gBuf);
 
-  const M1 = sha256(h12.raw + sha256(clientSalt.raw) + sha256(serverSalt.raw) + AcBuf.raw + srpBBuf.raw + K);
+  for (let i = 0; i < h1.length; i++) h1[i] ^= h2[i];
+
+  const M1 = sha256.stream()
+    .update(h1)
+    .update(sha256(clientSalt))
+    .update(sha256(serverSalt))
+    .update(AcBuf)
+    .update(srpBBuf)
+    .update(K)
+    .digest();
 
   return {
     _: 'inputCheckPasswordSRP',
     srp_id: srpId,
-    A: AcBuf.raw,
-    M1: new Bytes(M1).raw,
+    A: i2ab(AcBuf),
+    M1: i2ab(M1),
   };
 }

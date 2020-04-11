@@ -1,12 +1,11 @@
 import Client from './client';
-import tl from '../mock/tl';
 import configMock from '../mock/transport_config';
 import { Socket, Http } from '../transport';
 import { randomize } from '../serialization';
 import { ResPQ } from '../tl/layer105/types';
 
 test('Client | common', () => {
-  const client = new Client(tl, {
+  const client = new Client({
     ...configMock,
     meta: {},
     autoConnect: false,
@@ -40,7 +39,7 @@ test('Client | common', () => {
 });
 
 test('Client | http', () => {
-  const client = new Client(tl, {
+  const client = new Client({
     ...configMock,
     meta: {},
     autoConnect: false,

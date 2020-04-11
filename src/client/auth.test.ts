@@ -5,7 +5,6 @@ import {
 } from './auth';
 import { ab2i, i2ab } from '../serialization';
 import Client from './client';
-import tl from '../mock/tl';
 import { AuthKey } from './types';
 
 test('auth | create cipher', () => {
@@ -169,7 +168,7 @@ test('auth | createBindingEncryptedPayload', () => {
 });
 
 test('auth | create key', () => {
-  const client = new Client(tl, {
+  const client = new Client({
     test: true,
     dc: 2,
     autoConnect: false,
@@ -187,13 +186,13 @@ test('auth | create key', () => {
   return async.then((key: AuthKey) => {
     if (!key) throw new Error('Key is nullable');
     expect(key.id.length).toBe(16);
-    expect(key.key.length).toBe(64);
+    expect(key.key.length).toBe(512);
     expect(key.id).not.toBe('0000000000000000');
   });
 }, 60000);
 
 test('Auth | binding and init session', () => {
-  const client = new Client(tl, {
+  const client = new Client({
     test: true,
     dc: 2,
     autoConnect: false,

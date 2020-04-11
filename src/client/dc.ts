@@ -1,4 +1,4 @@
-import { Bytes } from '../serialization';
+import { randomize, i2h } from '../serialization';
 import { ClientMeta, AuthKey } from './types';
 
 type DCConfig = {
@@ -61,14 +61,22 @@ export default class DCService {
 
   getSessionID(dc: number): string {
     if (!this.meta[dc]) this.meta[dc] = {};
-    if (!this.meta[dc].sessionID) this.meta[dc].sessionID = new Bytes(8).randomize().hex;
+    if (!this.meta[dc].sessionID) {
+      const rand = new Uint32Array(2);
+      randomize(rand);
+      this.meta[dc].sessionID = i2h(rand[0]) + i2h(rand[1]);
+    }
 
     return this.meta[dc].sessionID as string;
   }
 
   getSalt(dc: number): string {
     if (!this.meta[dc]) this.meta[dc] = {};
-    if (!this.meta[dc].salt) this.meta[dc].salt = new Bytes(8).randomize().hex;
+    if (!this.meta[dc].salt) {
+      const rand = new Uint32Array(2);
+      randomize(rand);
+      this.meta[dc].salt = i2h(rand[0]) + i2h(rand[1]);
+    }
 
     return this.meta[dc].salt as string;
   }

@@ -1,5 +1,5 @@
 import { MTProtoTransport } from '../transport/protocol';
-import TypeLanguage, { TLConstructor, TLAbstract, MethodDeclMap } from '../tl';
+import { MethodDeclMap } from '../tl';
 import { Message } from '../message';
 
 /** Authorization key info with PFS */
@@ -71,7 +71,7 @@ export type ClientError = {
 } | null;
 
 /** Request callback */
-export type RequestCallback = (error: ClientError | null, result?: undefined | TLAbstract) => void;
+export type RequestCallback = (error: ClientError | null, result?: undefined | any) => void;
 
 /** Request callback */
 export type PlainCallback<K extends keyof MethodDeclMap> = (error: ClientError | null, result?: MethodDeclMap[K]['res']) => void;
@@ -88,13 +88,12 @@ export interface DCServiceInterface {
 }
 
 export interface UpdateServiceInterface {
-  process(updateMsg: TLConstructor): void;
+  process(updateMsg: any): void;
 }
 
 /** Client interface to avoid dependency cycle */
 export interface ClientInterface {
   cfg: ClientConfig;
-  tl: TypeLanguage;
   dc: DCServiceInterface;
   updates: UpdateServiceInterface;
   plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;

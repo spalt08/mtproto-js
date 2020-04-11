@@ -10,7 +10,8 @@ module.exports = {
     '^.+\\.(ts)?$': 'ts-jest',
     '^.+\\.(js)?$': 'babel-jest',
   },
-  testPathIgnorePatterns: ['/dist/', '/node_modules/'],
+  testPathIgnorePatterns: ['/dist/', '/node_modules/', '/src/tl/layer105/'],
+  coveragePathIgnorePatterns: ['/src/tl/layer105/'],
   moduleFileExtensions: ['ts', 'js', 'json'],
   collectCoverage: true,
 };

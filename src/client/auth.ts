@@ -2,7 +2,6 @@
 import BigInt from 'big-integer';
 import sha1 from '@cryptography/sha1';
 import { IGE } from '@cryptography/aes';
-import { TLConstructor, parse, build } from '../tl';
 import { getKeyByFingerprints } from '../crypto/rsa/keys';
 import { logs } from '../utils/log';
 import { randomize, i2h, i2ab, Reader32 } from '../serialization';
@@ -10,7 +9,7 @@ import { MessageV1, PlainMessage } from '../message';
 import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
 import { ClientError, AuthKey, ClientInterface, CallHeaders, AuthKeyNotNull } from './types';
-import { Req_DH_params, Set_client_DH_params, Server_DH_inner_data, AuthBindTempAuthKey } from '../tl/layer105/types';
+import { parse, build, Req_DH_params, Set_client_DH_params, Server_DH_inner_data, AuthBindTempAuthKey } from '../tl';
 
 const log = logs('auth');
 
@@ -380,7 +379,7 @@ export function transferAuthorization(client: ClientInterface, userID: number, d
     const { bytes } = res;
 
     client.call('auth.importAuthorization', { id: userID, bytes }, { dc: dcTo, force: true }, (err2, res2) => {
-      if (err2 || !(res2 instanceof TLConstructor) || res2._ !== 'auth.authorization') {
+      if (err2 || !res2 || res2._ !== 'auth.authorization') {
         if (cb) cb(false);
         return;
       }

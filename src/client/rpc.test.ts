@@ -2,6 +2,7 @@
 import client from '../mock/client';
 import RPCService from './rpc';
 import { Message } from '../message';
+import { build } from '../tl';
 
 test('rpc service | common', () => {
   const service = new RPCService(client);
@@ -11,7 +12,7 @@ test('rpc service | common', () => {
   const dc = 1;
   const thread = 1;
   const transport = 'websocket';
-  const msg = new Message(client.tl.create('help.getNearestDc').serialize(), true);
+  const msg = new Message(build({ _: 'help.getNearestDc' }), true);
   msg.id = id;
 
   // listen server answer
@@ -23,7 +24,8 @@ test('rpc service | common', () => {
   });
 
   // emulate response
-  const result = client.tl.create('rpc_result', {
+  const result = {
+    _: 'rpc_result',
     req_msg_id: id,
     result: {
       _: 'nearestDc',
@@ -31,9 +33,7 @@ test('rpc service | common', () => {
       this_dc: 1,
       nearest_dc: 1,
     },
-  });
-
-  result.serialize();
+  };
 
   service.processMessage(result, {
     dc: 1,

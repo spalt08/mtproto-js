@@ -1,4 +1,4 @@
-import TypeLanguage, { MethodDeclMap, build, parse } from '../tl';
+import { MethodDeclMap, build, parse } from '../tl';
 import Transport, { TransportConfig, TransportState } from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
@@ -22,9 +22,6 @@ const debug = (flag: boolean, ...rest: any[]) => {
  * MTProto client
  */
 export default class Client {
-  /** Type Language handler */
-  tl: TypeLanguage;
-
   /** Client configuration */
   cfg: ClientConfig;
 
@@ -61,9 +58,7 @@ export default class Client {
   pending: Record<number, Message[]> = {};
 
   /** Creates new client handler */
-  constructor(tl: TypeLanguage, cfg: Record<string, any> = {}) {
-    this.tl = tl;
-
+  constructor(cfg: Record<string, any> = {}) {
     this.cfg = { ...defaultClientConfig, ...cfg };
 
     this.dc = new DCService(cfg.meta, (meta) => {
