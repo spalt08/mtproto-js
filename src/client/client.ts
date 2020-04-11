@@ -9,7 +9,6 @@ import { genPasswordSRP } from '../crypto/srp';
 import { ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey, Transports, CallHeaders, PlainCallback } from './types';
 import { MTProtoTransport } from '../transport/protocol';
 import { logs } from '../utils/log';
-import { raw2hex } from '../serialization';
 import { createAuthKey, bindTempAuthKey, initConnection, transferAuthorization } from './auth';
 
 type ClientEventListener = (...payload: any[]) => any;
@@ -81,12 +80,12 @@ export default class Client {
 
   getPasswordKdfAsync(conf: any, password: string, cb: (result: object) => void): void {
     const srp = genPasswordSRP(
-      raw2hex(conf.current_algo.salt1),
-      raw2hex(conf.current_algo.salt2),
+      conf.current_algo.salt1,
+      conf.current_algo.salt2,
       conf.current_algo.g,
-      raw2hex(conf.current_algo.p),
+      conf.current_algo.p,
       conf.srp_id,
-      raw2hex(conf.srp_B),
+      conf.srp_B,
       password,
     );
 
