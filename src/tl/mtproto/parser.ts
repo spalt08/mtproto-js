@@ -1,10 +1,17 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+/* eslint-disable quote-props */
+/* eslint-disable spaced-comment */
+/* eslint-disable max-len */
+/* eslint-disable operator-linebreak */
+/* eslint-disable semi-style */
+
 /*******************************************************************************************/
 /* This file was automatically generated (https://github.com/misupov/tg-schema-generator). */
 /*                                                                                         */
 /* Do not make changes to this file unless you know what you are doing -- modify           */
 /* the tool instead.                                                                       */
 /*                                                                                         */
-/* Time: Sunday, 12 April 2020 19:14:25 (UTC)                                              */
+/* Time: Sunday, 12 April 2020 20:20:30 (UTC)                                              */
 /*                                                                                         */
 /*******************************************************************************************/
 
@@ -134,13 +141,11 @@ function vector(t: () => any, bare = false) {
 function obj() {
   const c = i32() >>> 0;
   const f = parserMap.get(c);
-  if (f) {
-    return f();
-  } else if (fallbackParse) {
+  if (f) return f();
+  if (fallbackParse) {
     r.rollback();
     return fallbackParse(r);
-  } else {
-    console.error(`Unknown constructor 0x${c.toString(16)}.`);
-    return undefined;
   }
+  console.error(`Unknown constructor 0x${c.toString(16)}.`);
+  return undefined;
 }

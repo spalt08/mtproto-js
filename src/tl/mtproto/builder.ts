@@ -1,10 +1,17 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+/* eslint-disable quote-props */
+/* eslint-disable spaced-comment */
+/* eslint-disable max-len */
+/* eslint-disable operator-linebreak */
+/* eslint-disable semi-style */
+
 /*******************************************************************************************/
 /* This file was automatically generated (https://github.com/misupov/tg-schema-generator). */
 /*                                                                                         */
 /* Do not make changes to this file unless you know what you are doing -- modify           */
 /* the tool instead.                                                                       */
 /*                                                                                         */
-/* Time: Sunday, 12 April 2020 19:14:25 (UTC)                                              */
+/* Time: Sunday, 12 April 2020 20:18:25 (UTC)                                              */
 /*                                                                                         */
 /*******************************************************************************************/
 
@@ -351,7 +358,7 @@ const builderMap: Record<string, [number, ((o: any) => void)?]> = {
   'http_wait': [0x9299359f, _http_wait],
   'destroy_auth_key': [0xd1435160],
   'destroy_session': [0xe7512126, _destroy_session],
-}
+};
 
 const i32 = (value: number) => w.int32(value);
 const i64 = (value: string) => w.long(value);
@@ -366,7 +373,7 @@ const vector = (fn: (value: any) => void, value: Array<any>) => {
   for (let i = 0; i < value.length; i++) {
     fn(value[i]);
   }
-}
+};
 
 const obj = (o: any, bare = false) => {
   const descriptor = builderMap[o._];
@@ -377,6 +384,6 @@ const obj = (o: any, bare = false) => {
   } else if (fallbackBuilder) {
     fallbackBuilder(w, o);
   } else {
-    console.error('Cannot serialize object ${JSON.stringify(o)}');
+    console.error(`Cannot serialize object ${JSON.stringify(o)}`);
   }
-}
+};
