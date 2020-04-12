@@ -12,7 +12,7 @@ import { Writer32 } from '../../serialization';
  * Time: Thursday, 09 April 2020 07:57:16 (UTC)
  */
 
-const sharedBuffer = new Uint32Array(256);
+const sharedBuffer = new Uint32Array(1024);
 const w = new Writer32(sharedBuffer);
 
 export default function build(o: any): Uint32Array {

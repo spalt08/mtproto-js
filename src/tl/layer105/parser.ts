@@ -179,6 +179,38 @@ const _chatParticipantsForbidden = (): any => {
 const _chatParticipants: any = () => ({ _: 'chatParticipants', chat_id: i32(), participants: vector(obj), version: i32() });
 const _chatPhotoEmpty: any = () => ({ _: 'chatPhotoEmpty' });
 const _chatPhoto: any = () => ({ _: 'chatPhoto', photo_small: obj(), photo_big: obj(), dc_id: i32() });
+
+const message = (): any => {
+  const flags = i32();
+  return {
+    _: 'message',
+    out: !!(flags & 0x2),
+    mentioned: !!(flags & 0x10),
+    media_unread: !!(flags & 0x20),
+    silent: !!(flags & 0x2000),
+    post: !!(flags & 0x4000),
+    from_scheduled: !!(flags & 0x40000),
+    legacy: !!(flags & 0x80000),
+    edit_hide: !!(flags & 0x200000),
+    id: i32(),
+    from_id: flags & 0x100 ? i32() : u,
+    to_id: obj(),
+    fwd_from: flags & 0x4 ? obj() : u,
+    via_bot_id: flags & 0x800 ? i32() : u,
+    reply_to_msg_id: flags & 0x8 ? i32() : u,
+    date: i32(),
+    message: str(),
+    media: flags & 0x200 ? obj() : u,
+    reply_markup: flags & 0x40 ? obj() : u,
+    entities: flags & 0x80 ? vector(obj) : u,
+    views: flags & 0x400 ? i32() : u,
+    edit_date: flags & 0x8000 ? i32() : u,
+    post_author: flags & 0x10000 ? str() : u,
+    grouped_id: flags & 0x20000 ? i64() : u,
+    restriction_reason: flags & 0x400000 ? vector(obj) : u,
+  }
+};
+
 const _messageEmpty: any = () => ({ _: 'messageEmpty', id: i32() });
 const _messageService = (): any => {
   const flags = i32();
@@ -2631,6 +2663,7 @@ const parserMap = new Map<number, () => any>([
   [0x3f460fed, _chatParticipants],
   [0x37c1011c, _chatPhotoEmpty],
   [0x475cdbd5, _chatPhoto],
+  [0x452c0e65, message],
   [0x83e5de54, _messageEmpty],
   [0x9e19a1f6, _messageService],
   [0x3ded6320, _messageMediaEmpty],

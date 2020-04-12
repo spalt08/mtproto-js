@@ -1,4 +1,5 @@
-import { randomize, i2h } from '../serialization';
+import sha1 from '@cryptography/sha1';
+import { randomize, i2h, Reader32 } from '../serialization';
 import { ClientMeta, AuthKey } from './types';
 
 type DCConfig = {
@@ -115,9 +116,12 @@ export default class DCService {
     const key32 = new Uint32Array(key.key.length / 8);
     for (let i = 0; i < key32.length; i++) key32[i] = +`0x${key.key.slice(i * 8, i * 8 + 8)}`;
 
+    const keyhash = new Reader32(sha1(key32), 3);
+    const keyid = keyhash.long();
+
     this.keys[dc] = {
       key: key32,
-      id: key.id,
+      id: keyid,
     };
   }
 

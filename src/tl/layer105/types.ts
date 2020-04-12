@@ -327,12 +327,32 @@ export type Message =
 export namespace Message {
   export type message = {
     _: 'message',
-    msg_id: string,
-    seqno: number,
-    bytes: number,
-    body: Object,
+    out?: boolean,
+    mentioned?: boolean,
+    media_unread?: boolean,
+    silent?: boolean,
+    post?: boolean,
+    from_scheduled?: boolean,
+    legacy?: boolean,
+    edit_hide?: boolean,
+    id: number,
+    from_id?: number,
+    to_id: Peer,
+    fwd_from?: MessageFwdHeader,
+    via_bot_id?: number,
+    reply_to_msg_id?: number,
+    date: number,
+    message: string,
+    media?: MessageMedia,
+    reply_markup?: ReplyMarkup,
+    entities?: MessageEntity[],
+    views?: number,
+    edit_date?: number,
+    post_author?: string,
+    grouped_id?: string,
+    restriction_reason?: RestrictionReason[],
   };
-  export type messageEmpty = {
+  export  type messageEmpty = {
     _: 'messageEmpty',
     id: number,
   };

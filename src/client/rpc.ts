@@ -75,30 +75,18 @@ export default class RPCService {
     // Success response
     if (!data) throw new Error('Expected type language constructor for response');
 
-    let result = data;
-
-    // Ungzip if gzipped
-    if (data && data._ === 'gzip_packed') {
-      const gz = new Uint8Array(data.packed_data);
-
-      if (gz) {
-        const reader = new Reader32(ab2i(inflate(gz)));
-        result = parse(reader);
-      }
-    }
-
     // if (result && result.declaration && result.declaration.type === 'Updates') {
     //   this.client.updates.process(result);
     // }
 
     // Process response
-    debug(this.client.cfg, Date.now(), request.dc, '-> ', result._, `(request: ${id})`);
-    if (request.cb) request.cb(null, result);
+    debug(this.client.cfg, Date.now(), request.dc, '-> ', data._, `(request: ${id})`);
+    if (request.cb) request.cb(null, data);
 
     delete this.requests[id];
 
     // Apply middleware
-    this.middleware(request, result);
+    this.middleware(request, data);
   }
 
   /**
@@ -271,10 +259,17 @@ export default class RPCService {
    * Processes: rpc_result
    */
   processRPCResult(res: RpcResult.rpc_result, headers: RPCHeaders) {
-    const { result } = res as any;
+    let { result } = res as any;
     const reqID = res.req_msg_id;
 
     if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
+
+    // Ungzip if gzipped
+    if (result && result._ === 'gzip_packed') {
+      const gz = new Uint8Array(result.packed_data);
+      const reader = new Reader32(ab2i(inflate(gz)));
+      result = parse(reader) as any;
+    } 
 
     switch (result._) {
       case 'rpc_error':
