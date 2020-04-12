@@ -4,7 +4,7 @@ import { Message } from '../message';
 import { ab2i, Reader32 } from '../serialization';
 import { RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestRPC, PlainCallback, MessageHeaders } from './types';
 import { parse } from '../tl';
-import { Object, BadMsgNotification, NewSession, RpcResult } from '../tl/layer105/types';
+import { Object, BadMsgNotification, NewSession, RpcResult } from '../tl/mtproto/types';
 
 const debug = (cfg: ClientConfig, ...rest: any[]) => {
   if (cfg.debug) logs('rpc')(...rest);

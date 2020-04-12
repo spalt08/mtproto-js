@@ -1,79 +1,37 @@
-/* eslint-disable no-spaced-func */
-/* eslint-disable max-len */
-/* eslint-disable @typescript-eslint/camelcase, @typescript-eslint/no-use-before-define */
-
-/**
- * This file was automatically generated (https://github.com/misupov/tg-schema-generator).
- *
- * Do not make changes to this file unless you know what you are doing -- modify
- * the tool instead.
- *
- * Source: layer105.json (md5: 15f299b996d718182fbb8b20f18b8ddd)
- * Time: Thursday, 09 April 2020 07:57:16 (UTC)
- */
+/*******************************************************************************************/
+/* This file was automatically generated (https://github.com/misupov/tg-schema-generator). */
+/*                                                                                         */
+/* Do not make changes to this file unless you know what you are doing -- modify           */
+/* the tool instead.                                                                       */
+/*                                                                                         */
+/* Time: Sunday, 12 April 2020 18:11:04 (UTC)                                              */
+/*                                                                                         */
+/*******************************************************************************************/
 
 interface Reader {
   int32(): number;
-  long(): string;
+  int64(): string;
   int128(): Uint32Array;
   int256(): Uint32Array;
   double(): number;
   string(): string;
   bytes(): ArrayBuffer;
+  rollback(): void;
 }
 
 let r: Reader;
+let fallbackParse: ((stream: Reader) => any) | undefined;
 
-export default function parse(reader: Reader): any {
+export default function parse(reader: Reader, fallback?: (stream: Reader) => any) {
   r = reader;
+  fallbackParse = fallback;
   return obj();
 }
 
-const _vector: any = () => ({ _: 'vector' });
-const _resPQ: any = () => ({ _: 'resPQ', nonce: i128(), server_nonce: i128(), pq: bytes(), server_public_key_fingerprints: vector(i64) });
-const _p_q_inner_data: any = () => ({ _: 'p_q_inner_data', pq: bytes(), p: bytes(), q: bytes(), nonce: i128(), server_nonce: i128(), new_nonce: i256() });
-const _p_q_inner_data_dc: any = () => ({ _: 'p_q_inner_data_dc', pq: bytes(), p: bytes(), q: bytes(), nonce: i128(), server_nonce: i128(), new_nonce: i256(), dc: i32() });
-const _p_q_inner_data_temp: any = () => ({ _: 'p_q_inner_data_temp', pq: bytes(), p: bytes(), q: bytes(), nonce: i128(), server_nonce: i128(), new_nonce: i256(), expires_in: i32() });
-const _p_q_inner_data_temp_dc: any = () => ({ _: 'p_q_inner_data_temp_dc', pq: bytes(), p: bytes(), q: bytes(), nonce: i128(), server_nonce: i128(), new_nonce: i256(), dc: i32(), expires_in: i32() });
-const _server_DH_params_fail: any = () => ({ _: 'server_DH_params_fail', nonce: i128(), server_nonce: i128(), new_nonce_hash: i128() });
-const _server_DH_params_ok: any = () => ({ _: 'server_DH_params_ok', nonce: i128(), server_nonce: i128(), encrypted_answer: bytes() });
-const _server_DH_inner_data: any = () => ({ _: 'server_DH_inner_data', nonce: i128(), server_nonce: i128(), g: i32(), dh_prime: bytes(), g_a: bytes(), server_time: i32() });
-const _client_DH_inner_data: any = () => ({ _: 'client_DH_inner_data', nonce: i128(), server_nonce: i128(), retry_id: i64(), g_b: bytes() });
-const _dh_gen_ok: any = () => ({ _: 'dh_gen_ok', nonce: i128(), server_nonce: i128(), new_nonce_hash1: i128() });
-const _dh_gen_retry: any = () => ({ _: 'dh_gen_retry', nonce: i128(), server_nonce: i128(), new_nonce_hash2: i128() });
-const _dh_gen_fail: any = () => ({ _: 'dh_gen_fail', nonce: i128(), server_nonce: i128(), new_nonce_hash3: i128() });
-const _rpc_result: any = () => ({ _: 'rpc_result', req_msg_id: i64(), result: obj() });
-const _rpc_error: any = () => ({ _: 'rpc_error', error_code: i32(), error_message: str() });
-const _rpc_answer_unknown: any = () => ({ _: 'rpc_answer_unknown' });
-const _rpc_answer_dropped_running: any = () => ({ _: 'rpc_answer_dropped_running' });
-const _rpc_answer_dropped: any = () => ({ _: 'rpc_answer_dropped', msg_id: i64(), seq_no: i32(), bytes: i32() });
-const _future_salt: any = () => ({ _: 'future_salt', valid_since: i32(), valid_until: i32(), salt: i64() });
-const _future_salts: any = () => ({ _: 'future_salts', req_msg_id: i64(), now: i32(), salts: vector(_future_salt, true) });
-const _pong: any = () => ({ _: 'pong', msg_id: i64(), ping_id: i64() });
-const _new_session_created: any = () => ({ _: 'new_session_created', first_msg_id: i64(), unique_id: i64(), server_salt: i64() });
-const _msg_container: any = () => ({ _: 'msg_container', messages: vector(_message, true) });
-const _message: any = () => ({ _: 'message', msg_id: i64(), seqno: i32(), bytes: i32(), body: obj() });
-const _msg_copy: any = () => ({ _: 'msg_copy', orig_message: obj() });
-const _gzip_packed: any = () => ({ _: 'gzip_packed', packed_data: bytes() });
-const _msgs_ack: any = () => ({ _: 'msgs_ack', msg_ids: vector(i64) });
-const _bad_msg_notification: any = () => ({ _: 'bad_msg_notification', bad_msg_id: i64(), bad_msg_seqno: i32(), error_code: i32() });
-const _bad_server_salt: any = () => ({ _: 'bad_server_salt', bad_msg_id: i64(), bad_msg_seqno: i32(), error_code: i32(), new_server_salt: i64() });
-const _msg_resend_req: any = () => ({ _: 'msg_resend_req', msg_ids: vector(i64) });
-const _msg_resend_ans_req: any = () => ({ _: 'msg_resend_ans_req', msg_ids: vector(i64) });
-const _msgs_state_req: any = () => ({ _: 'msgs_state_req', msg_ids: vector(i64) });
-const _msgs_state_info: any = () => ({ _: 'msgs_state_info', req_msg_id: i64(), info: bytes() });
-const _msgs_all_info: any = () => ({ _: 'msgs_all_info', msg_ids: vector(i64), info: bytes() });
-const _msg_detailed_info: any = () => ({ _: 'msg_detailed_info', msg_id: i64(), answer_msg_id: i64(), bytes: i32(), status: i32() });
-const _msg_new_detailed_info: any = () => ({ _: 'msg_new_detailed_info', answer_msg_id: i64(), bytes: i32(), status: i32() });
-const _bind_auth_key_inner: any = () => ({ _: 'bind_auth_key_inner', nonce: i64(), temp_auth_key_id: i64(), perm_auth_key_id: i64(), temp_session_id: i64(), expires_at: i32() });
-const _destroy_auth_key_ok: any = () => ({ _: 'destroy_auth_key_ok' });
-const _destroy_auth_key_none: any = () => ({ _: 'destroy_auth_key_none' });
-const _destroy_auth_key_fail: any = () => ({ _: 'destroy_auth_key_fail' });
-const _destroy_session_ok: any = () => ({ _: 'destroy_session_ok', session_id: i64() });
-const _destroy_session_none: any = () => ({ _: 'destroy_session_none', session_id: i64() });
 const _boolFalse = () => false;
 const _boolTrue = () => true;
 const _true = () => true;
+const _vector: any = () => ({ _: 'vector' });
 const _error: any = () => ({ _: 'error', code: i32(), text: str() });
 const _null = () => null;
 const _inputPeerEmpty: any = () => ({ _: 'inputPeerEmpty' });
@@ -91,7 +49,7 @@ const _inputMediaUploadedPhoto = (): any => {
     file: obj(),
     stickers: flags & 0x1 ? vector(obj) : u,
     ttl_seconds: flags & 0x2 ? i32() : u,
-  };
+  }
 };
 const _inputMediaPhoto = (): any => {
   const flags = i32();
@@ -99,7 +57,7 @@ const _inputMediaPhoto = (): any => {
     _: 'inputMediaPhoto',
     id: obj(),
     ttl_seconds: flags & 0x1 ? i32() : u,
-  };
+  }
 };
 const _inputMediaGeoPoint: any = () => ({ _: 'inputMediaGeoPoint', geo_point: obj() });
 const _inputMediaContact: any = () => ({ _: 'inputMediaContact', phone_number: str(), first_name: str(), last_name: str(), vcard: str() });
@@ -147,7 +105,7 @@ const _chat = (): any => {
     migrated_to: flags & 0x40 ? obj() : u,
     admin_rights: flags & 0x4000 ? obj() : u,
     default_banned_rights: flags & 0x40000 ? obj() : u,
-  };
+  }
 };
 const _chatForbidden: any = () => ({ _: 'chatForbidden', id: i32(), title: str() });
 const _chatFull = (): any => {
@@ -165,7 +123,7 @@ const _chatFull = (): any => {
     bot_info: flags & 0x8 ? vector(obj) : u,
     pinned_msg_id: flags & 0x40 ? i32() : u,
     folder_id: flags & 0x800 ? i32() : u,
-  };
+  }
 };
 const _chatParticipant: any = () => ({ _: 'chatParticipant', user_id: i32(), inviter_id: i32(), date: i32() });
 const _chatParticipantsForbidden = (): any => {
@@ -174,13 +132,13 @@ const _chatParticipantsForbidden = (): any => {
     _: 'chatParticipantsForbidden',
     chat_id: i32(),
     self_participant: flags & 0x1 ? obj() : u,
-  };
+  }
 };
 const _chatParticipants: any = () => ({ _: 'chatParticipants', chat_id: i32(), participants: vector(obj), version: i32() });
 const _chatPhotoEmpty: any = () => ({ _: 'chatPhotoEmpty' });
 const _chatPhoto: any = () => ({ _: 'chatPhoto', photo_small: obj(), photo_big: obj(), dc_id: i32() });
-
-const message = (): any => {
+const _messageEmpty: any = () => ({ _: 'messageEmpty', id: i32() });
+const _message = (): any => {
   const flags = i32();
   return {
     _: 'message',
@@ -210,8 +168,6 @@ const message = (): any => {
     restriction_reason: flags & 0x400000 ? vector(obj) : u,
   }
 };
-
-const _messageEmpty: any = () => ({ _: 'messageEmpty', id: i32() });
 const _messageService = (): any => {
   const flags = i32();
   return {
@@ -228,7 +184,7 @@ const _messageService = (): any => {
     reply_to_msg_id: flags & 0x8 ? i32() : u,
     date: i32(),
     action: obj(),
-  };
+  }
 };
 const _messageMediaEmpty: any = () => ({ _: 'messageMediaEmpty' });
 const _messageMediaPhoto = (): any => {
@@ -237,7 +193,7 @@ const _messageMediaPhoto = (): any => {
     _: 'messageMediaPhoto',
     photo: flags & 0x1 ? obj() : u,
     ttl_seconds: flags & 0x4 ? i32() : u,
-  };
+  }
 };
 const _messageMediaGeo: any = () => ({ _: 'messageMediaGeo', geo: obj() });
 const _messageMediaContact: any = () => ({ _: 'messageMediaContact', phone_number: str(), first_name: str(), last_name: str(), vcard: str(), user_id: i32() });
@@ -265,7 +221,7 @@ const _dialog = (): any => {
     pts: flags & 0x1 ? i32() : u,
     draft: flags & 0x2 ? obj() : u,
     folder_id: flags & 0x10 ? i32() : u,
-  };
+  }
 };
 const _photoEmpty: any = () => ({ _: 'photoEmpty', id: i64() });
 const _photo = (): any => {
@@ -279,7 +235,7 @@ const _photo = (): any => {
     date: i32(),
     sizes: vector(obj),
     dc_id: i32(),
-  };
+  }
 };
 const _photoSizeEmpty: any = () => ({ _: 'photoSizeEmpty', type: str() });
 const _photoSize: any = () => ({ _: 'photoSize', type: str(), location: obj(), w: i32(), h: i32(), size: i32() });
@@ -294,7 +250,7 @@ const _authSentCode = (): any => {
     phone_code_hash: str(),
     next_type: flags & 0x2 ? obj() : u,
     timeout: flags & 0x4 ? i32() : u,
-  };
+  }
 };
 const _authAuthorization = (): any => {
   const flags = i32();
@@ -302,7 +258,7 @@ const _authAuthorization = (): any => {
     _: 'auth.authorization',
     tmp_sessions: flags & 0x1 ? i32() : u,
     user: obj(),
-  };
+  }
 };
 const _authExportedAuthorization: any = () => ({ _: 'auth.exportedAuthorization', id: i32(), bytes: bytes() });
 const _inputNotifyPeer: any = () => ({ _: 'inputNotifyPeer', peer: obj() });
@@ -316,7 +272,7 @@ const _inputPeerNotifySettings = (): any => {
     silent: flags & 0x2 ? obj() : u,
     mute_until: flags & 0x4 ? i32() : u,
     sound: flags & 0x8 ? str() : u,
-  };
+  }
 };
 const _peerNotifySettings = (): any => {
   const flags = i32();
@@ -326,7 +282,7 @@ const _peerNotifySettings = (): any => {
     silent: flags & 0x2 ? obj() : u,
     mute_until: flags & 0x4 ? i32() : u,
     sound: flags & 0x8 ? str() : u,
-  };
+  }
 };
 const _peerSettings = (): any => {
   const flags = i32();
@@ -338,7 +294,7 @@ const _peerSettings = (): any => {
     share_contact: !!(flags & 0x8),
     need_contacts_exception: !!(flags & 0x10),
     report_geo: !!(flags & 0x20),
-  };
+  }
 };
 const _wallPaper = (): any => {
   const flags = i32();
@@ -353,7 +309,7 @@ const _wallPaper = (): any => {
     slug: str(),
     document: obj(),
     settings: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _inputReportReasonSpam: any = () => ({ _: 'inputReportReasonSpam' });
 const _inputReportReasonViolence: any = () => ({ _: 'inputReportReasonViolence' });
@@ -378,7 +334,7 @@ const _userFull = (): any => {
     pinned_msg_id: flags & 0x40 ? i32() : u,
     common_chats_count: i32(),
     folder_id: flags & 0x800 ? i32() : u,
-  };
+  }
 };
 const _contact: any = () => ({ _: 'contact', user_id: i32(), mutual: obj() });
 const _importedContact: any = () => ({ _: 'importedContact', user_id: i32(), client_id: i64() });
@@ -402,7 +358,7 @@ const _messagesMessagesSlice = (): any => {
     messages: vector(obj),
     chats: vector(obj),
     users: vector(obj),
-  };
+  }
 };
 const _messagesChats: any = () => ({ _: 'messages.chats', chats: vector(obj) });
 const _messagesChatFull: any = () => ({ _: 'messages.chatFull', full_chat: obj(), chats: vector(obj), users: vector(obj) });
@@ -446,7 +402,7 @@ const _updateShortMessage = (): any => {
     via_bot_id: flags & 0x800 ? i32() : u,
     reply_to_msg_id: flags & 0x8 ? i32() : u,
     entities: flags & 0x80 ? vector(obj) : u,
-  };
+  }
 };
 const _updateShortChatMessage = (): any => {
   const flags = i32();
@@ -467,7 +423,7 @@ const _updateShortChatMessage = (): any => {
     via_bot_id: flags & 0x800 ? i32() : u,
     reply_to_msg_id: flags & 0x8 ? i32() : u,
     entities: flags & 0x80 ? vector(obj) : u,
-  };
+  }
 };
 const _updateShort: any = () => ({ _: 'updateShort', update: obj(), date: i32() });
 const _updatesCombined: any = () => ({ _: 'updatesCombined', updates: vector(obj), users: vector(obj), chats: vector(obj), date: i32(), seq_start: i32(), seq: i32() });
@@ -489,7 +445,7 @@ const _dcOption = (): any => {
     ip_address: str(),
     port: i32(),
     secret: flags & 0x400 ? bytes() : u,
-  };
+  }
 };
 const _config = (): any => {
   const flags = i32();
@@ -546,7 +502,7 @@ const _config = (): any => {
     suggested_lang_code: flags & 0x4 ? str() : u,
     lang_pack_version: flags & 0x4 ? i32() : u,
     base_lang_pack_version: flags & 0x4 ? i32() : u,
-  };
+  }
 };
 const _nearestDc: any = () => ({ _: 'nearestDc', country: str(), this_dc: i32(), nearest_dc: i32() });
 const _helpAppUpdate = (): any => {
@@ -560,7 +516,7 @@ const _helpAppUpdate = (): any => {
     entities: vector(obj),
     document: flags & 0x2 ? obj() : u,
     url: flags & 0x4 ? str() : u,
-  };
+  }
 };
 const _helpNoAppUpdate: any = () => ({ _: 'help.noAppUpdate' });
 const _helpInviteText: any = () => ({ _: 'help.inviteText', message: str() });
@@ -602,7 +558,7 @@ const _inputMediaUploadedDocument = (): any => {
     attributes: vector(obj),
     stickers: flags & 0x1 ? vector(obj) : u,
     ttl_seconds: flags & 0x2 ? i32() : u,
-  };
+  }
 };
 const _inputMediaDocument = (): any => {
   const flags = i32();
@@ -610,7 +566,7 @@ const _inputMediaDocument = (): any => {
     _: 'inputMediaDocument',
     id: obj(),
     ttl_seconds: flags & 0x1 ? i32() : u,
-  };
+  }
 };
 const _messageMediaDocument = (): any => {
   const flags = i32();
@@ -618,7 +574,7 @@ const _messageMediaDocument = (): any => {
     _: 'messageMediaDocument',
     document: flags & 0x1 ? obj() : u,
     ttl_seconds: flags & 0x4 ? i32() : u,
-  };
+  }
 };
 const _inputDocumentEmpty: any = () => ({ _: 'inputDocumentEmpty' });
 const _inputDocument: any = () => ({ _: 'inputDocument', id: i64(), access_hash: i64(), file_reference: bytes() });
@@ -637,7 +593,7 @@ const _document = (): any => {
     thumbs: flags & 0x1 ? vector(obj) : u,
     dc_id: i32(),
     attributes: vector(obj),
-  };
+  }
 };
 const _helpSupport: any = () => ({ _: 'help.support', phone_number: str(), user: obj() });
 const _notifyPeer: any = () => ({ _: 'notifyPeer', peer: obj() });
@@ -666,7 +622,7 @@ const _updateServiceNotification = (): any => {
     message: str(),
     media: obj(),
     entities: vector(obj),
-  };
+  }
 };
 const _userStatusRecently: any = () => ({ _: 'userStatusRecently' });
 const _userStatusLastWeek: any = () => ({ _: 'userStatusLastWeek' });
@@ -699,7 +655,7 @@ const _documentAttributeSticker = (): any => {
     alt: str(),
     stickerset: obj(),
     mask_coords: flags & 0x1 ? obj() : u,
-  };
+  }
 };
 const _documentAttributeVideo = (): any => {
   const flags = i32();
@@ -710,7 +666,7 @@ const _documentAttributeVideo = (): any => {
     duration: i32(),
     w: i32(),
     h: i32(),
-  };
+  }
 };
 const _documentAttributeAudio = (): any => {
   const flags = i32();
@@ -721,7 +677,7 @@ const _documentAttributeAudio = (): any => {
     title: flags & 0x1 ? str() : u,
     performer: flags & 0x2 ? str() : u,
     waveform: flags & 0x4 ? bytes() : u,
-  };
+  }
 };
 const _documentAttributeFilename: any = () => ({ _: 'documentAttributeFilename', file_name: str() });
 const _messagesStickersNotModified: any = () => ({ _: 'messages.stickersNotModified' });
@@ -739,7 +695,7 @@ const _updateReadHistoryInbox = (): any => {
     still_unread_count: i32(),
     pts: i32(),
     pts_count: i32(),
-  };
+  }
 };
 const _updateReadHistoryOutbox: any = () => ({ _: 'updateReadHistoryOutbox', peer: obj(), max_id: i32(), pts: i32(), pts_count: i32() });
 const _messagesAffectedMessages: any = () => ({ _: 'messages.affectedMessages', pts: i32(), pts_count: i32() });
@@ -768,7 +724,7 @@ const _webPage = (): any => {
     document: flags & 0x200 ? obj() : u,
     documents: flags & 0x800 ? vector(obj) : u,
     cached_page: flags & 0x400 ? obj() : u,
-  };
+  }
 };
 const _messageMediaWebPage: any = () => ({ _: 'messageMediaWebPage', webpage: obj() });
 const _authorization = (): any => {
@@ -790,7 +746,7 @@ const _authorization = (): any => {
     ip: str(),
     country: str(),
     region: str(),
-  };
+  }
 };
 const _accountAuthorizations: any = () => ({ _: 'account.authorizations', authorizations: vector(obj) });
 const _accountPassword = (): any => {
@@ -808,7 +764,7 @@ const _accountPassword = (): any => {
     new_algo: obj(),
     new_secure_algo: obj(),
     secure_random: bytes(),
-  };
+  }
 };
 const _accountPasswordSettings = (): any => {
   const flags = i32();
@@ -816,7 +772,7 @@ const _accountPasswordSettings = (): any => {
     _: 'account.passwordSettings',
     email: flags & 0x1 ? str() : u,
     secure_settings: flags & 0x2 ? obj() : u,
-  };
+  }
 };
 const _accountPasswordInputSettings = (): any => {
   const flags = i32();
@@ -827,7 +783,7 @@ const _accountPasswordInputSettings = (): any => {
     hint: flags & 0x1 ? str() : u,
     email: flags & 0x2 ? str() : u,
     new_secure_settings: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _authPasswordRecovery: any = () => ({ _: 'auth.passwordRecovery', email_pattern: str() });
 const _inputMediaVenue: any = () => ({ _: 'inputMediaVenue', geo_point: obj(), title: str(), address: str(), provider: str(), venue_id: str(), venue_type: str() });
@@ -848,7 +804,7 @@ const _chatInvite = (): any => {
     photo: obj(),
     participants_count: i32(),
     participants: flags & 0x10 ? vector(obj) : u,
-  };
+  }
 };
 const _messageActionChatJoinedByLink: any = () => ({ _: 'messageActionChatJoinedByLink', inviter_id: i32() });
 const _updateReadMessagesContents: any = () => ({ _: 'updateReadMessagesContents', messages: vector(i32), pts: i32(), pts_count: i32() });
@@ -872,7 +828,7 @@ const _stickerSet = (): any => {
     thumb_dc_id: flags & 0x10 ? i32() : u,
     count: i32(),
     hash: i32(),
-  };
+  }
 };
 const _messagesStickerSet: any = () => ({ _: 'messages.stickerSet', set: obj(), packs: vector(obj), documents: vector(obj) });
 const _user = (): any => {
@@ -904,7 +860,7 @@ const _user = (): any => {
     restriction_reason: flags & 0x40000 ? vector(obj) : u,
     bot_inline_placeholder: flags & 0x80000 ? str() : u,
     lang_code: flags & 0x400000 ? str() : u,
-  };
+  }
 };
 const _botCommand: any = () => ({ _: 'botCommand', command: str(), description: str() });
 const _botInfo: any = () => ({ _: 'botInfo', user_id: i32(), description: str(), commands: vector(obj) });
@@ -915,7 +871,7 @@ const _replyKeyboardHide = (): any => {
   return {
     _: 'replyKeyboardHide',
     selective: !!(flags & 0x4),
-  };
+  }
 };
 const _replyKeyboardForceReply = (): any => {
   const flags = i32();
@@ -923,7 +879,7 @@ const _replyKeyboardForceReply = (): any => {
     _: 'replyKeyboardForceReply',
     single_use: !!(flags & 0x2),
     selective: !!(flags & 0x4),
-  };
+  }
 };
 const _replyKeyboardMarkup = (): any => {
   const flags = i32();
@@ -933,7 +889,7 @@ const _replyKeyboardMarkup = (): any => {
     single_use: !!(flags & 0x2),
     selective: !!(flags & 0x4),
     rows: vector(obj),
-  };
+  }
 };
 const _inputPeerUser: any = () => ({ _: 'inputPeerUser', user_id: i32(), access_hash: i64() });
 const _inputUser: any = () => ({ _: 'inputUser', user_id: i32(), access_hash: i64() });
@@ -959,7 +915,7 @@ const _updateShortSentMessage = (): any => {
     date: i32(),
     media: flags & 0x200 ? obj() : u,
     entities: flags & 0x80 ? vector(obj) : u,
-  };
+  }
 };
 const _inputChannelEmpty: any = () => ({ _: 'inputChannelEmpty' });
 const _inputChannel: any = () => ({ _: 'inputChannel', channel_id: i32(), access_hash: i64() });
@@ -993,7 +949,7 @@ const _channel = (): any => {
     banned_rights: flags & 0x8000 ? obj() : u,
     default_banned_rights: flags & 0x40000 ? obj() : u,
     participants_count: flags & 0x20000 ? i32() : u,
-  };
+  }
 };
 const _channelForbidden = (): any => {
   const flags = i32();
@@ -1005,7 +961,7 @@ const _channelForbidden = (): any => {
     access_hash: i64(),
     title: str(),
     until_date: flags & 0x10000 ? i32() : u,
-  };
+  }
 };
 const _contactsResolvedPeer: any = () => ({ _: 'contacts.resolvedPeer', peer: obj(), chats: vector(obj), users: vector(obj) });
 const _channelFull = (): any => {
@@ -1044,7 +1000,7 @@ const _channelFull = (): any => {
     slowmode_seconds: flags & 0x20000 ? i32() : u,
     slowmode_next_send_date: flags & 0x40000 ? i32() : u,
     pts: i32(),
-  };
+  }
 };
 const _messageRange: any = () => ({ _: 'messageRange', min_id: i32(), max_id: i32() });
 const _messagesChannelMessages = (): any => {
@@ -1057,7 +1013,7 @@ const _messagesChannelMessages = (): any => {
     messages: vector(obj),
     chats: vector(obj),
     users: vector(obj),
-  };
+  }
 };
 const _messageActionChannelCreate: any = () => ({ _: 'messageActionChannelCreate', title: str() });
 const _updateChannelTooLong = (): any => {
@@ -1066,7 +1022,7 @@ const _updateChannelTooLong = (): any => {
     _: 'updateChannelTooLong',
     channel_id: i32(),
     pts: flags & 0x1 ? i32() : u,
-  };
+  }
 };
 const _updateChannel: any = () => ({ _: 'updateChannel', channel_id: i32() });
 const _updateNewChannelMessage: any = () => ({ _: 'updateNewChannelMessage', message: obj(), pts: i32(), pts_count: i32() });
@@ -1079,7 +1035,7 @@ const _updateReadChannelInbox = (): any => {
     max_id: i32(),
     still_unread_count: i32(),
     pts: i32(),
-  };
+  }
 };
 const _updateDeleteChannelMessages: any = () => ({ _: 'updateDeleteChannelMessages', channel_id: i32(), messages: vector(i32), pts: i32(), pts_count: i32() });
 const _updateChannelMessageViews: any = () => ({ _: 'updateChannelMessageViews', channel_id: i32(), id: i32(), views: i32() });
@@ -1090,7 +1046,7 @@ const _updatesChannelDifferenceEmpty = (): any => {
     final: !!(flags & 0x1),
     pts: i32(),
     timeout: flags & 0x2 ? i32() : u,
-  };
+  }
 };
 const _updatesChannelDifferenceTooLong = (): any => {
   const flags = i32();
@@ -1102,7 +1058,7 @@ const _updatesChannelDifferenceTooLong = (): any => {
     messages: vector(obj),
     chats: vector(obj),
     users: vector(obj),
-  };
+  }
 };
 const _updatesChannelDifference = (): any => {
   const flags = i32();
@@ -1115,7 +1071,7 @@ const _updatesChannelDifference = (): any => {
     other_updates: vector(obj),
     chats: vector(obj),
     users: vector(obj),
-  };
+  }
 };
 const _channelMessagesFilterEmpty: any = () => ({ _: 'channelMessagesFilterEmpty' });
 const _channelMessagesFilter = (): any => {
@@ -1124,7 +1080,7 @@ const _channelMessagesFilter = (): any => {
     _: 'channelMessagesFilter',
     exclude_new_messages: !!(flags & 0x2),
     ranges: vector(obj),
-  };
+  }
 };
 const _channelParticipant: any = () => ({ _: 'channelParticipant', user_id: i32(), date: i32() });
 const _channelParticipantSelf: any = () => ({ _: 'channelParticipantSelf', user_id: i32(), inviter_id: i32(), date: i32() });
@@ -1134,7 +1090,7 @@ const _channelParticipantCreator = (): any => {
     _: 'channelParticipantCreator',
     user_id: i32(),
     rank: flags & 0x1 ? str() : u,
-  };
+  }
 };
 const _channelParticipantsRecent: any = () => ({ _: 'channelParticipantsRecent' });
 const _channelParticipantsAdmins: any = () => ({ _: 'channelParticipantsAdmins' });
@@ -1156,7 +1112,7 @@ const _helpTermsOfService = (): any => {
     text: str(),
     entities: vector(obj),
     min_age_confirm: flags & 0x2 ? i32() : u,
-  };
+  }
 };
 const _updateNewStickerSet: any = () => ({ _: 'updateNewStickerSet', stickerset: obj() });
 const _updateStickerSetsOrder = (): any => {
@@ -1165,7 +1121,7 @@ const _updateStickerSetsOrder = (): any => {
     _: 'updateStickerSetsOrder',
     masks: !!(flags & 0x1),
     order: vector(i64),
-  };
+  }
 };
 const _updateStickerSets: any = () => ({ _: 'updateStickerSets' });
 const _foundGif: any = () => ({ _: 'foundGif', url: str(), thumb_url: str(), content_url: str(), content_type: str(), w: i32(), h: i32() });
@@ -1182,7 +1138,7 @@ const _inputBotInlineMessageMediaAuto = (): any => {
     message: str(),
     entities: flags & 0x2 ? vector(obj) : u,
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _inputBotInlineMessageText = (): any => {
   const flags = i32();
@@ -1192,7 +1148,7 @@ const _inputBotInlineMessageText = (): any => {
     message: str(),
     entities: flags & 0x2 ? vector(obj) : u,
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _inputBotInlineResult = (): any => {
   const flags = i32();
@@ -1206,7 +1162,7 @@ const _inputBotInlineResult = (): any => {
     thumb: flags & 0x10 ? obj() : u,
     content: flags & 0x20 ? obj() : u,
     send_message: obj(),
-  };
+  }
 };
 const _botInlineMessageMediaAuto = (): any => {
   const flags = i32();
@@ -1215,7 +1171,7 @@ const _botInlineMessageMediaAuto = (): any => {
     message: str(),
     entities: flags & 0x2 ? vector(obj) : u,
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _botInlineMessageText = (): any => {
   const flags = i32();
@@ -1225,7 +1181,7 @@ const _botInlineMessageText = (): any => {
     message: str(),
     entities: flags & 0x2 ? vector(obj) : u,
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _botInlineResult = (): any => {
   const flags = i32();
@@ -1239,7 +1195,7 @@ const _botInlineResult = (): any => {
     thumb: flags & 0x10 ? obj() : u,
     content: flags & 0x20 ? obj() : u,
     send_message: obj(),
-  };
+  }
 };
 const _messagesBotResults = (): any => {
   const flags = i32();
@@ -1252,7 +1208,7 @@ const _messagesBotResults = (): any => {
     results: vector(obj),
     cache_time: i32(),
     users: vector(obj),
-  };
+  }
 };
 const _updateBotInlineQuery = (): any => {
   const flags = i32();
@@ -1263,7 +1219,7 @@ const _updateBotInlineQuery = (): any => {
     query: str(),
     geo: flags & 0x1 ? obj() : u,
     offset: str(),
-  };
+  }
 };
 const _updateBotInlineSend = (): any => {
   const flags = i32();
@@ -1274,7 +1230,7 @@ const _updateBotInlineSend = (): any => {
     geo: flags & 0x1 ? obj() : u,
     id: str(),
     msg_id: flags & 0x2 ? obj() : u,
-  };
+  }
 };
 const _inputMessagesFilterVoice: any = () => ({ _: 'inputMessagesFilterVoice' });
 const _inputMessagesFilterMusic: any = () => ({ _: 'inputMessagesFilterMusic' });
@@ -1293,7 +1249,7 @@ const _messageFwdHeader = (): any => {
     post_author: flags & 0x8 ? str() : u,
     saved_from_peer: flags & 0x10 ? obj() : u,
     saved_from_msg_id: flags & 0x10 ? i32() : u,
-  };
+  }
 };
 const _updateEditChannelMessage: any = () => ({ _: 'updateEditChannelMessage', message: obj(), pts: i32(), pts_count: i32() });
 const _updateChannelPinnedMessage: any = () => ({ _: 'updateChannelPinnedMessage', channel_id: i32(), id: i32() });
@@ -1316,7 +1272,7 @@ const _keyboardButtonSwitchInline = (): any => {
     same_peer: !!(flags & 0x1),
     text: str(),
     query: str(),
-  };
+  }
 };
 const _replyInlineMarkup: any = () => ({ _: 'replyInlineMarkup', rows: vector(obj) });
 const _messagesBotCallbackAnswer = (): any => {
@@ -1329,7 +1285,7 @@ const _messagesBotCallbackAnswer = (): any => {
     message: flags & 0x1 ? str() : u,
     url: flags & 0x4 ? str() : u,
     cache_time: i32(),
-  };
+  }
 };
 const _updateBotCallbackQuery = (): any => {
   const flags = i32();
@@ -1342,14 +1298,14 @@ const _updateBotCallbackQuery = (): any => {
     chat_instance: i64(),
     data: flags & 0x1 ? bytes() : u,
     game_short_name: flags & 0x2 ? str() : u,
-  };
+  }
 };
 const _messagesMessageEditData = (): any => {
   const flags = i32();
   return {
     _: 'messages.messageEditData',
     caption: !!(flags & 0x1),
-  };
+  }
 };
 const _updateEditMessage: any = () => ({ _: 'updateEditMessage', message: obj(), pts: i32(), pts_count: i32() });
 const _inputBotInlineMessageMediaGeo = (): any => {
@@ -1359,7 +1315,7 @@ const _inputBotInlineMessageMediaGeo = (): any => {
     geo_point: obj(),
     period: i32(),
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _inputBotInlineMessageMediaVenue = (): any => {
   const flags = i32();
@@ -1372,7 +1328,7 @@ const _inputBotInlineMessageMediaVenue = (): any => {
     venue_id: str(),
     venue_type: str(),
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _inputBotInlineMessageMediaContact = (): any => {
   const flags = i32();
@@ -1383,7 +1339,7 @@ const _inputBotInlineMessageMediaContact = (): any => {
     last_name: str(),
     vcard: str(),
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _botInlineMessageMediaGeo = (): any => {
   const flags = i32();
@@ -1392,7 +1348,7 @@ const _botInlineMessageMediaGeo = (): any => {
     geo: obj(),
     period: i32(),
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _botInlineMessageMediaVenue = (): any => {
   const flags = i32();
@@ -1405,7 +1361,7 @@ const _botInlineMessageMediaVenue = (): any => {
     venue_id: str(),
     venue_type: str(),
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _botInlineMessageMediaContact = (): any => {
   const flags = i32();
@@ -1416,7 +1372,7 @@ const _botInlineMessageMediaContact = (): any => {
     last_name: str(),
     vcard: str(),
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _inputBotInlineResultPhoto: any = () => ({ _: 'inputBotInlineResultPhoto', id: str(), type: str(), photo: obj(), send_message: obj() });
 const _inputBotInlineResultDocument = (): any => {
@@ -1429,7 +1385,7 @@ const _inputBotInlineResultDocument = (): any => {
     description: flags & 0x4 ? str() : u,
     document: obj(),
     send_message: obj(),
-  };
+  }
 };
 const _botInlineMediaResult = (): any => {
   const flags = i32();
@@ -1442,7 +1398,7 @@ const _botInlineMediaResult = (): any => {
     title: flags & 0x4 ? str() : u,
     description: flags & 0x8 ? str() : u,
     send_message: obj(),
-  };
+  }
 };
 const _inputBotInlineMessageID: any = () => ({ _: 'inputBotInlineMessageID', dc_id: i32(), id: i64(), access_hash: i64() });
 const _updateInlineBotCallbackQuery = (): any => {
@@ -1455,7 +1411,7 @@ const _updateInlineBotCallbackQuery = (): any => {
     chat_instance: i64(),
     data: flags & 0x1 ? bytes() : u,
     game_short_name: flags & 0x2 ? str() : u,
-  };
+  }
 };
 const _inlineBotSwitchPM: any = () => ({ _: 'inlineBotSwitchPM', text: str(), start_param: str() });
 const _messagesPeerDialogs: any = () => ({ _: 'messages.peerDialogs', dialogs: vector(obj), messages: vector(obj), chats: vector(obj), users: vector(obj), state: obj() });
@@ -1478,7 +1434,7 @@ const _draftMessageEmpty = (): any => {
   return {
     _: 'draftMessageEmpty',
     date: flags & 0x1 ? i32() : u,
-  };
+  }
 };
 const _draftMessage = (): any => {
   const flags = i32();
@@ -1489,7 +1445,7 @@ const _draftMessage = (): any => {
     message: str(),
     entities: flags & 0x8 ? vector(obj) : u,
     date: i32(),
-  };
+  }
 };
 const _messageActionHistoryClear: any = () => ({ _: 'messageActionHistoryClear' });
 const _messagesFeaturedStickersNotModified: any = () => ({ _: 'messages.featuredStickersNotModified' });
@@ -1510,7 +1466,7 @@ const _inputMediaPhotoExternal = (): any => {
     _: 'inputMediaPhotoExternal',
     url: str(),
     ttl_seconds: flags & 0x1 ? i32() : u,
-  };
+  }
 };
 const _inputMediaDocumentExternal = (): any => {
   const flags = i32();
@@ -1518,7 +1474,7 @@ const _inputMediaDocumentExternal = (): any => {
     _: 'inputMediaDocumentExternal',
     url: str(),
     ttl_seconds: flags & 0x1 ? i32() : u,
-  };
+  }
 };
 const _stickerSetMultiCovered: any = () => ({ _: 'stickerSetMultiCovered', set: obj(), covers: vector(obj) });
 const _maskCoords: any = () => ({ _: 'maskCoords', n: i32(), x: f64(), y: f64(), zoom: f64() });
@@ -1536,7 +1492,7 @@ const _game = (): any => {
     description: str(),
     photo: obj(),
     document: flags & 0x1 ? obj() : u,
-  };
+  }
 };
 const _inputBotInlineResultGame: any = () => ({ _: 'inputBotInlineResultGame', id: str(), short_name: str(), send_message: obj() });
 const _inputBotInlineMessageGame = (): any => {
@@ -1544,7 +1500,7 @@ const _inputBotInlineMessageGame = (): any => {
   return {
     _: 'inputBotInlineMessageGame',
     reply_markup: flags & 0x4 ? obj() : u,
-  };
+  }
 };
 const _messageMediaGame: any = () => ({ _: 'messageMediaGame', game: obj() });
 const _inputMediaGame: any = () => ({ _: 'inputMediaGame', id: obj() });
@@ -1589,7 +1545,7 @@ const _pageBlockPhoto = (): any => {
     caption: obj(),
     url: flags & 0x1 ? str() : u,
     webpage_id: flags & 0x1 ? i64() : u,
-  };
+  }
 };
 const _pageBlockVideo = (): any => {
   const flags = i32();
@@ -1599,7 +1555,7 @@ const _pageBlockVideo = (): any => {
     loop: !!(flags & 0x2),
     video_id: i64(),
     caption: obj(),
-  };
+  }
 };
 const _pageBlockCover: any = () => ({ _: 'pageBlockCover', cover: obj() });
 const _pageBlockEmbed = (): any => {
@@ -1614,7 +1570,7 @@ const _pageBlockEmbed = (): any => {
     w: flags & 0x20 ? i32() : u,
     h: flags & 0x20 ? i32() : u,
     caption: obj(),
-  };
+  }
 };
 const _pageBlockEmbedPost: any = () => ({ _: 'pageBlockEmbedPost', url: str(), webpage_id: i64(), author_photo_id: i64(), author: str(), date: i32(), blocks: vector(obj), caption: obj() });
 const _pageBlockCollage: any = () => ({ _: 'pageBlockCollage', items: vector(obj), caption: obj() });
@@ -1634,7 +1590,7 @@ const _updateDialogPinned = (): any => {
     pinned: !!(flags & 0x1),
     folder_id: flags & 0x2 ? i32() : u,
     peer: obj(),
-  };
+  }
 };
 const _updatePinnedDialogs = (): any => {
   const flags = i32();
@@ -1642,7 +1598,7 @@ const _updatePinnedDialogs = (): any => {
     _: 'updatePinnedDialogs',
     folder_id: flags & 0x2 ? i32() : u,
     order: flags & 0x1 ? vector(obj) : u,
-  };
+  }
 };
 const _dataJSON: any = () => ({ _: 'dataJSON', data: str() });
 const _updateBotWebhookJSON: any = () => ({ _: 'updateBotWebhookJSON', data: obj() });
@@ -1662,7 +1618,7 @@ const _invoice = (): any => {
     email_to_provider: !!(flags & 0x80),
     currency: str(),
     prices: vector(obj),
-  };
+  }
 };
 const _inputMediaInvoice = (): any => {
   const flags = i32();
@@ -1676,7 +1632,7 @@ const _inputMediaInvoice = (): any => {
     provider: str(),
     provider_data: obj(),
     start_param: str(),
-  };
+  }
 };
 const _paymentCharge: any = () => ({ _: 'paymentCharge', id: str(), provider_charge_id: str() });
 const _messageActionPaymentSentMe = (): any => {
@@ -1689,7 +1645,7 @@ const _messageActionPaymentSentMe = (): any => {
     info: flags & 0x1 ? obj() : u,
     shipping_option_id: flags & 0x2 ? str() : u,
     charge: obj(),
-  };
+  }
 };
 const _messageMediaInvoice = (): any => {
   const flags = i32();
@@ -1704,7 +1660,7 @@ const _messageMediaInvoice = (): any => {
     currency: str(),
     total_amount: i64(),
     start_param: str(),
-  };
+  }
 };
 const _postAddress: any = () => ({ _: 'postAddress', street_line1: str(), street_line2: str(), city: str(), state: str(), country_iso2: str(), post_code: str() });
 const _paymentRequestedInfo = (): any => {
@@ -1715,7 +1671,7 @@ const _paymentRequestedInfo = (): any => {
     phone: flags & 0x2 ? str() : u,
     email: flags & 0x4 ? str() : u,
     shipping_address: flags & 0x8 ? obj() : u,
-  };
+  }
 };
 const _keyboardButtonBuy: any = () => ({ _: 'keyboardButtonBuy', text: str() });
 const _messageActionPaymentSent: any = () => ({ _: 'messageActionPaymentSent', currency: str(), total_amount: i64() });
@@ -1739,7 +1695,7 @@ const _paymentsPaymentForm = (): any => {
     saved_info: flags & 0x1 ? obj() : u,
     saved_credentials: flags & 0x2 ? obj() : u,
     users: vector(obj),
-  };
+  }
 };
 const _paymentsValidatedRequestedInfo = (): any => {
   const flags = i32();
@@ -1747,7 +1703,7 @@ const _paymentsValidatedRequestedInfo = (): any => {
     _: 'payments.validatedRequestedInfo',
     id: flags & 0x1 ? str() : u,
     shipping_options: flags & 0x2 ? vector(obj) : u,
-  };
+  }
 };
 const _paymentsPaymentResult: any = () => ({ _: 'payments.paymentResult', updates: obj() });
 const _paymentsPaymentReceipt = (): any => {
@@ -1764,7 +1720,7 @@ const _paymentsPaymentReceipt = (): any => {
     total_amount: i64(),
     credentials_title: str(),
     users: vector(obj),
-  };
+  }
 };
 const _paymentsSavedInfo = (): any => {
   const flags = i32();
@@ -1772,7 +1728,7 @@ const _paymentsSavedInfo = (): any => {
     _: 'payments.savedInfo',
     has_saved_credentials: !!(flags & 0x2),
     saved_info: flags & 0x1 ? obj() : u,
-  };
+  }
 };
 const _inputPaymentCredentialsSaved: any = () => ({ _: 'inputPaymentCredentialsSaved', id: str(), tmp_password: bytes() });
 const _inputPaymentCredentials = (): any => {
@@ -1781,7 +1737,7 @@ const _inputPaymentCredentials = (): any => {
     _: 'inputPaymentCredentials',
     save: !!(flags & 0x1),
     data: obj(),
-  };
+  }
 };
 const _accountTmpPassword: any = () => ({ _: 'account.tmpPassword', tmp_password: bytes(), valid_until: i32() });
 const _shippingOption: any = () => ({ _: 'shippingOption', id: str(), title: str(), prices: vector(obj) });
@@ -1797,7 +1753,7 @@ const _updateBotPrecheckoutQuery = (): any => {
     shipping_option_id: flags & 0x2 ? str() : u,
     currency: str(),
     total_amount: i64(),
-  };
+  }
 };
 const _inputStickerSetItem = (): any => {
   const flags = i32();
@@ -1806,7 +1762,7 @@ const _inputStickerSetItem = (): any => {
     document: obj(),
     emoji: str(),
     mask_coords: flags & 0x1 ? obj() : u,
-  };
+  }
 };
 const _updatePhoneCall: any = () => ({ _: 'updatePhoneCall', phone_call: obj() });
 const _inputPhoneCall: any = () => ({ _: 'inputPhoneCall', id: i64(), access_hash: i64() });
@@ -1823,7 +1779,7 @@ const _phoneCallWaiting = (): any => {
     participant_id: i32(),
     protocol: obj(),
     receive_date: flags & 0x1 ? i32() : u,
-  };
+  }
 };
 const _phoneCallRequested = (): any => {
   const flags = i32();
@@ -1837,7 +1793,7 @@ const _phoneCallRequested = (): any => {
     participant_id: i32(),
     g_a_hash: bytes(),
     protocol: obj(),
-  };
+  }
 };
 const _phoneCallAccepted = (): any => {
   const flags = i32();
@@ -1851,7 +1807,7 @@ const _phoneCallAccepted = (): any => {
     participant_id: i32(),
     g_b: bytes(),
     protocol: obj(),
-  };
+  }
 };
 const _phoneCall = (): any => {
   const flags = i32();
@@ -1868,7 +1824,7 @@ const _phoneCall = (): any => {
     protocol: obj(),
     connections: vector(obj),
     start_date: i32(),
-  };
+  }
 };
 const _phoneCallDiscarded = (): any => {
   const flags = i32();
@@ -1880,7 +1836,7 @@ const _phoneCallDiscarded = (): any => {
     id: i64(),
     reason: flags & 0x1 ? obj() : u,
     duration: flags & 0x2 ? i32() : u,
-  };
+  }
 };
 const _phoneConnection: any = () => ({ _: 'phoneConnection', id: i64(), ip: str(), ipv6: str(), port: i32(), peer_tag: bytes() });
 const _phoneCallProtocol = (): any => {
@@ -1891,7 +1847,7 @@ const _phoneCallProtocol = (): any => {
     udp_reflector: !!(flags & 0x2),
     min_layer: i32(),
     max_layer: i32(),
-  };
+  }
 };
 const _phonePhoneCall: any = () => ({ _: 'phone.phoneCall', phone_call: obj(), users: vector(obj) });
 const _inputMessagesFilterPhoneCalls = (): any => {
@@ -1899,7 +1855,7 @@ const _inputMessagesFilterPhoneCalls = (): any => {
   return {
     _: 'inputMessagesFilterPhoneCalls',
     missed: !!(flags & 0x1),
-  };
+  }
 };
 const _messageActionPhoneCall = (): any => {
   const flags = i32();
@@ -1909,7 +1865,7 @@ const _messageActionPhoneCall = (): any => {
     call_id: i64(),
     reason: flags & 0x1 ? obj() : u,
     duration: flags & 0x2 ? i32() : u,
-  };
+  }
 };
 const _inputMessagesFilterRoundVoice: any = () => ({ _: 'inputMessagesFilterRoundVoice' });
 const _inputMessagesFilterRoundVideo: any = () => ({ _: 'inputMessagesFilterRoundVideo' });
@@ -1933,7 +1889,7 @@ const _langPackStringPluralized = (): any => {
     few_value: flags & 0x8 ? str() : u,
     many_value: flags & 0x10 ? str() : u,
     other_value: str(),
-  };
+  }
 };
 const _langPackStringDeleted: any = () => ({ _: 'langPackStringDeleted', key: str() });
 const _langPackDifference: any = () => ({ _: 'langPackDifference', lang_code: str(), from_version: i32(), version: i32(), strings: vector(obj) });
@@ -1952,7 +1908,7 @@ const _langPackLanguage = (): any => {
     strings_count: i32(),
     translated_count: i32(),
     translations_url: str(),
-  };
+  }
 };
 const _updateLangPackTooLong: any = () => ({ _: 'updateLangPackTooLong', lang_code: str() });
 const _updateLangPack: any = () => ({ _: 'updateLangPack', difference: obj() });
@@ -1968,7 +1924,7 @@ const _channelParticipantAdmin = (): any => {
     date: i32(),
     admin_rights: obj(),
     rank: flags & 0x4 ? str() : u,
-  };
+  }
 };
 const _channelParticipantBanned = (): any => {
   const flags = i32();
@@ -1979,7 +1935,7 @@ const _channelParticipantBanned = (): any => {
     kicked_by: i32(),
     date: i32(),
     banned_rights: obj(),
-  };
+  }
 };
 const _channelParticipantsBanned: any = () => ({ _: 'channelParticipantsBanned', q: str() });
 const _channelParticipantsSearch: any = () => ({ _: 'channelParticipantsSearch', q: str() });
@@ -2017,7 +1973,7 @@ const _channelAdminLogEventsFilter = (): any => {
     pinned: !!(flags & 0x800),
     edit: !!(flags & 0x1000),
     delete: !!(flags & 0x2000),
-  };
+  }
 };
 const _topPeerCategoryPhoneCalls: any = () => ({ _: 'topPeerCategoryPhoneCalls' });
 const _pageBlockAudio: any = () => ({ _: 'pageBlockAudio', audio_id: i64(), caption: obj() });
@@ -2044,7 +2000,7 @@ const _inputMediaGeoLive = (): any => {
     stopped: !!(flags & 0x1),
     geo_point: obj(),
     period: flags & 0x2 ? i32() : u,
-  };
+  }
 };
 const _messageMediaGeoLive: any = () => ({ _: 'messageMediaGeoLive', geo: obj(), period: i32() });
 const _recentMeUrlUnknown: any = () => ({ _: 'recentMeUrlUnknown', url: str() });
@@ -2063,7 +2019,7 @@ const _inputSingleMedia = (): any => {
     random_id: i64(),
     message: str(),
     entities: flags & 0x1 ? vector(obj) : u,
-  };
+  }
 };
 const _webAuthorization: any = () => ({ _: 'webAuthorization', hash: i64(), bot_id: i32(), domain: str(), browser: str(), platform: str(), date_created: i32(), date_active: i32(), ip: str(), region: str() });
 const _accountWebAuthorizations: any = () => ({ _: 'account.webAuthorizations', authorizations: vector(obj), users: vector(obj) });
@@ -2118,7 +2074,7 @@ const _secureValue = (): any => {
     files: flags & 0x10 ? vector(obj) : u,
     plain_data: flags & 0x20 ? obj() : u,
     hash: bytes(),
-  };
+  }
 };
 const _inputSecureValue = (): any => {
   const flags = i32();
@@ -2132,7 +2088,7 @@ const _inputSecureValue = (): any => {
     translation: flags & 0x40 ? vector(obj) : u,
     files: flags & 0x10 ? vector(obj) : u,
     plain_data: flags & 0x20 ? obj() : u,
-  };
+  }
 };
 const _secureValueHash: any = () => ({ _: 'secureValueHash', type: obj(), hash: bytes() });
 const _secureValueErrorData: any = () => ({ _: 'secureValueErrorData', type: obj(), data_hash: bytes(), field: str(), text: str() });
@@ -2151,7 +2107,7 @@ const _accountAuthorizationForm = (): any => {
     errors: vector(obj),
     users: vector(obj),
     privacy_policy_url: flags & 0x1 ? str() : u,
-  };
+  }
 };
 const _accountSentEmailCode: any = () => ({ _: 'account.sentEmailCode', email_pattern: str(), length: i32() });
 const _messageActionSecureValuesSentMe: any = () => ({ _: 'messageActionSecureValuesSentMe', values: vector(obj), credentials: obj() });
@@ -2164,7 +2120,7 @@ const _helpDeepLinkInfo = (): any => {
     update_app: !!(flags & 0x1),
     message: str(),
     entities: flags & 0x2 ? vector(obj) : u,
-  };
+  }
 };
 const _savedPhoneContact: any = () => ({ _: 'savedPhoneContact', phone: str(), first_name: str(), last_name: str(), date: i32() });
 const _accountTakeout: any = () => ({ _: 'account.takeout', id: i64() });
@@ -2175,7 +2131,7 @@ const _updateDialogUnreadMark = (): any => {
     _: 'updateDialogUnreadMark',
     unread: !!(flags & 0x1),
     peer: obj(),
-  };
+  }
 };
 const _messagesDialogsNotModified: any = () => ({ _: 'messages.dialogsNotModified', count: i32() });
 const _inputWebFileGeoPointLocation: any = () => ({ _: 'inputWebFileGeoPointLocation', geo_point: obj(), access_hash: i64(), w: i32(), h: i32(), zoom: i32(), scale: i32() });
@@ -2200,7 +2156,7 @@ const _secureRequiredType = (): any => {
     selfie_required: !!(flags & 0x2),
     translation_required: !!(flags & 0x4),
     type: obj(),
-  };
+  }
 };
 const _secureRequiredTypeOneOf: any = () => ({ _: 'secureRequiredTypeOneOf', types: vector(obj) });
 const _helpPassportConfigNotModified: any = () => ({ _: 'help.passportConfigNotModified' });
@@ -2235,7 +2191,7 @@ const _pageTableCell = (): any => {
     text: flags & 0x80 ? obj() : u,
     colspan: flags & 0x2 ? i32() : u,
     rowspan: flags & 0x4 ? i32() : u,
-  };
+  }
 };
 const _pageTableRow: any = () => ({ _: 'pageTableRow', cells: vector(obj) });
 const _pageBlockTable = (): any => {
@@ -2246,7 +2202,7 @@ const _pageBlockTable = (): any => {
     striped: !!(flags & 0x2),
     title: obj(),
     rows: vector(obj),
-  };
+  }
 };
 const _pageCaption: any = () => ({ _: 'pageCaption', text: obj(), credit: obj() });
 const _pageListItemText: any = () => ({ _: 'pageListItemText', text: obj() });
@@ -2261,7 +2217,7 @@ const _pageBlockDetails = (): any => {
     open: !!(flags & 0x1),
     blocks: vector(obj),
     title: obj(),
-  };
+  }
 };
 const _pageRelatedArticle = (): any => {
   const flags = i32();
@@ -2274,7 +2230,7 @@ const _pageRelatedArticle = (): any => {
     photo_id: flags & 0x4 ? i64() : u,
     author: flags & 0x8 ? str() : u,
     published_date: flags & 0x10 ? i32() : u,
-  };
+  }
 };
 const _pageBlockRelatedArticles: any = () => ({ _: 'pageBlockRelatedArticles', title: obj(), articles: vector(obj) });
 const _pageBlockMap: any = () => ({ _: 'pageBlockMap', geo: obj(), zoom: i32(), w: i32(), h: i32(), caption: obj() });
@@ -2289,7 +2245,7 @@ const _page = (): any => {
     blocks: vector(obj),
     photos: vector(obj),
     documents: vector(obj),
-  };
+  }
 };
 const _inputPrivacyKeyPhoneP2P: any = () => ({ _: 'inputPrivacyKeyPhoneP2P' });
 const _privacyKeyPhoneP2P: any = () => ({ _: 'privacyKeyPhoneP2P' });
@@ -2305,7 +2261,7 @@ const _updateMessagePoll = (): any => {
     poll_id: i64(),
     poll: flags & 0x1 ? obj() : u,
     results: obj(),
-  };
+  }
 };
 const _pollAnswer: any = () => ({ _: 'pollAnswer', text: str(), option: bytes() });
 const _poll = (): any => {
@@ -2316,7 +2272,7 @@ const _poll = (): any => {
     closed: !!(flags & 0x1),
     question: str(),
     answers: vector(obj),
-  };
+  }
 };
 const _pollAnswerVoters = (): any => {
   const flags = i32();
@@ -2325,7 +2281,7 @@ const _pollAnswerVoters = (): any => {
     chosen: !!(flags & 0x1),
     option: bytes(),
     voters: i32(),
-  };
+  }
 };
 const _pollResults = (): any => {
   const flags = i32();
@@ -2334,7 +2290,7 @@ const _pollResults = (): any => {
     min: !!(flags & 0x1),
     results: flags & 0x2 ? vector(obj) : u,
     total_voters: flags & 0x4 ? i32() : u,
-  };
+  }
 };
 const _inputMediaPoll: any = () => ({ _: 'inputMediaPoll', poll: obj() });
 const _messageMediaPoll: any = () => ({ _: 'messageMediaPoll', poll: obj(), results: obj() });
@@ -2353,7 +2309,7 @@ const _chatAdminRights = (): any => {
     invite_users: !!(flags & 0x20),
     pin_messages: !!(flags & 0x80),
     add_admins: !!(flags & 0x200),
-  };
+  }
 };
 const _chatBannedRights = (): any => {
   const flags = i32();
@@ -2372,7 +2328,7 @@ const _chatBannedRights = (): any => {
     invite_users: !!(flags & 0x8000),
     pin_messages: !!(flags & 0x20000),
     until_date: i32(),
-  };
+  }
 };
 const _updateChatDefaultBannedRights: any = () => ({ _: 'updateChatDefaultBannedRights', peer: obj(), default_banned_rights: obj(), version: i32() });
 const _inputWallPaper: any = () => ({ _: 'inputWallPaper', id: i64(), access_hash: i64() });
@@ -2389,7 +2345,7 @@ const _codeSettings = (): any => {
     allow_flashcall: !!(flags & 0x1),
     current_number: !!(flags & 0x2),
     allow_app_hash: !!(flags & 0x10),
-  };
+  }
 };
 const _wallPaperSettings = (): any => {
   const flags = i32();
@@ -2399,7 +2355,7 @@ const _wallPaperSettings = (): any => {
     motion: !!(flags & 0x4),
     background_color: flags & 0x1 ? i32() : u,
     intensity: flags & 0x8 ? i32() : u,
-  };
+  }
 };
 const _autoDownloadSettings = (): any => {
   const flags = i32();
@@ -2412,7 +2368,7 @@ const _autoDownloadSettings = (): any => {
     photo_size_max: i32(),
     video_size_max: i32(),
     file_size_max: i32(),
-  };
+  }
 };
 const _accountAutoDownloadSettings: any = () => ({ _: 'account.autoDownloadSettings', low: obj(), medium: obj(), high: obj() });
 const _emojiKeyword: any = () => ({ _: 'emojiKeyword', keyword: str(), emoticons: vector(str) });
@@ -2434,7 +2390,7 @@ const _inputPeerPhotoFileLocation = (): any => {
     peer: obj(),
     volume_id: i64(),
     local_id: i32(),
-  };
+  }
 };
 const _inputStickerSetThumb: any = () => ({ _: 'inputStickerSetThumb', stickerset: obj(), volume_id: i64(), local_id: i32() });
 const _folder = (): any => {
@@ -2447,7 +2403,7 @@ const _folder = (): any => {
     id: i32(),
     title: str(),
     photo: flags & 0x8 ? obj() : u,
-  };
+  }
 };
 const _dialogFolder = (): any => {
   const flags = i32();
@@ -2461,7 +2417,7 @@ const _dialogFolder = (): any => {
     unread_unmuted_peers_count: i32(),
     unread_muted_messages_count: i32(),
     unread_unmuted_messages_count: i32(),
-  };
+  }
 };
 const _inputDialogPeerFolder: any = () => ({ _: 'inputDialogPeerFolder', folder_id: i32() });
 const _dialogPeerFolder: any = () => ({ _: 'dialogPeerFolder', folder_id: i32() });
@@ -2484,7 +2440,7 @@ const _messagesSearchCounter = (): any => {
     inexact: !!(flags & 0x2),
     filter: obj(),
     count: i32(),
-  };
+  }
 };
 const _keyboardButtonUrlAuth = (): any => {
   const flags = i32();
@@ -2494,7 +2450,7 @@ const _keyboardButtonUrlAuth = (): any => {
     fwd_text: flags & 0x1 ? str() : u,
     url: str(),
     button_id: i32(),
-  };
+  }
 };
 const _inputKeyboardButtonUrlAuth = (): any => {
   const flags = i32();
@@ -2505,7 +2461,7 @@ const _inputKeyboardButtonUrlAuth = (): any => {
     fwd_text: flags & 0x2 ? str() : u,
     url: str(),
     bot: obj(),
-  };
+  }
 };
 const _urlAuthResultRequest = (): any => {
   const flags = i32();
@@ -2514,7 +2470,7 @@ const _urlAuthResultRequest = (): any => {
     request_write_access: !!(flags & 0x1),
     bot: obj(),
     domain: str(),
-  };
+  }
 };
 const _urlAuthResultAccepted: any = () => ({ _: 'urlAuthResultAccepted', url: str() });
 const _urlAuthResultDefault: any = () => ({ _: 'urlAuthResultDefault' });
@@ -2538,7 +2494,7 @@ const _authAuthorizationSignUpRequired = (): any => {
   return {
     _: 'auth.authorizationSignUpRequired',
     terms_of_service: flags & 0x1 ? obj() : u,
-  };
+  }
 };
 const _paymentsPaymentVerificationNeeded: any = () => ({ _: 'payments.paymentVerificationNeeded', url: str() });
 const _inputStickerSetAnimatedEmoji: any = () => ({ _: 'inputStickerSetAnimatedEmoji' });
@@ -2560,7 +2516,7 @@ const _theme = (): any => {
     title: str(),
     document: flags & 0x4 ? obj() : u,
     installs_count: i32(),
-  };
+  }
 };
 const _accountThemesNotModified: any = () => ({ _: 'account.themesNotModified' });
 const _accountThemes: any = () => ({ _: 'account.themes', hash: i32(), themes: vector(obj) });
@@ -2569,51 +2525,10 @@ const _inputPrivacyKeyAddedByPhone: any = () => ({ _: 'inputPrivacyKeyAddedByPho
 const _privacyKeyAddedByPhone: any = () => ({ _: 'privacyKeyAddedByPhone' });
 
 const parserMap = new Map<number, () => any>([
-  [0x1cb5c415, _vector],
-  [0x5162463, _resPQ],
-  [0x83c95aec, _p_q_inner_data],
-  [0xa9f55f95, _p_q_inner_data_dc],
-  [0x3c6a84d4, _p_q_inner_data_temp],
-  [0x56fddf88, _p_q_inner_data_temp_dc],
-  [0x79cb045d, _server_DH_params_fail],
-  [0xd0e8075c, _server_DH_params_ok],
-  [0xb5890dba, _server_DH_inner_data],
-  [0x6643b654, _client_DH_inner_data],
-  [0x3bcbf734, _dh_gen_ok],
-  [0x46dc1fb9, _dh_gen_retry],
-  [0xa69dae02, _dh_gen_fail],
-  [0xf35c6d01, _rpc_result],
-  [0x2144ca19, _rpc_error],
-  [0x5e2ad36e, _rpc_answer_unknown],
-  [0xcd78e586, _rpc_answer_dropped_running],
-  [0xa43ad8b7, _rpc_answer_dropped],
-  [0x949d9dc, _future_salt],
-  [0xae500895, _future_salts],
-  [0x347773c5, _pong],
-  [0x9ec20908, _new_session_created],
-  [0x73f1f8dc, _msg_container],
-  [0x5bb8e511, _message],
-  [0xe06046b2, _msg_copy],
-  [0x3072cfa1, _gzip_packed],
-  [0x62d6b459, _msgs_ack],
-  [0xa7eff811, _bad_msg_notification],
-  [0xedab447b, _bad_server_salt],
-  [0x7d861a08, _msg_resend_req],
-  [0x8610baeb, _msg_resend_ans_req],
-  [0xda69fb52, _msgs_state_req],
-  [0x4deb57d, _msgs_state_info],
-  [0x8cc0d131, _msgs_all_info],
-  [0x276d3ec6, _msg_detailed_info],
-  [0x809db6df, _msg_new_detailed_info],
-  [0x75a3f765, _bind_auth_key_inner],
-  [0xf660e1d4, _destroy_auth_key_ok],
-  [0xa9f2259, _destroy_auth_key_none],
-  [0xea109b13, _destroy_auth_key_fail],
-  [0xe22045fc, _destroy_session_ok],
-  [0x62d350c9, _destroy_session_none],
   [0xbc799737, _boolFalse],
   [0x997275b5, _boolTrue],
   [0x3fedd339, _true],
+  [0x1cb5c415, _vector],
   [0xc4b9f9bb, _error],
   [0x56730bcc, _null],
   [0x7f3b18ea, _inputPeerEmpty],
@@ -2663,8 +2578,8 @@ const parserMap = new Map<number, () => any>([
   [0x3f460fed, _chatParticipants],
   [0x37c1011c, _chatPhotoEmpty],
   [0x475cdbd5, _chatPhoto],
-  [0x452c0e65, message],
   [0x83e5de54, _messageEmpty],
+  [0x452c0e65, _message],
   [0x9e19a1f6, _messageService],
   [0x3ded6320, _messageMediaEmpty],
   [0x695150d7, _messageMediaPhoto],
@@ -3396,9 +3311,7 @@ const parserMap = new Map<number, () => any>([
 
 const u = undefined;
 const i32 = () => r.int32();
-const i64 = () => r.long();
-const i128 = () => r.int128();
-const i256 = () => r.int256();
+const i64 = () => r.int64();
 const f64 = () => r.double();
 const str = () => r.string();
 const bytes = () => r.bytes();
@@ -3416,7 +3329,11 @@ function obj() {
   const f = parserMap.get(c);
   if (f) {
     return f();
+  } else if (fallbackParse) {
+    r.rollback();
+    return fallbackParse(r);
+  } else {
+    console.error(`Unknown constructor 0x${c.toString(16)}.`);
+    return undefined;
   }
-
-  throw new Error(`Unknown constructor 0x${c.toString(16)}.`);
 }
