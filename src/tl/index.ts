@@ -29,6 +29,6 @@ const w = new Writer32(sharedBuffer);
   
 export const build = (o: any) => {
   w.pos = 0;
-  buildMtproto(w, o, buildLayer105);
+  buildMtproto(w, o, () => buildLayer105(w, o));
   return w.buf.subarray(0, w.pos);
 };
