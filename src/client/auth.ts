@@ -237,12 +237,9 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
         const keyhash = new Reader32(sha1(ctx.key!), 3);
         const keyid = keyhash.long();
 
-        let keyhex = '';
-        for (let i = 0; i < ctx.key!.length; i++) keyhex += i2h(ctx.key![i]);
-
         const authKey: AuthKey = {
           id: keyid,
-          key: keyhex,
+          key: ctx.key!,
         };
 
         if (expiresAfter > 0) {
@@ -253,11 +250,11 @@ export function createAuthKey(client: ClientInterface, dc: number, thread: numbe
           ctx.serverNonce![1] ^= ctx.newNonce[1];
 
           const saltReader = new Reader32(ctx.serverNonce!);
-          client.dc.setMeta(dc, 'salt', saltReader.long());
+          client.dc.setSalt(dc, saltReader.long());
         }
 
-        if (expiresAfter > 0) client.dc.setMeta(dc, 'tempKey', authKey);
-        else client.dc.setMeta(dc, 'permKey', authKey);
+        if (expiresAfter > 0) client.dc.setTemporaryKey(dc, authKey);
+        else client.dc.setPermanentKey(dc, authKey);
 
         log(dc, `${expiresAfter > 0 ? 'temporary' : 'permanent'} key created (thread: ${thread})`);
 
@@ -294,14 +291,11 @@ export function createBindingEncryptedPayload(permKey: AuthKeyNotNull, tempKey: 
   bindMsg.buf[18] = rand[8];
   bindMsg.buf[19] = rand[9];
 
-  const key32 = new Uint32Array(permKey!.key.length / 8);
-  for (let i = 0; i < key32.length; i++) key32[i] = +`0x${permKey.key.slice(i * 8, i * 8 + 8)}`;
-
   return {
     perm_auth_key_id: permKey.id,
     nonce: i2h(rand[0]) + i2h(rand[1]),
     expires_at: tempKey.expires || 0,
-    encrypted_message: i2ab(bindMsg.encrypt(key32, permKey!.id).buf),
+    encrypted_message: i2ab(bindMsg.encrypt(permKey!.key, permKey!.id).buf),
   };
 }
 
@@ -321,12 +315,12 @@ export function bindTempAuthKey(client: ClientInterface, dc: number, permKey: Au
   const rand = new Uint32Array(10);
   randomize(rand);
 
-  client.dc.setMeta(dc, 'sessionID', i2h(rand[2]) + i2h(rand[3]));
+  client.dc.setSessionID(dc, i2h(rand[2]) + i2h(rand[3]));
 
   client.call('auth.bindTempAuthKey', createBindingEncryptedPayload(permKey, tempKey, msgID, rand), { msgID, dc, force: true }, (err, res) => {
     if (!err && res === true) {
       log(dc, 'temporary key successfuly binded');
-      client.dc.setMeta(dc, 'tempKey', { ...tempKey, binded: true });
+      client.dc.setKeyBinding(dc);
       if (cb) cb(true);
     } else {
       // cb(false);
@@ -359,7 +353,7 @@ export function initConnection(client: ClientInterface, dc: number, cb?: (result
       log('Unexpected initConnection response');
       if (cb) cb(false);
     } else {
-      client.dc.setMeta(dc, 'connectionInited', true);
+      client.dc.setConnection(dc);
       log('session successfuly inited');
       if (cb) cb(true);
     }

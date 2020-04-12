@@ -94,7 +94,7 @@ export default class RPCService {
   middleware = (request: RequestRPC, result: any) => {
     if (result._ === 'auth.authorization') {
       debug(this.client.cfg, 'middleware', result._);
-      this.client.dc.setMeta(request.headers.dc!, 'userID', result.user.id);
+      this.client.dc.setAuthorization(request.headers.dc!, result.user.id);
     }
   };
 
@@ -220,11 +220,8 @@ export default class RPCService {
 
     if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
-    const msgID = result.bad_msg_id;
-    const newSalt = result.new_server_salt;
-
-    this.client.dc.setMeta(headers.dc, 'salt', newSalt);
-    this.resend(msgID);
+    this.client.dc.setSalt(headers.dc, result.new_server_salt);
+    this.resend(result.bad_msg_id);
   }
 
   /**
@@ -235,8 +232,7 @@ export default class RPCService {
 
     if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
-    const newSalt = result.server_salt;
-    this.client.dc.setMeta(headers.dc, 'salt', newSalt);
+    this.client.dc.setSalt(headers.dc, result.server_salt);
   }
 
   /**

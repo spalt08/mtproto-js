@@ -3,11 +3,13 @@ import configMock from '../mock/transport_config';
 import { Socket, Http } from '../transport';
 import { randomize } from '../serialization';
 import { ResPQ } from '../tl/layer105/types';
+import metaMock from '../mock/client_meta';
+import { AuthKey } from './types';
 
-test('Client | common', () => {
+test('client | common', () => {
   const client = new Client({
     ...configMock,
-    meta: {},
+    meta: metaMock,
     autoConnect: false,
     transport: 'websocket',
   });
@@ -21,7 +23,7 @@ test('Client | common', () => {
   let metaChanged = false;
   client.on('networkChanged', (state) => { connected = state === 'connected'; });
   client.on('metaChanged', () => { metaChanged = true; });
-  client.dc.setMeta(1, 'salt', '0102030405060708');
+  client.dc.setSalt(1, '0102030405060708');
 
   const async = new Promise<ResPQ.resPQ>((resolve) => {
     client.plainCall('req_pq', { nonce }, (err, result) => {
@@ -38,13 +40,54 @@ test('Client | common', () => {
   });
 });
 
-test('Client | http', () => {
+test('client | http', () => {
   const client = new Client({
     ...configMock,
-    meta: {},
+    meta: metaMock,
     autoConnect: false,
     transport: 'http',
   });
 
   expect(client.instances[0] instanceof Http).toBeTruthy();
 });
+
+test('client | authorization no-pfs', () => {
+  const client = new Client({
+    ...configMock,
+    meta: {
+      ...metaMock,
+      pfs: false,
+    },
+    autoConnect: false,
+  });
+
+  const async = new Promise<AuthKey>((resolve) => {
+    client.authorize(1, resolve);
+  });
+
+  return async.then((key) => {
+    if (!key) throw new Error('key should be null');
+    expect(key.id.length).toEqual(16);
+    expect(key.key.length).toEqual(64);
+    expect(!key.expires).toEqual(true);
+    expect(client.dc.pfs()).toEqual(false);
+  });
+}, 150000);
+
+test('client | authorization pfs', () => {
+  const client = new Client({
+    ...configMock,
+    meta: metaMock,
+    autoConnect: false,
+  });
+
+  const async = new Promise<AuthKey>((resolve) => {
+    client.authorize(1, resolve);
+  });
+
+  return async.then((key) => {
+    if (!key) throw new Error('key should be null');
+    expect(key.id.length).toEqual(16);
+    expect(key.key.length).toEqual(64);
+  });
+}, 150000);

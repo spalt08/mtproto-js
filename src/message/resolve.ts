@@ -18,9 +18,9 @@ export default function bytesToMessage(data: Uint32Array): ErrorMessage | Encryp
   }
 
   // quick ack
-  if (data.length <= 3) {
-    console.log('quick_ack', data);
-  }
+  // if (data.length <= 3) {
+  //   throw new Error('Unexpected quick_ack message');
+  // }
 
   // plain message
   if (data[0] === 0) {

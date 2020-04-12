@@ -2,16 +2,6 @@ import { MTProtoTransport } from '../transport/protocol';
 import { MethodDeclMap } from '../tl';
 import { Message } from '../message';
 
-/** Authorization key info with PFS */
-export type AuthKeyNotNull = {
-  key: string,
-  id: string,
-  expires?: number,
-  binded?: boolean,
-};
-
-export type AuthKey = null | AuthKeyNotNull;
-
 export type Transports = 'http' | 'websocket';
 
 /** Client configuration type */
@@ -76,13 +66,23 @@ export type PlainCallback<K extends keyof MethodDeclMap> = (error: ClientError |
 
 /** DCService interface to avoid dependency cycle */
 export interface DCServiceInterface {
-  setMeta(dc: number, param: 'userID', value: number): void;
-  setMeta(dc: number, param: 'seqNo', value: number): void;
-  setMeta(dc: number, param: 'salt' | 'sessionID', value: string): void;
-  setMeta(dc: number, param: 'tempKey' | 'permKey', value: AuthKey): void;
-  setMeta(dc: number, param: 'connectionInited', value: boolean): void;
-  getSalt(dc: number): string;
-  nextSeqNo(dc: number, isContentRelated: boolean): number;
+  getHost(dc: number): string;
+  setSalt(dcID: number, salt: string): void;
+  setAuthorization(dcID: number, userID: number): void;
+  setConnection(dcID: number): void;
+  setPermanentKey(dcID: number, key: AuthKeyNotNull): void;
+  setTemporaryKey(dcID: number, key: AuthKey): void;
+  setKeyBinding(dcID: number): void;
+  setSessionID(dcID: number, session: string): void;
+  getKeyBinding(dcID: number): boolean;
+  getSessionID(dcID: number): string;
+  getSalt(dcID: number): string;
+  getAuthKey(dcID: number): AuthKey;
+  getUserID(): number | null;
+  getAuthorization(dcID: number): boolean;
+  getConnection(dcID: number): boolean;
+  pfs(): boolean;
+  nextSeqNo(dcID: number, isContentRelated?: boolean): number;
 }
 
 export interface UpdateServiceInterface {
@@ -100,6 +100,32 @@ export interface ClientInterface {
   call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
   send(msg: Message, headers: CallHeaders, cb?: PlainCallback<any>): void;
 }
+
+/** Authorization key info with PFS */
+export type AuthKeyNotNull = {
+  key: Uint32Array,
+  id: string,
+  expires?: number,
+  binded?: boolean,
+};
+
+export type AuthKey = null | AuthKeyNotNull;
+
+export type DataCenterMetaData = {
+  permanentKey?: AuthKey,
+  temporaryKey?: AuthKey,
+  salt?: string,
+  inited?: boolean,
+  authorized?: boolean,
+};
+
+export type ClientMetaData = {
+  pfs: boolean,
+  baseDC: number,
+  userID?: number,
+  authorized?: boolean,
+  dcs: Record<number, DataCenterMetaData>,
+};
 
 /** Datacenter info */
 export type DatacenterMeta = {

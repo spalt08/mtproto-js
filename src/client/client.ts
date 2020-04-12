@@ -99,21 +99,32 @@ export default class Client {
     if (!this.authState[dc] || this.authState[dc] !== 1) this.authState[dc] = 1;
     if (!this.authRetries[dc]) this.authRetries[dc] = 0;
 
+    this.authRetries[dc] += 1;
 
-    // this.authRetries[dc] += 1;
+    // limit auth retries
+    if (this.authRetries[dc] > 5) {
+      this.authState[dc] = 0;
+      this.authRetries[dc] = 0;
+      return;
+    }
 
-    // if (this.authRetries[dc] > 6) {
-    //   this.authState[dc] = 0;
-    //   this.authRetries[dc] = 0;
-    //   return;
-    // }
+    // disabled pfs
+    if (!this.dc.pfs()) {
+      createAuthKey(this, dc, 2, 0, (err, key) => {
+        if (err || !key) this.authorize(dc, cb);
+        else if (cb) cb(key);
+      });
 
+      return;
+    }
+
+    // enabled pfs
     const expiresAfter = 3600 * 5;
-    const permKey = this.dc.getPermKey(dc);
+    const permKey = this.dc.getPermanentKey(dc);
     const tempKey = this.dc.getAuthKey(dc);
 
     if (permKey === null) {
-      this.dc.setMeta(dc, 'tempKey', null);
+      this.dc.setTemporaryKey(dc, null);
 
       let calls = 0;
 
@@ -137,17 +148,17 @@ export default class Client {
       return;
     }
 
-    if (this.dc.getConnectionStatus(dc) === false) {
+    if (this.dc.getConnection(dc) === false) {
       initConnection(this, dc, () => {
         this.authorize(dc, cb);
       });
       return;
     }
 
-    const uid = this.dc.getUserID(this.cfg.dc);
+    const uid = this.dc.getUserID();
 
     // transfer auth if exists
-    if (dc !== this.cfg.dc && uid !== null && uid > 0 && this.dc.getUserID(dc) !== uid) {
+    if (dc !== this.cfg.dc && uid && !this.dc.getAuthorization(dc) && this.dc.getAuthorization(this.cfg.dc)) {
       transferAuthorization(this, uid, this.cfg.dc, dc, () => this.authorize(dc, cb));
       return;
     }
@@ -157,7 +168,7 @@ export default class Client {
     this.authRetries[dc] = 0;
     this.resendPending(dc);
 
-    if (cb) cb(null);
+    if (cb) cb(this.dc.getAuthKey(dc));
   }
 
   /** Create new connection instance */
@@ -250,12 +261,12 @@ export default class Client {
 
       if (msg.error.code === -1 && this.authState[cfg.dc] !== 1) {
         console.warn('switching auth key for dc', cfg.dc); // eslint-disable-line no-console
-        this.dc.setMeta(cfg.dc, 'tempKey', null);
+        this.dc.setTemporaryKey(cfg.dc, null);
       }
     }
 
     if (msg instanceof EncryptedMessage) {
-      const authKey = this.dc.keys[cfg.dc];
+      const authKey = this.dc.getAuthKey(cfg.dc);
       if (!authKey) throw new Error(`Unable to decrypt message without auth key (dc: ${cfg.dc}`);
       message = msg.decrypt(authKey.key);
     }
@@ -341,7 +352,7 @@ export default class Client {
 
   /** Encrypt message */
   encrypt(msg: Message, dc: number): EncryptedMessage {
-    const authKey = this.dc.keys[dc];
+    const authKey = this.dc.getAuthKey(dc);
     if (!authKey) throw new Error(`Unable to encrypt message without auth key (dc: ${dc}`);
 
     const encrypted = msg.encrypt(authKey.key, authKey.id);

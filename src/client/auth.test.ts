@@ -6,6 +6,7 @@ import {
 import { ab2i, i2ab } from '../serialization';
 import Client from './client';
 import { AuthKey } from './types';
+import metaMock from '../mock/client_meta';
 
 test('auth | create cipher', () => {
   const ctx: KeyExchangeContext = {
@@ -146,12 +147,26 @@ test('auth | createClientDHParams', () => {
 test('auth | createBindingEncryptedPayload', () => {
   const permKey = {
     id: 'ae73908158c55a02',
-    key: '6b65b83e739b5db589b66bfdc6fc6925a5e8f5ef354086d2a533f0bad4c4f68e82629098e5596726750a346bc9a3dbdd162fd3a6b0fdd6ec48a59516aef9f4294aa5751b4b6ee3b42b07aa7a8b6c213e2b1ed6ecb9772a8ba5774b7f195c48e178d67e5f912e0c430a7406be0aafa2a1cc0a218de81d7ebd861cc65de7d05f94a0cd3bb3b4e7ce87a483c0d3de04a6b1c064488f75500dfbb11b5758a33fa5d1eba87db5809364ce21682543b414a176a9c82f461bbc9a49a34464dd3122beb684162ff23f72c9edf58e30232cd0c4eee0a6e843fbce7fe6a7902bd0bf32c86f203b2184e2588192c231cc542a2794eda471953aff941623c8a7fb851cb59d6f',
+    key: new Uint32Array([
+      0x6b65b83e, 0x739b5db5, 0x89b66bfd, 0xc6fc6925, 0xa5e8f5ef, 0x354086d2, 0xa533f0ba, 0xd4c4f68e, 0x82629098, 0xe5596726, 0x750a346b, 0xc9a3dbdd,
+      0x162fd3a6, 0xb0fdd6ec, 0x48a59516, 0xaef9f429, 0x4aa5751b, 0x4b6ee3b4, 0x2b07aa7a, 0x8b6c213e, 0x2b1ed6ec, 0xb9772a8b, 0xa5774b7f, 0x195c48e1,
+      0x78d67e5f, 0x912e0c43, 0x0a7406be, 0x0aafa2a1, 0xcc0a218d, 0xe81d7ebd, 0x861cc65d, 0xe7d05f94, 0xa0cd3bb3, 0xb4e7ce87, 0xa483c0d3, 0xde04a6b1,
+      0xc064488f, 0x75500dfb, 0xb11b5758, 0xa33fa5d1, 0xeba87db5, 0x809364ce, 0x21682543, 0xb414a176, 0xa9c82f46, 0x1bbc9a49, 0xa34464dd, 0x3122beb6,
+      0x84162ff2, 0x3f72c9ed, 0xf58e3023, 0x2cd0c4ee, 0xe0a6e843, 0xfbce7fe6, 0xa7902bd0, 0xbf32c86f, 0x203b2184, 0xe2588192, 0xc231cc54, 0x2a2794ed,
+      0xa471953a, 0xff941623, 0xc8a7fb85, 0x1cb59d6f,
+    ]),
   };
 
   const tempKey = {
     id: '513f796a3f2e348d',
-    key: 'e326ac88a5a6ade5039daa8487022f448ba7057b1f5ca416799c581ab0e2e270211de0f1c21cc94abd28e949055c8720d412fa77a2af7939fd05da1769ada1bf07a424dd89aa8585549cda43e52665c3ed3e956f21e2646e1a23fa6ae552c9db540e04eb80e7612e602eea54c7bc76bca4a3510ed4dde340b0f4723562c7c64c7aa9a2bec95140dbd0447e64d4f4fe6a32fa64d4b543400fdcffb6f9c685378acc6a386220b4ad3fef04f6e4c5dcf12e483ce06a69147430fee1458cb5b19e47fc91cd582620beb17d378bacc4944e1da2ff4cb47e0d37f7bda8ab69ed3a21dc8bb25af3ee1e8524dbb89ba30b3ff0973b096ccca7e8494e689ffef1a4e66f4',
+    key: new Uint32Array([
+      0xe326ac88, 0xa5a6ade5, 0x039daa84, 0x87022f44, 0x8ba7057b, 0x1f5ca416, 0x799c581a, 0xb0e2e270, 0x211de0f1, 0xc21cc94a, 0xbd28e949, 0x055c8720,
+      0xd412fa77, 0xa2af7939, 0xfd05da17, 0x69ada1bf, 0x07a424dd, 0x89aa8585, 0x549cda43, 0xe52665c3, 0xed3e956f, 0x21e2646e, 0x1a23fa6a, 0xe552c9db,
+      0x540e04eb, 0x80e7612e, 0x602eea54, 0xc7bc76bc, 0xa4a3510e, 0xd4dde340, 0xb0f47235, 0x62c7c64c, 0x7aa9a2be, 0xc95140db, 0xd0447e64, 0xd4f4fe6a,
+      0x32fa64d4, 0xb543400f, 0xdcffb6f9, 0xc685378a, 0xcc6a3862, 0x20b4ad3f, 0xef04f6e4, 0xc5dcf12e, 0x483ce06a, 0x69147430, 0xfee1458c, 0xb5b19e47,
+      0xfc91cd58, 0x2620beb1, 0x7d378bac, 0xc4944e1d, 0xa2ff4cb4, 0x7e0d37f7, 0xbda8ab69, 0xed3a21dc, 0x8bb25af3, 0xee1e8524, 0xdbb89ba3, 0x0b3ff097,
+      0x3b096ccc, 0xa7e8494e, 0x689ffef1, 0xa4e66f41,
+    ]),
     expires: 1586617179,
     binded: false,
   };
@@ -172,7 +187,7 @@ test('auth | create key', () => {
     test: true,
     dc: 2,
     autoConnect: false,
-    meta: {},
+    meta: metaMock,
     debug: false,
   });
 
@@ -186,7 +201,7 @@ test('auth | create key', () => {
   return async.then((key: AuthKey) => {
     if (!key) throw new Error('Key is nullable');
     expect(key.id.length).toBe(16);
-    expect(key.key.length).toBe(512);
+    expect(key.key.length).toBe(64);
     expect(key.id).not.toBe('0000000000000000');
   });
 }, 60000);
@@ -196,7 +211,7 @@ test('Auth | binding and init session', () => {
     test: true,
     dc: 2,
     autoConnect: false,
-    meta: {},
+    meta: metaMock,
     debug: false,
   });
 

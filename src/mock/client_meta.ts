@@ -1,8 +1,7 @@
-import { ClientMeta } from '../client/types';
+import { ClientMetaData } from '../client/types';
 
-const meta: ClientMeta = {
-  2: {},
-};
-
-
-export default meta;
+export default {
+  baseDC: 2,
+  pfs: true,
+  dcs: {},
+} as ClientMetaData;

@@ -1,71 +1,92 @@
 /* eslint-disable max-len */
 import DCService from './dc';
 import metaMock from '../mock/client_meta';
-import authKeyMock from '../mock/auth_key';
+import { permanentKey, temporaryKey } from '../mock/auth_key';
 import { ClientMeta } from './types';
 
 test('dc service | common', () => {
   let changed = 0;
+
   const onMetaChange = (_meta: ClientMeta) => {
     changed += 1;
   };
 
   const service = new DCService(metaMock, onMetaChange);
-  const salt = '1234';
-  const session = '45678';
+  const salt = '1234567812345678';
+  const session = '0102030401020304';
+  const userID = 123456;
 
   expect(service.getHost(2)).toBe('venus-1.web.telegram.org');
+  expect(service.getUserID()).toBe(null);
 
-  service.setMeta(2, 'tempKey', authKeyMock);
-  service.setMeta(2, 'permKey', authKeyMock);
-  service.setMeta(2, 'salt', salt);
-  service.setMeta(2, 'sessionID', session);
-  service.setMeta(2, 'connectionInited', true);
-  service.setMeta(2, 'userID', 1);
+  service.setPermanentKey(2, permanentKey);
+  service.setTemporaryKey(2, temporaryKey);
+  service.setSalt(2, salt);
+  service.setKeyBinding(2);
+  service.setAuthorization(2, userID);
+  service.setConnection(2);
 
-  expect(service.getAuthKey(2)).toBe(authKeyMock);
-  expect(service.getPermKey(2)).toBe(authKeyMock);
-  expect(service.getSalt(2)).toBe(salt);
-  expect(service.getSessionID(2)).toBe(session);
-  expect(service.getConnectionStatus(2)).toBe(true);
-  expect(service.getUserID(2)).toBe(1);
-  expect(service.nextSeqNo(2, true)).toBe(3);
-  expect(service.nextSeqNo(2, false)).toBe(4);
-  expect(service.nextSeqNo(2, true)).toBe(5);
-
-  expect(changed).toBe(8);
-});
-
-test('dc service | cached key', () => {
-  const service = new DCService({
-    2: {
-      tempKey: authKeyMock,
+  expect(service.meta).toEqual({
+    ...metaMock,
+    userID,
+    dcs: {
+      2: {
+        temporaryKey: {
+          ...temporaryKey,
+          binded: true,
+        },
+        permanentKey,
+        salt,
+        authorized: true,
+        inited: true,
+      },
     },
-  }, () => {});
+  });
 
-  expect(service.keys[2].id).toBe(authKeyMock!.id);
-});
+  expect(service.getUserID()).toBe(userID);
+  expect(changed).toEqual(6);
+
+  service.setBaseDC(3);
+  expect(service.meta.baseDC).toEqual(3);
+
+  expect(changed).toEqual(7);
+
+  service.setSessionID(2, session);
+
+  expect(service.sessions).toEqual({ 2: session });
+  expect(service.getSessionID(2)).toEqual(session);
+
+  expect(service.getAuthKey(2)).toBe(temporaryKey);
+  expect(service.getKeyBinding(2)).toBe(true);
+  expect(service.getConnection(2)).toBe(true);
+
+  service.setTemporaryKey(2, null);
+  expect(service.getAuthKey(2)).toBe(null);
+
+  expect(service.getAuthKey(3)).toBe(null);
+  expect(service.getPermanentKey(3)).toBe(null);
+
+  service.meta.pfs = false;
+
+  expect(service.getAuthKey(2)).toBe(permanentKey);
+
+  expect(service.nextSeqNo(3, true)).toBe(3);
+  expect(service.nextSeqNo(3)).toBe(4);
+  expect(service.nextSeqNo(3, true)).toBe(5);
+
+  expect(service.getKeyBinding(2)).toBe(false);
+  expect(service.getAuthorization(2)).toBe(true);
+  expect(service.getConnection(2)).toBe(false);
+  expect(service.getSalt(2)).toBe(salt);
+
+  expect(service.pfs()).toBe(false);
+
+  expect(service.getSalt(3)).not.toBe('');
+  expect(service.getSessionID(3)).not.toBe('');
 
 
-test('dc service | updating', () => {
-  const service = new DCService({});
+  expect(service.getPermanentKey(2)).toEqual(permanentKey);
 
-  service.setMeta(2, 'tempKey', null);
-  expect(service.meta[2].tempKey).toBe(null);
-
-  service.setMeta(2, 'tempKey', authKeyMock);
-  expect(service.meta[2].tempKey).toBe(authKeyMock);
-
-  expect(service.keys[2].key).toEqual(
-    new Uint32Array([0x01020304, 0x05060708]),
-  );
-
-  expect(service.getSessionID(1).length).toBeGreaterThan(0);
-  expect(service.getSalt(3).length).toBeGreaterThan(0);
-  expect(service.getAuthKey(4)).toBe(null);
-  expect(service.getPermKey(5)).toBe(null);
-  expect(service.getUserID(6)).toBe(null);
-  expect(service.getConnectionStatus(7)).toBe(false);
-  expect(service.nextSeqNo(8)).toBe(2);
-  expect(service.nextSeqNo(8, true)).toBe(3);
+  expect(service.getKeyBinding(3)).toEqual(false);
+  expect(service.getAuthKey(3)).toBe(null);
 });
