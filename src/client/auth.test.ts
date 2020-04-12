@@ -3,6 +3,7 @@ import {
   KeyExchangeContext, createCipher, createDHRequestParams, createClientDHParams, createAuthKey, initConnection,
   bindTempAuthKey, createBindingEncryptedPayload,
 } from './auth';
+import configMock from '../mock/transport_config';
 import { ab2i, i2ab } from '../serialization';
 import Client from './client';
 import { AuthKey } from './types';
@@ -208,6 +209,7 @@ test('auth | create key', () => {
 
 test('Auth | binding and init session', () => {
   const client = new Client({
+    ...configMock,
     test: true,
     dc: 2,
     autoConnect: false,
