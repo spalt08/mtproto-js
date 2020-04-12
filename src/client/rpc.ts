@@ -2,7 +2,7 @@ import { inflate } from 'pako/lib/inflate';
 import { logs } from '../utils/log';
 import { Message } from '../message';
 import { ab2i, Reader32 } from '../serialization';
-import { RPCHeaders, ClientError, ClientInterface, ClientConfig, Transports, RequestRPC, PlainCallback } from './types';
+import { RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestRPC, PlainCallback, MessageHeaders } from './types';
 import { parse } from '../tl';
 import { Object, BadMsgNotification, NewSession, RpcResult } from '../tl/layer105/types';
 
@@ -36,20 +36,18 @@ export default class RPCService {
   /**
    * Subscribes callback to message identificator
    */
-  subscribe(message: Message, dc: number, thread: number, transport: Transports, cb?: PlainCallback<any>) {
-    if (this.requests[message.id]) {
-      console.warn('Message ID already waiting for response'); // eslint-disable-line no-console
+  subscribe(message: Message, headers: MessageHeaders, cb?: PlainCallback<any>) {
+    if (this.requests[message.id] && !cb) {
+      cb = this.requests[message.id].cb;
     }
 
     this.requests[message.id] = {
       message,
-      dc,
-      thread,
-      transport,
+      headers,
       cb,
     };
 
-    if (cb) debug(this.client.cfg, dc, '<- request', message.id, `(thread: ${thread}, seq: ${message.seqNo})`);
+    if (cb) debug(this.client.cfg, headers.dc, '<- request', message.id, `(thread: ${headers.thread}, seq: ${message.seqNo})`);
   }
 
   /**
@@ -80,7 +78,8 @@ export default class RPCService {
     // }
 
     // Process response
-    debug(this.client.cfg, Date.now(), request.dc, '-> ', data._, `(request: ${id})`);
+    debug(this.client.cfg, request.headers.dc, 'rpc result', request.headers.method, '-> ', data, `(request id: ${id})`);
+
     if (request.cb) request.cb(null, data);
 
     delete this.requests[id];
@@ -95,7 +94,7 @@ export default class RPCService {
   middleware = (request: RequestRPC, result: any) => {
     if (result._ === 'auth.authorization') {
       debug(this.client.cfg, 'middleware', result._);
-      this.client.dc.setMeta(request.dc, 'userID', result.user.id);
+      this.client.dc.setMeta(request.headers.dc!, 'userID', result.user.id);
     }
   };
 
@@ -110,12 +109,12 @@ export default class RPCService {
       return;
     }
 
-    request.message.salt = this.client.dc.getSalt(request.dc);
-    if (forceChangeSeq) request.message.seqNo = this.client.dc.nextSeqNo(request.dc, true);
+    request.message.salt = this.client.dc.getSalt(request.headers.dc);
+    if (forceChangeSeq) request.message.seqNo = this.client.dc.nextSeqNo(request.headers.dc, true);
 
-    this.client.send(request.message, { dc: request.dc, thread: request.thread, transport: request.transport });
+    this.client.send(request.message, request.headers);
 
-    debug(this.client.cfg, request.dc, '<- re-sent', id);
+    debug(this.client.cfg, request.headers.dc, '<- re-sent', id);
   }
 
   /**
@@ -269,7 +268,7 @@ export default class RPCService {
       const gz = new Uint8Array(result.packed_data);
       const reader = new Reader32(ab2i(inflate(gz)));
       result = parse(reader) as any;
-    } 
+    }
 
     switch (result._) {
       case 'rpc_error':

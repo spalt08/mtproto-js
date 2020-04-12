@@ -6,7 +6,8 @@ import { Message, PlainMessage, EncryptedMessage, ErrorMessage } from '../messag
 import RPCService from './rpc';
 import UpdatesService from './updates';
 import { genPasswordSRP } from '../crypto/srp';
-import { ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey, Transports, CallHeaders, PlainCallback } from './types';
+import { ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey, Transports, CallHeaders,
+  PlainCallback, MessageHeaders } from './types';
 import { MTProtoTransport } from '../transport/protocol';
 import { logs } from '../utils/log';
 import { createAuthKey, bindTempAuthKey, initConnection, transferAuthorization } from './auth';
@@ -223,12 +224,12 @@ export default class Client {
         // resend rpc requests
         for (let i = 0; i < ids.length; i += 1) {
           const id = ids[i];
-          if (this.rpc.requests[id].dc === cfg.dc
-            && this.rpc.requests[id].thread === cfg.thread
-            && this.rpc.requests[id].transport === cfg.transport) {
+          if (this.rpc.requests[id].headers.dc === cfg.dc
+            && this.rpc.requests[id].headers.thread === cfg.thread
+            && this.rpc.requests[id].headers.transport === cfg.transport) {
             // message should wait for dh exchange if auth is processing
             if (this.authState[cfg.dc] === 2) {
-              const message = this.encrypt(this.rpc.requests[id].message, this.rpc.requests[id].dc);
+              const message = this.encrypt(this.rpc.requests[id].message, this.rpc.requests[id].headers.dc);
               this.getInstance(cfg.transport, cfg.dc, cfg.thread).send(message);
             } else {
               if (!this.pending[cfg.dc]) this.pending[cfg.dc] = [];
@@ -334,7 +335,7 @@ export default class Client {
       };
     }
 
-    debug(this.cfg.debug, transport, dc, thread, '<-', msg, payload);
+    debug(this.cfg.debug, transport, dc, thread, '<-', msg);
     this.getInstance(transport, dc, thread).send(msg);
   }
 
@@ -382,28 +383,29 @@ export default class Client {
       msg.id = PlainMessage.GenerateID();
     }
 
-    const dc = headers.dc || this.cfg.dc;
-    const thread = headers.thread || 1;
-    const transport = headers.transport || this.cfg.transport;
+    if (!headers.dc) headers.dc = this.cfg.dc;
+    if (!headers.thread) headers.thread = 1;
+    if (!headers.transport) headers.transport = this.cfg.transport;
+
     const isc = (headers.method !== 'msgs_ack' && headers.method !== 'http_wait');
 
-    msg.salt = this.dc.getSalt(dc);
-    msg.sessionID = this.dc.getSessionID(dc);
+    msg.salt = this.dc.getSalt(headers.dc);
+    msg.sessionID = this.dc.getSessionID(headers.dc);
 
-    if (isc) this.rpc.subscribe(msg, dc, thread, transport, cb);
+    if (isc) this.rpc.subscribe(msg, headers as MessageHeaders, cb);
 
-    const instance = this.getInstance(transport, dc, thread);
+    const instance = this.getInstance(headers.transport, headers.dc, headers.thread);
 
-    if (this.authState[dc] === 2 || headers.force === true) {
+    if (this.authState[headers.dc] === 2 || headers.force === true) {
       msg.isContentRelated = isc;
-      msg.seqNo = this.dc.nextSeqNo(dc, isc);
+      msg.seqNo = this.dc.nextSeqNo(headers.dc, isc);
 
-      instance.send(this.encrypt(msg, dc));
+      instance.send(this.encrypt(msg, headers.dc));
 
       debug(this.cfg.debug && headers.method !== 'msgs_ack', Date.now(), msg.id, 'seq:', msg.seqNo, 'call', headers.method);
-      debug(this.cfg.debug, transport, dc, thread, '<-', msg);
+      debug(this.cfg.debug, headers.transport, headers.dc, headers.thread, '<-', msg);
     } else {
-      this.addPendingMsg(transport, dc, thread, msg);
+      this.addPendingMsg(headers.transport, headers.dc, headers.thread, msg);
     }
   }
 

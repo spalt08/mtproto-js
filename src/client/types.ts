@@ -57,9 +57,7 @@ export const defaultClientConfig: ClientConfig = {
 
 export type RequestRPC = {
   message: Message,
-  dc: number,
-  thread: number,
-  transport: Transports,
+  headers: MessageHeaders,
   cb?: PlainCallback<any>,
 };
 
@@ -119,14 +117,6 @@ export type DatacenterMeta = {
 /** Client Datacenter Meta info */
 export type ClientMeta = Record<number, DatacenterMeta>;
 
-/** Headers for recursive processing rpc messages */
-export type RPCHeaders = {
-  id: string,
-  dc: number,
-  thread: number,
-  transport: string,
-};
-
 export type CallHeaders = {
   dc?: number,
   thread?: number,
@@ -134,4 +124,18 @@ export type CallHeaders = {
   msgID?: string,
   force?: boolean,
   method?: string,
+};
+
+export type MessageHeaders = CallHeaders & {
+  dc: number,
+  thread: number,
+  transport: string,
+};
+
+/** Headers for recursive processing rpc messages */
+export type RPCHeaders = {
+  id: string,
+  dc: number,
+  thread: number,
+  transport: string,
 };

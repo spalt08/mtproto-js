@@ -16,7 +16,7 @@ test('rpc service | common', () => {
   msg.id = id;
 
   // listen server answer
-  service.subscribe(msg, dc, thread, transport, (err, result) => {
+  service.subscribe(msg, { dc, thread, transport }, (err, result) => {
     raised++;
 
     if (err || !result) throw new Error('Expected result');
