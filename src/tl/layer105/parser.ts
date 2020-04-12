@@ -4,13 +4,13 @@
 /* Do not make changes to this file unless you know what you are doing -- modify           */
 /* the tool instead.                                                                       */
 /*                                                                                         */
-/* Time: Sunday, 12 April 2020 18:11:04 (UTC)                                              */
+/* Time: Sunday, 12 April 2020 19:14:25 (UTC)                                              */
 /*                                                                                         */
 /*******************************************************************************************/
 
 interface Reader {
   int32(): number;
-  int64(): string;
+  long(): string;
   int128(): Uint32Array;
   int256(): Uint32Array;
   double(): number;
@@ -3311,7 +3311,7 @@ const parserMap = new Map<number, () => any>([
 
 const u = undefined;
 const i32 = () => r.int32();
-const i64 = () => r.int64();
+const i64 = () => r.long();
 const f64 = () => r.double();
 const str = () => r.string();
 const bytes = () => r.bytes();

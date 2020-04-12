@@ -4,13 +4,13 @@
 /* Do not make changes to this file unless you know what you are doing -- modify           */
 /* the tool instead.                                                                       */
 /*                                                                                         */
-/* Time: Sunday, 12 April 2020 18:11:04 (UTC)                                              */
+/* Time: Sunday, 12 April 2020 19:14:25 (UTC)                                              */
 /*                                                                                         */
 /*******************************************************************************************/
 
 interface Writer {
   int32(value: number) : void;
-  int64(value: string): void;
+  long(value: string): void;
   int128(value: Uint32Array): void;
   int256(value: Uint32Array): void;
   double(value: number): void;
@@ -354,7 +354,7 @@ const builderMap: Record<string, [number, ((o: any) => void)?]> = {
 }
 
 const i32 = (value: number) => w.int32(value);
-const i64 = (value: string) => w.int64(value);
+const i64 = (value: string) => w.long(value);
 const i128 = (value: Uint32Array) => w.int128(value);
 const i256 = (value: Uint32Array) => w.int256(value);
 const str = (value: string) => w.string(value);
