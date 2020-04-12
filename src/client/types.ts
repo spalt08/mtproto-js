@@ -98,7 +98,7 @@ export interface ClientInterface {
   plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
   call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
   call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
-  call<K extends keyof MethodDeclMap>(method: 'msgs_ack', data: { msg_ids: string[] }, headers: CallHeaders, cb?: PlainCallback<K>): void;
+  call(method: 'msgs_ack', data: { msg_ids: string[] }, headers: CallHeaders): void;
   send(msg: Message, headers: CallHeaders, cb?: PlainCallback<any>): void;
 }
 
