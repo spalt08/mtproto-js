@@ -75,9 +75,9 @@ export default class RPCService {
       throw new Error('Expected type language constructor for response');
     }
 
-    // if (result && result.declaration && result.declaration.type === 'Updates') {
-    //   this.client.updates.process(result);
-    // }
+    if (data && data._updates) {
+      this.client.updates.process(data);
+    }
 
     // Process response
     debug(this.client.cfg, request.headers.dc, 'rpc result', request.headers.method, '-> ', data, `(request id: ${id})`);
@@ -169,12 +169,10 @@ export default class RPCService {
         if (headers.id) this.ackMsg(headers.transport, headers.dc, headers.thread, headers.id);
 
         // updates
-        // if (result instanceof TLConstructor && result.declaration) {
-        //   if (result.declaration.type === 'Updates') {
-        //     this.client.updates.process(result);
-        //     break;
-        //   }
-        // }
+        if (result._update) {
+          this.client.updates.process(result);
+          return;
+        }
 
         console.warn('unknown', result._, result); // eslint-disable-line no-console
         debug(this.client.cfg, headers.dc, '-> unknown %s', result._, result);
