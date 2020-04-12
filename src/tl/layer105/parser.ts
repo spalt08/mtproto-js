@@ -11,7 +11,8 @@
 /* Do not make changes to this file unless you know what you are doing -- modify           */
 /* the tool instead.                                                                       */
 /*                                                                                         */
-/* Time: Sunday, 12 April 2020 20:20:30 (UTC)                                              */
+/* Source: layer105.json (md5: 15f299b996d718182fbb8b20f18b8ddd)                           */
+/* Time: Sunday, 12 April 2020 20:28:59 (UTC)                                              */
 /*                                                                                         */
 /*******************************************************************************************/
 
@@ -377,24 +378,25 @@ const _inputMessagesFilterPhotoVideo: any = () => ({ _: 'inputMessagesFilterPhot
 const _inputMessagesFilterDocument: any = () => ({ _: 'inputMessagesFilterDocument' });
 const _inputMessagesFilterUrl: any = () => ({ _: 'inputMessagesFilterUrl' });
 const _inputMessagesFilterGif: any = () => ({ _: 'inputMessagesFilterGif' });
-const _updateNewMessage: any = () => ({ _: 'updateNewMessage', message: obj(), pts: i32(), pts_count: i32() });
-const _updateMessageID: any = () => ({ _: 'updateMessageID', id: i32(), random_id: i64() });
-const _updateDeleteMessages: any = () => ({ _: 'updateDeleteMessages', messages: vector(i32), pts: i32(), pts_count: i32() });
-const _updateUserTyping: any = () => ({ _: 'updateUserTyping', user_id: i32(), action: obj() });
-const _updateChatUserTyping: any = () => ({ _: 'updateChatUserTyping', chat_id: i32(), user_id: i32(), action: obj() });
-const _updateChatParticipants: any = () => ({ _: 'updateChatParticipants', participants: obj() });
-const _updateUserStatus: any = () => ({ _: 'updateUserStatus', user_id: i32(), status: obj() });
-const _updateUserName: any = () => ({ _: 'updateUserName', user_id: i32(), first_name: str(), last_name: str(), username: str() });
-const _updateUserPhoto: any = () => ({ _: 'updateUserPhoto', user_id: i32(), date: i32(), photo: obj(), previous: obj() });
+const _updateNewMessage: any = () => ({ _: 'updateNewMessage', _update: true, message: obj(), pts: i32(), pts_count: i32() });
+const _updateMessageID: any = () => ({ _: 'updateMessageID', _update: true, id: i32(), random_id: i64() });
+const _updateDeleteMessages: any = () => ({ _: 'updateDeleteMessages', _update: true, messages: vector(i32), pts: i32(), pts_count: i32() });
+const _updateUserTyping: any = () => ({ _: 'updateUserTyping', _update: true, user_id: i32(), action: obj() });
+const _updateChatUserTyping: any = () => ({ _: 'updateChatUserTyping', _update: true, chat_id: i32(), user_id: i32(), action: obj() });
+const _updateChatParticipants: any = () => ({ _: 'updateChatParticipants', _update: true, participants: obj() });
+const _updateUserStatus: any = () => ({ _: 'updateUserStatus', _update: true, user_id: i32(), status: obj() });
+const _updateUserName: any = () => ({ _: 'updateUserName', _update: true, user_id: i32(), first_name: str(), last_name: str(), username: str() });
+const _updateUserPhoto: any = () => ({ _: 'updateUserPhoto', _update: true, user_id: i32(), date: i32(), photo: obj(), previous: obj() });
 const _updatesState: any = () => ({ _: 'updates.state', pts: i32(), qts: i32(), date: i32(), seq: i32(), unread_count: i32() });
 const _updatesDifferenceEmpty: any = () => ({ _: 'updates.differenceEmpty', date: i32(), seq: i32() });
 const _updatesDifference: any = () => ({ _: 'updates.difference', new_messages: vector(obj), new_encrypted_messages: vector(obj), other_updates: vector(obj), chats: vector(obj), users: vector(obj), state: obj() });
 const _updatesDifferenceSlice: any = () => ({ _: 'updates.differenceSlice', new_messages: vector(obj), new_encrypted_messages: vector(obj), other_updates: vector(obj), chats: vector(obj), users: vector(obj), intermediate_state: obj() });
-const _updatesTooLong: any = () => ({ _: 'updatesTooLong' });
+const _updatesTooLong: any = () => ({ _: 'updatesTooLong', _update: true });
 const _updateShortMessage = (): any => {
   const flags = i32();
   return {
     _: 'updateShortMessage',
+    _update: true,
     out: !!(flags & 0x2),
     mentioned: !!(flags & 0x10),
     media_unread: !!(flags & 0x20),
@@ -415,6 +417,7 @@ const _updateShortChatMessage = (): any => {
   const flags = i32();
   return {
     _: 'updateShortChatMessage',
+    _update: true,
     out: !!(flags & 0x2),
     mentioned: !!(flags & 0x10),
     media_unread: !!(flags & 0x20),
@@ -432,9 +435,9 @@ const _updateShortChatMessage = (): any => {
     entities: flags & 0x80 ? vector(obj) : u,
   };
 };
-const _updateShort: any = () => ({ _: 'updateShort', update: obj(), date: i32() });
-const _updatesCombined: any = () => ({ _: 'updatesCombined', updates: vector(obj), users: vector(obj), chats: vector(obj), date: i32(), seq_start: i32(), seq: i32() });
-const _updates: any = () => ({ _: 'updates', updates: vector(obj), users: vector(obj), chats: vector(obj), date: i32(), seq: i32() });
+const _updateShort: any = () => ({ _: 'updateShort', _update: true, update: obj(), date: i32() });
+const _updatesCombined: any = () => ({ _: 'updatesCombined', _update: true, updates: vector(obj), users: vector(obj), chats: vector(obj), date: i32(), seq_start: i32(), seq: i32() });
+const _updates: any = () => ({ _: 'updates', _update: true, updates: vector(obj), users: vector(obj), chats: vector(obj), date: i32(), seq: i32() });
 const _photosPhotos: any = () => ({ _: 'photos.photos', photos: vector(obj), users: vector(obj) });
 const _photosPhotosSlice: any = () => ({ _: 'photos.photosSlice', count: i32(), photos: vector(obj), users: vector(obj) });
 const _photosPhoto: any = () => ({ _: 'photos.photo', photo: obj(), users: vector(obj) });
@@ -527,10 +530,10 @@ const _helpAppUpdate = (): any => {
 };
 const _helpNoAppUpdate: any = () => ({ _: 'help.noAppUpdate' });
 const _helpInviteText: any = () => ({ _: 'help.inviteText', message: str() });
-const _updateNewEncryptedMessage: any = () => ({ _: 'updateNewEncryptedMessage', message: obj(), qts: i32() });
-const _updateEncryptedChatTyping: any = () => ({ _: 'updateEncryptedChatTyping', chat_id: i32() });
-const _updateEncryption: any = () => ({ _: 'updateEncryption', chat: obj(), date: i32() });
-const _updateEncryptedMessagesRead: any = () => ({ _: 'updateEncryptedMessagesRead', chat_id: i32(), max_date: i32(), date: i32() });
+const _updateNewEncryptedMessage: any = () => ({ _: 'updateNewEncryptedMessage', _update: true, message: obj(), qts: i32() });
+const _updateEncryptedChatTyping: any = () => ({ _: 'updateEncryptedChatTyping', _update: true, chat_id: i32() });
+const _updateEncryption: any = () => ({ _: 'updateEncryption', _update: true, chat: obj(), date: i32() });
+const _updateEncryptedMessagesRead: any = () => ({ _: 'updateEncryptedMessagesRead', _update: true, chat_id: i32(), max_date: i32(), date: i32() });
 const _encryptedChatEmpty: any = () => ({ _: 'encryptedChatEmpty', id: i32() });
 const _encryptedChatWaiting: any = () => ({ _: 'encryptedChatWaiting', id: i32(), access_hash: i64(), date: i32(), admin_id: i32(), participant_id: i32() });
 const _encryptedChatRequested: any = () => ({ _: 'encryptedChatRequested', id: i32(), access_hash: i64(), date: i32(), admin_id: i32(), participant_id: i32(), g_a: bytes() });
@@ -551,9 +554,9 @@ const _messagesSentEncryptedMessage: any = () => ({ _: 'messages.sentEncryptedMe
 const _messagesSentEncryptedFile: any = () => ({ _: 'messages.sentEncryptedFile', date: i32(), file: obj() });
 const _inputFileBig: any = () => ({ _: 'inputFileBig', id: i64(), parts: i32(), name: str() });
 const _inputEncryptedFileBigUploaded: any = () => ({ _: 'inputEncryptedFileBigUploaded', id: i64(), parts: i32(), key_fingerprint: i32() });
-const _updateChatParticipantAdd: any = () => ({ _: 'updateChatParticipantAdd', chat_id: i32(), user_id: i32(), inviter_id: i32(), date: i32(), version: i32() });
-const _updateChatParticipantDelete: any = () => ({ _: 'updateChatParticipantDelete', chat_id: i32(), user_id: i32(), version: i32() });
-const _updateDcOptions: any = () => ({ _: 'updateDcOptions', dc_options: vector(obj) });
+const _updateChatParticipantAdd: any = () => ({ _: 'updateChatParticipantAdd', _update: true, chat_id: i32(), user_id: i32(), inviter_id: i32(), date: i32(), version: i32() });
+const _updateChatParticipantDelete: any = () => ({ _: 'updateChatParticipantDelete', _update: true, chat_id: i32(), user_id: i32(), version: i32() });
+const _updateDcOptions: any = () => ({ _: 'updateDcOptions', _update: true, dc_options: vector(obj) });
 const _inputMediaUploadedDocument = (): any => {
   const flags = i32();
   return {
@@ -606,8 +609,8 @@ const _helpSupport: any = () => ({ _: 'help.support', phone_number: str(), user:
 const _notifyPeer: any = () => ({ _: 'notifyPeer', peer: obj() });
 const _notifyUsers: any = () => ({ _: 'notifyUsers' });
 const _notifyChats: any = () => ({ _: 'notifyChats' });
-const _updateUserBlocked: any = () => ({ _: 'updateUserBlocked', user_id: i32(), blocked: obj() });
-const _updateNotifySettings: any = () => ({ _: 'updateNotifySettings', peer: obj(), notify_settings: obj() });
+const _updateUserBlocked: any = () => ({ _: 'updateUserBlocked', _update: true, user_id: i32(), blocked: obj() });
+const _updateNotifySettings: any = () => ({ _: 'updateNotifySettings', _update: true, peer: obj(), notify_settings: obj() });
 const _sendMessageTypingAction: any = () => ({ _: 'sendMessageTypingAction' });
 const _sendMessageCancelAction: any = () => ({ _: 'sendMessageCancelAction' });
 const _sendMessageRecordVideoAction: any = () => ({ _: 'sendMessageRecordVideoAction' });
@@ -623,6 +626,7 @@ const _updateServiceNotification = (): any => {
   const flags = i32();
   return {
     _: 'updateServiceNotification',
+    _update: true,
     popup: !!(flags & 0x1),
     inbox_date: flags & 0x2 ? i32() : u,
     type: str(),
@@ -634,7 +638,7 @@ const _updateServiceNotification = (): any => {
 const _userStatusRecently: any = () => ({ _: 'userStatusRecently' });
 const _userStatusLastWeek: any = () => ({ _: 'userStatusLastWeek' });
 const _userStatusLastMonth: any = () => ({ _: 'userStatusLastMonth' });
-const _updatePrivacy: any = () => ({ _: 'updatePrivacy', key: obj(), rules: vector(obj) });
+const _updatePrivacy: any = () => ({ _: 'updatePrivacy', _update: true, key: obj(), rules: vector(obj) });
 const _inputPrivacyKeyStatusTimestamp: any = () => ({ _: 'inputPrivacyKeyStatusTimestamp' });
 const _privacyKeyStatusTimestamp: any = () => ({ _: 'privacyKeyStatusTimestamp' });
 const _inputPrivacyValueAllowContacts: any = () => ({ _: 'inputPrivacyValueAllowContacts' });
@@ -651,7 +655,7 @@ const _privacyValueDisallowAll: any = () => ({ _: 'privacyValueDisallowAll' });
 const _privacyValueDisallowUsers: any = () => ({ _: 'privacyValueDisallowUsers', users: vector(i32) });
 const _accountPrivacyRules: any = () => ({ _: 'account.privacyRules', rules: vector(obj), chats: vector(obj), users: vector(obj) });
 const _accountDaysTTL: any = () => ({ _: 'accountDaysTTL', days: i32() });
-const _updateUserPhone: any = () => ({ _: 'updateUserPhone', user_id: i32(), phone: str() });
+const _updateUserPhone: any = () => ({ _: 'updateUserPhone', _update: true, user_id: i32(), phone: str() });
 const _documentAttributeImageSize: any = () => ({ _: 'documentAttributeImageSize', w: i32(), h: i32() });
 const _documentAttributeAnimated: any = () => ({ _: 'documentAttributeAnimated' });
 const _documentAttributeSticker = (): any => {
@@ -696,6 +700,7 @@ const _updateReadHistoryInbox = (): any => {
   const flags = i32();
   return {
     _: 'updateReadHistoryInbox',
+    _update: true,
     folder_id: flags & 0x1 ? i32() : u,
     peer: obj(),
     max_id: i32(),
@@ -704,9 +709,9 @@ const _updateReadHistoryInbox = (): any => {
     pts_count: i32(),
   };
 };
-const _updateReadHistoryOutbox: any = () => ({ _: 'updateReadHistoryOutbox', peer: obj(), max_id: i32(), pts: i32(), pts_count: i32() });
+const _updateReadHistoryOutbox: any = () => ({ _: 'updateReadHistoryOutbox', _update: true, peer: obj(), max_id: i32(), pts: i32(), pts_count: i32() });
 const _messagesAffectedMessages: any = () => ({ _: 'messages.affectedMessages', pts: i32(), pts_count: i32() });
-const _updateWebPage: any = () => ({ _: 'updateWebPage', webpage: obj(), pts: i32(), pts_count: i32() });
+const _updateWebPage: any = () => ({ _: 'updateWebPage', _update: true, webpage: obj(), pts: i32(), pts_count: i32() });
 const _webPageEmpty: any = () => ({ _: 'webPageEmpty', id: i64() });
 const _webPagePending: any = () => ({ _: 'webPagePending', id: i64(), date: i32() });
 const _webPage = (): any => {
@@ -814,7 +819,7 @@ const _chatInvite = (): any => {
   };
 };
 const _messageActionChatJoinedByLink: any = () => ({ _: 'messageActionChatJoinedByLink', inviter_id: i32() });
-const _updateReadMessagesContents: any = () => ({ _: 'updateReadMessagesContents', messages: vector(i32), pts: i32(), pts_count: i32() });
+const _updateReadMessagesContents: any = () => ({ _: 'updateReadMessagesContents', _update: true, messages: vector(i32), pts: i32(), pts_count: i32() });
 const _inputStickerSetEmpty: any = () => ({ _: 'inputStickerSetEmpty' });
 const _inputStickerSetID: any = () => ({ _: 'inputStickerSetID', id: i64(), access_hash: i64() });
 const _inputStickerSetShortName: any = () => ({ _: 'inputStickerSetShortName', short_name: str() });
@@ -915,6 +920,7 @@ const _updateShortSentMessage = (): any => {
   const flags = i32();
   return {
     _: 'updateShortSentMessage',
+    _update: true,
     out: !!(flags & 0x2),
     id: i32(),
     pts: i32(),
@@ -1027,16 +1033,18 @@ const _updateChannelTooLong = (): any => {
   const flags = i32();
   return {
     _: 'updateChannelTooLong',
+    _update: true,
     channel_id: i32(),
     pts: flags & 0x1 ? i32() : u,
   };
 };
-const _updateChannel: any = () => ({ _: 'updateChannel', channel_id: i32() });
-const _updateNewChannelMessage: any = () => ({ _: 'updateNewChannelMessage', message: obj(), pts: i32(), pts_count: i32() });
+const _updateChannel: any = () => ({ _: 'updateChannel', _update: true, channel_id: i32() });
+const _updateNewChannelMessage: any = () => ({ _: 'updateNewChannelMessage', _update: true, message: obj(), pts: i32(), pts_count: i32() });
 const _updateReadChannelInbox = (): any => {
   const flags = i32();
   return {
     _: 'updateReadChannelInbox',
+    _update: true,
     folder_id: flags & 0x1 ? i32() : u,
     channel_id: i32(),
     max_id: i32(),
@@ -1044,8 +1052,8 @@ const _updateReadChannelInbox = (): any => {
     pts: i32(),
   };
 };
-const _updateDeleteChannelMessages: any = () => ({ _: 'updateDeleteChannelMessages', channel_id: i32(), messages: vector(i32), pts: i32(), pts_count: i32() });
-const _updateChannelMessageViews: any = () => ({ _: 'updateChannelMessageViews', channel_id: i32(), id: i32(), views: i32() });
+const _updateDeleteChannelMessages: any = () => ({ _: 'updateDeleteChannelMessages', _update: true, channel_id: i32(), messages: vector(i32), pts: i32(), pts_count: i32() });
+const _updateChannelMessageViews: any = () => ({ _: 'updateChannelMessageViews', _update: true, channel_id: i32(), id: i32(), views: i32() });
 const _updatesChannelDifferenceEmpty = (): any => {
   const flags = i32();
   return {
@@ -1106,7 +1114,7 @@ const _channelsChannelParticipants: any = () => ({ _: 'channels.channelParticipa
 const _channelsChannelParticipant: any = () => ({ _: 'channels.channelParticipant', participant: obj(), users: vector(obj) });
 const _chatParticipantCreator: any = () => ({ _: 'chatParticipantCreator', user_id: i32() });
 const _chatParticipantAdmin: any = () => ({ _: 'chatParticipantAdmin', user_id: i32(), inviter_id: i32(), date: i32() });
-const _updateChatParticipantAdmin: any = () => ({ _: 'updateChatParticipantAdmin', chat_id: i32(), user_id: i32(), is_admin: obj(), version: i32() });
+const _updateChatParticipantAdmin: any = () => ({ _: 'updateChatParticipantAdmin', _update: true, chat_id: i32(), user_id: i32(), is_admin: obj(), version: i32() });
 const _messageActionChatMigrateTo: any = () => ({ _: 'messageActionChatMigrateTo', channel_id: i32() });
 const _messageActionChannelMigrateFrom: any = () => ({ _: 'messageActionChannelMigrateFrom', title: str(), chat_id: i32() });
 const _channelParticipantsBots: any = () => ({ _: 'channelParticipantsBots' });
@@ -1121,23 +1129,24 @@ const _helpTermsOfService = (): any => {
     min_age_confirm: flags & 0x2 ? i32() : u,
   };
 };
-const _updateNewStickerSet: any = () => ({ _: 'updateNewStickerSet', stickerset: obj() });
+const _updateNewStickerSet: any = () => ({ _: 'updateNewStickerSet', _update: true, stickerset: obj() });
 const _updateStickerSetsOrder = (): any => {
   const flags = i32();
   return {
     _: 'updateStickerSetsOrder',
+    _update: true,
     masks: !!(flags & 0x1),
     order: vector(i64),
   };
 };
-const _updateStickerSets: any = () => ({ _: 'updateStickerSets' });
+const _updateStickerSets: any = () => ({ _: 'updateStickerSets', _update: true });
 const _foundGif: any = () => ({ _: 'foundGif', url: str(), thumb_url: str(), content_url: str(), content_type: str(), w: i32(), h: i32() });
 const _foundGifCached: any = () => ({ _: 'foundGifCached', url: str(), photo: obj(), document: obj() });
 const _inputMediaGifExternal: any = () => ({ _: 'inputMediaGifExternal', url: str(), q: str() });
 const _messagesFoundGifs: any = () => ({ _: 'messages.foundGifs', next_offset: i32(), results: vector(obj) });
 const _messagesSavedGifsNotModified: any = () => ({ _: 'messages.savedGifsNotModified' });
 const _messagesSavedGifs: any = () => ({ _: 'messages.savedGifs', hash: i32(), gifs: vector(obj) });
-const _updateSavedGifs: any = () => ({ _: 'updateSavedGifs' });
+const _updateSavedGifs: any = () => ({ _: 'updateSavedGifs', _update: true });
 const _inputBotInlineMessageMediaAuto = (): any => {
   const flags = i32();
   return {
@@ -1221,6 +1230,7 @@ const _updateBotInlineQuery = (): any => {
   const flags = i32();
   return {
     _: 'updateBotInlineQuery',
+    _update: true,
     query_id: i64(),
     user_id: i32(),
     query: str(),
@@ -1232,6 +1242,7 @@ const _updateBotInlineSend = (): any => {
   const flags = i32();
   return {
     _: 'updateBotInlineSend',
+    _update: true,
     user_id: i32(),
     query: str(),
     geo: flags & 0x1 ? obj() : u,
@@ -1258,8 +1269,8 @@ const _messageFwdHeader = (): any => {
     saved_from_msg_id: flags & 0x10 ? i32() : u,
   };
 };
-const _updateEditChannelMessage: any = () => ({ _: 'updateEditChannelMessage', message: obj(), pts: i32(), pts_count: i32() });
-const _updateChannelPinnedMessage: any = () => ({ _: 'updateChannelPinnedMessage', channel_id: i32(), id: i32() });
+const _updateEditChannelMessage: any = () => ({ _: 'updateEditChannelMessage', _update: true, message: obj(), pts: i32(), pts_count: i32() });
+const _updateChannelPinnedMessage: any = () => ({ _: 'updateChannelPinnedMessage', _update: true, channel_id: i32(), id: i32() });
 const _messageActionPinMessage: any = () => ({ _: 'messageActionPinMessage' });
 const _authCodeTypeSms: any = () => ({ _: 'auth.codeTypeSms' });
 const _authCodeTypeCall: any = () => ({ _: 'auth.codeTypeCall' });
@@ -1298,6 +1309,7 @@ const _updateBotCallbackQuery = (): any => {
   const flags = i32();
   return {
     _: 'updateBotCallbackQuery',
+    _update: true,
     query_id: i64(),
     user_id: i32(),
     peer: obj(),
@@ -1314,7 +1326,7 @@ const _messagesMessageEditData = (): any => {
     caption: !!(flags & 0x1),
   };
 };
-const _updateEditMessage: any = () => ({ _: 'updateEditMessage', message: obj(), pts: i32(), pts_count: i32() });
+const _updateEditMessage: any = () => ({ _: 'updateEditMessage', _update: true, message: obj(), pts: i32(), pts_count: i32() });
 const _inputBotInlineMessageMediaGeo = (): any => {
   const flags = i32();
   return {
@@ -1412,6 +1424,7 @@ const _updateInlineBotCallbackQuery = (): any => {
   const flags = i32();
   return {
     _: 'updateInlineBotCallbackQuery',
+    _update: true,
     query_id: i64(),
     user_id: i32(),
     msg_id: obj(),
@@ -1434,8 +1447,8 @@ const _contactsTopPeers: any = () => ({ _: 'contacts.topPeers', categories: vect
 const _messageEntityMentionName: any = () => ({ _: 'messageEntityMentionName', offset: i32(), length: i32(), user_id: i32() });
 const _inputMessageEntityMentionName: any = () => ({ _: 'inputMessageEntityMentionName', offset: i32(), length: i32(), user_id: obj() });
 const _inputMessagesFilterChatPhotos: any = () => ({ _: 'inputMessagesFilterChatPhotos' });
-const _updateReadChannelOutbox: any = () => ({ _: 'updateReadChannelOutbox', channel_id: i32(), max_id: i32() });
-const _updateDraftMessage: any = () => ({ _: 'updateDraftMessage', peer: obj(), draft: obj() });
+const _updateReadChannelOutbox: any = () => ({ _: 'updateReadChannelOutbox', _update: true, channel_id: i32(), max_id: i32() });
+const _updateDraftMessage: any = () => ({ _: 'updateDraftMessage', _update: true, peer: obj(), draft: obj() });
 const _draftMessageEmpty = (): any => {
   const flags = i32();
   return {
@@ -1457,16 +1470,16 @@ const _draftMessage = (): any => {
 const _messageActionHistoryClear: any = () => ({ _: 'messageActionHistoryClear' });
 const _messagesFeaturedStickersNotModified: any = () => ({ _: 'messages.featuredStickersNotModified' });
 const _messagesFeaturedStickers: any = () => ({ _: 'messages.featuredStickers', hash: i32(), sets: vector(obj), unread: vector(i64) });
-const _updateReadFeaturedStickers: any = () => ({ _: 'updateReadFeaturedStickers' });
+const _updateReadFeaturedStickers: any = () => ({ _: 'updateReadFeaturedStickers', _update: true });
 const _messagesRecentStickersNotModified: any = () => ({ _: 'messages.recentStickersNotModified' });
 const _messagesRecentStickers: any = () => ({ _: 'messages.recentStickers', hash: i32(), packs: vector(obj), stickers: vector(obj), dates: vector(i32) });
-const _updateRecentStickers: any = () => ({ _: 'updateRecentStickers' });
+const _updateRecentStickers: any = () => ({ _: 'updateRecentStickers', _update: true });
 const _messagesArchivedStickers: any = () => ({ _: 'messages.archivedStickers', count: i32(), sets: vector(obj) });
 const _messagesStickerSetInstallResultSuccess: any = () => ({ _: 'messages.stickerSetInstallResultSuccess' });
 const _messagesStickerSetInstallResultArchive: any = () => ({ _: 'messages.stickerSetInstallResultArchive', sets: vector(obj) });
 const _stickerSetCovered: any = () => ({ _: 'stickerSetCovered', set: obj(), cover: obj() });
-const _updateConfig: any = () => ({ _: 'updateConfig' });
-const _updatePtsChanged: any = () => ({ _: 'updatePtsChanged' });
+const _updateConfig: any = () => ({ _: 'updateConfig', _update: true });
+const _updatePtsChanged: any = () => ({ _: 'updatePtsChanged', _update: true });
 const _inputMediaPhotoExternal = (): any => {
   const flags = i32();
   return {
@@ -1518,7 +1531,7 @@ const _messageActionGameScore: any = () => ({ _: 'messageActionGameScore', game_
 const _highScore: any = () => ({ _: 'highScore', pos: i32(), user_id: i32(), score: i32() });
 const _messagesHighScores: any = () => ({ _: 'messages.highScores', scores: vector(obj), users: vector(obj) });
 const _updatesDifferenceTooLong: any = () => ({ _: 'updates.differenceTooLong', pts: i32() });
-const _updateChannelWebPage: any = () => ({ _: 'updateChannelWebPage', channel_id: i32(), webpage: obj(), pts: i32(), pts_count: i32() });
+const _updateChannelWebPage: any = () => ({ _: 'updateChannelWebPage', _update: true, channel_id: i32(), webpage: obj(), pts: i32(), pts_count: i32() });
 const _messagesChatsSlice: any = () => ({ _: 'messages.chatsSlice', count: i32(), chats: vector(obj) });
 const _textEmpty: any = () => ({ _: 'textEmpty' });
 const _textPlain: any = () => ({ _: 'textPlain', text: str() });
@@ -1594,6 +1607,7 @@ const _updateDialogPinned = (): any => {
   const flags = i32();
   return {
     _: 'updateDialogPinned',
+    _update: true,
     pinned: !!(flags & 0x1),
     folder_id: flags & 0x2 ? i32() : u,
     peer: obj(),
@@ -1603,13 +1617,14 @@ const _updatePinnedDialogs = (): any => {
   const flags = i32();
   return {
     _: 'updatePinnedDialogs',
+    _update: true,
     folder_id: flags & 0x2 ? i32() : u,
     order: flags & 0x1 ? vector(obj) : u,
   };
 };
 const _dataJSON: any = () => ({ _: 'dataJSON', data: str() });
-const _updateBotWebhookJSON: any = () => ({ _: 'updateBotWebhookJSON', data: obj() });
-const _updateBotWebhookJSONQuery: any = () => ({ _: 'updateBotWebhookJSONQuery', query_id: i64(), data: obj(), timeout: i32() });
+const _updateBotWebhookJSON: any = () => ({ _: 'updateBotWebhookJSON', _update: true, data: obj() });
+const _updateBotWebhookJSONQuery: any = () => ({ _: 'updateBotWebhookJSONQuery', _update: true, query_id: i64(), data: obj(), timeout: i32() });
 const _labeledPrice: any = () => ({ _: 'labeledPrice', label: str(), amount: i64() });
 const _invoice = (): any => {
   const flags = i32();
@@ -1748,11 +1763,12 @@ const _inputPaymentCredentials = (): any => {
 };
 const _accountTmpPassword: any = () => ({ _: 'account.tmpPassword', tmp_password: bytes(), valid_until: i32() });
 const _shippingOption: any = () => ({ _: 'shippingOption', id: str(), title: str(), prices: vector(obj) });
-const _updateBotShippingQuery: any = () => ({ _: 'updateBotShippingQuery', query_id: i64(), user_id: i32(), payload: bytes(), shipping_address: obj() });
+const _updateBotShippingQuery: any = () => ({ _: 'updateBotShippingQuery', _update: true, query_id: i64(), user_id: i32(), payload: bytes(), shipping_address: obj() });
 const _updateBotPrecheckoutQuery = (): any => {
   const flags = i32();
   return {
     _: 'updateBotPrecheckoutQuery',
+    _update: true,
     query_id: i64(),
     user_id: i32(),
     payload: bytes(),
@@ -1771,7 +1787,7 @@ const _inputStickerSetItem = (): any => {
     mask_coords: flags & 0x1 ? obj() : u,
   };
 };
-const _updatePhoneCall: any = () => ({ _: 'updatePhoneCall', phone_call: obj() });
+const _updatePhoneCall: any = () => ({ _: 'updatePhoneCall', _update: true, phone_call: obj() });
 const _inputPhoneCall: any = () => ({ _: 'inputPhoneCall', id: i64(), access_hash: i64() });
 const _phoneCallEmpty: any = () => ({ _: 'phoneCallEmpty', id: i64() });
 const _phoneCallWaiting = (): any => {
@@ -1917,8 +1933,8 @@ const _langPackLanguage = (): any => {
     translations_url: str(),
   };
 };
-const _updateLangPackTooLong: any = () => ({ _: 'updateLangPackTooLong', lang_code: str() });
-const _updateLangPack: any = () => ({ _: 'updateLangPack', difference: obj() });
+const _updateLangPackTooLong: any = () => ({ _: 'updateLangPackTooLong', _update: true, lang_code: str() });
+const _updateLangPack: any = () => ({ _: 'updateLangPack', _update: true, difference: obj() });
 const _channelParticipantAdmin = (): any => {
   const flags = i32();
   return {
@@ -1988,17 +2004,17 @@ const _popularContact: any = () => ({ _: 'popularContact', client_id: i64(), imp
 const _messageActionScreenshotTaken: any = () => ({ _: 'messageActionScreenshotTaken' });
 const _messagesFavedStickersNotModified: any = () => ({ _: 'messages.favedStickersNotModified' });
 const _messagesFavedStickers: any = () => ({ _: 'messages.favedStickers', hash: i32(), packs: vector(obj), stickers: vector(obj) });
-const _updateFavedStickers: any = () => ({ _: 'updateFavedStickers' });
-const _updateChannelReadMessagesContents: any = () => ({ _: 'updateChannelReadMessagesContents', channel_id: i32(), messages: vector(i32) });
+const _updateFavedStickers: any = () => ({ _: 'updateFavedStickers', _update: true });
+const _updateChannelReadMessagesContents: any = () => ({ _: 'updateChannelReadMessagesContents', _update: true, channel_id: i32(), messages: vector(i32) });
 const _inputMessagesFilterMyMentions: any = () => ({ _: 'inputMessagesFilterMyMentions' });
-const _updateContactsReset: any = () => ({ _: 'updateContactsReset' });
+const _updateContactsReset: any = () => ({ _: 'updateContactsReset', _update: true });
 const _channelAdminLogEventActionChangeStickerSet: any = () => ({ _: 'channelAdminLogEventActionChangeStickerSet', prev_stickerset: obj(), new_stickerset: obj() });
 const _messageActionCustomAction: any = () => ({ _: 'messageActionCustomAction', message: str() });
 const _inputPaymentCredentialsApplePay: any = () => ({ _: 'inputPaymentCredentialsApplePay', payment_data: obj() });
 const _inputPaymentCredentialsAndroidPay: any = () => ({ _: 'inputPaymentCredentialsAndroidPay', payment_token: obj(), google_transaction_id: str() });
 const _inputMessagesFilterGeo: any = () => ({ _: 'inputMessagesFilterGeo' });
 const _inputMessagesFilterContacts: any = () => ({ _: 'inputMessagesFilterContacts' });
-const _updateChannelAvailableMessages: any = () => ({ _: 'updateChannelAvailableMessages', channel_id: i32(), available_min_id: i32() });
+const _updateChannelAvailableMessages: any = () => ({ _: 'updateChannelAvailableMessages', _update: true, channel_id: i32(), available_min_id: i32() });
 const _channelAdminLogEventActionTogglePreHistoryHidden: any = () => ({ _: 'channelAdminLogEventActionTogglePreHistoryHidden', new_value: obj() });
 const _inputMediaGeoLive = (): any => {
   const flags = i32();
@@ -2136,6 +2152,7 @@ const _updateDialogUnreadMark = (): any => {
   const flags = i32();
   return {
     _: 'updateDialogUnreadMark',
+    _update: true,
     unread: !!(flags & 0x1),
     peer: obj(),
   };
@@ -2176,8 +2193,8 @@ const _jsonNumber: any = () => ({ _: 'jsonNumber', value: f64() });
 const _jsonString: any = () => ({ _: 'jsonString', value: str() });
 const _jsonArray: any = () => ({ _: 'jsonArray', value: vector(obj) });
 const _jsonObject: any = () => ({ _: 'jsonObject', value: vector(obj) });
-const _updateUserPinnedMessage: any = () => ({ _: 'updateUserPinnedMessage', user_id: i32(), id: i32() });
-const _updateChatPinnedMessage: any = () => ({ _: 'updateChatPinnedMessage', chat_id: i32(), id: i32(), version: i32() });
+const _updateUserPinnedMessage: any = () => ({ _: 'updateUserPinnedMessage', _update: true, user_id: i32(), id: i32() });
+const _updateChatPinnedMessage: any = () => ({ _: 'updateChatPinnedMessage', _update: true, chat_id: i32(), id: i32(), version: i32() });
 const _inputNotifyBroadcasts: any = () => ({ _: 'inputNotifyBroadcasts' });
 const _notifyBroadcasts: any = () => ({ _: 'notifyBroadcasts' });
 const _textSubscript: any = () => ({ _: 'textSubscript', text: obj() });
@@ -2265,6 +2282,7 @@ const _updateMessagePoll = (): any => {
   const flags = i32();
   return {
     _: 'updateMessagePoll',
+    _update: true,
     poll_id: i64(),
     poll: flags & 0x1 ? obj() : u,
     results: obj(),
@@ -2337,7 +2355,7 @@ const _chatBannedRights = (): any => {
     until_date: i32(),
   };
 };
-const _updateChatDefaultBannedRights: any = () => ({ _: 'updateChatDefaultBannedRights', peer: obj(), default_banned_rights: obj(), version: i32() });
+const _updateChatDefaultBannedRights: any = () => ({ _: 'updateChatDefaultBannedRights', _update: true, peer: obj(), default_banned_rights: obj(), version: i32() });
 const _inputWallPaper: any = () => ({ _: 'inputWallPaper', id: i64(), access_hash: i64() });
 const _inputWallPaperSlug: any = () => ({ _: 'inputWallPaperSlug', slug: str() });
 const _channelParticipantsContacts: any = () => ({ _: 'channelParticipantsContacts', q: str() });
@@ -2430,7 +2448,7 @@ const _inputDialogPeerFolder: any = () => ({ _: 'inputDialogPeerFolder', folder_
 const _dialogPeerFolder: any = () => ({ _: 'dialogPeerFolder', folder_id: i32() });
 const _inputFolderPeer: any = () => ({ _: 'inputFolderPeer', peer: obj(), folder_id: i32() });
 const _folderPeer: any = () => ({ _: 'folderPeer', peer: obj(), folder_id: i32() });
-const _updateFolderPeers: any = () => ({ _: 'updateFolderPeers', folder_peers: vector(obj), pts: i32(), pts_count: i32() });
+const _updateFolderPeers: any = () => ({ _: 'updateFolderPeers', _update: true, folder_peers: vector(obj), pts: i32(), pts_count: i32() });
 const _inputUserFromMessage: any = () => ({ _: 'inputUserFromMessage', peer: obj(), msg_id: i32(), user_id: i32() });
 const _inputChannelFromMessage: any = () => ({ _: 'inputChannelFromMessage', peer: obj(), msg_id: i32(), channel_id: i32() });
 const _inputPeerUserFromMessage: any = () => ({ _: 'inputPeerUserFromMessage', peer: obj(), msg_id: i32(), user_id: i32() });
@@ -2488,11 +2506,11 @@ const _privacyValueDisallowChatParticipants: any = () => ({ _: 'privacyValueDisa
 const _messageEntityUnderline: any = () => ({ _: 'messageEntityUnderline', offset: i32(), length: i32() });
 const _messageEntityStrike: any = () => ({ _: 'messageEntityStrike', offset: i32(), length: i32() });
 const _messageEntityBlockquote: any = () => ({ _: 'messageEntityBlockquote', offset: i32(), length: i32() });
-const _updatePeerSettings: any = () => ({ _: 'updatePeerSettings', peer: obj(), settings: obj() });
+const _updatePeerSettings: any = () => ({ _: 'updatePeerSettings', _update: true, peer: obj(), settings: obj() });
 const _channelLocationEmpty: any = () => ({ _: 'channelLocationEmpty' });
 const _channelLocation: any = () => ({ _: 'channelLocation', geo_point: obj(), address: str() });
 const _peerLocated: any = () => ({ _: 'peerLocated', peer: obj(), expires: i32(), distance: i32() });
-const _updatePeerLocated: any = () => ({ _: 'updatePeerLocated', peers: vector(obj) });
+const _updatePeerLocated: any = () => ({ _: 'updatePeerLocated', _update: true, peers: vector(obj) });
 const _channelAdminLogEventActionChangeLocation: any = () => ({ _: 'channelAdminLogEventActionChangeLocation', prev_value: obj(), new_value: obj() });
 const _inputReportReasonGeoIrrelevant: any = () => ({ _: 'inputReportReasonGeoIrrelevant' });
 const _channelAdminLogEventActionToggleSlowMode: any = () => ({ _: 'channelAdminLogEventActionToggleSlowMode', prev_value: i32(), new_value: i32() });
@@ -2505,8 +2523,8 @@ const _authAuthorizationSignUpRequired = (): any => {
 };
 const _paymentsPaymentVerificationNeeded: any = () => ({ _: 'payments.paymentVerificationNeeded', url: str() });
 const _inputStickerSetAnimatedEmoji: any = () => ({ _: 'inputStickerSetAnimatedEmoji' });
-const _updateNewScheduledMessage: any = () => ({ _: 'updateNewScheduledMessage', message: obj() });
-const _updateDeleteScheduledMessages: any = () => ({ _: 'updateDeleteScheduledMessages', peer: obj(), messages: vector(i32) });
+const _updateNewScheduledMessage: any = () => ({ _: 'updateNewScheduledMessage', _update: true, message: obj() });
+const _updateDeleteScheduledMessages: any = () => ({ _: 'updateDeleteScheduledMessages', _update: true, peer: obj(), messages: vector(i32) });
 const _restrictionReason: any = () => ({ _: 'restrictionReason', platform: str(), reason: str(), text: str() });
 const _inputTheme: any = () => ({ _: 'inputTheme', id: i64(), access_hash: i64() });
 const _inputThemeSlug: any = () => ({ _: 'inputThemeSlug', slug: str() });
@@ -2527,7 +2545,7 @@ const _theme = (): any => {
 };
 const _accountThemesNotModified: any = () => ({ _: 'account.themesNotModified' });
 const _accountThemes: any = () => ({ _: 'account.themes', hash: i32(), themes: vector(obj) });
-const _updateTheme: any = () => ({ _: 'updateTheme', theme: obj() });
+const _updateTheme: any = () => ({ _: 'updateTheme', _update: true, theme: obj() });
 const _inputPrivacyKeyAddedByPhone: any = () => ({ _: 'inputPrivacyKeyAddedByPhone' });
 const _privacyKeyAddedByPhone: any = () => ({ _: 'privacyKeyAddedByPhone' });
 

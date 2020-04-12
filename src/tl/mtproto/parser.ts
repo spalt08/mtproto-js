@@ -11,7 +11,8 @@
 /* Do not make changes to this file unless you know what you are doing -- modify           */
 /* the tool instead.                                                                       */
 /*                                                                                         */
-/* Time: Sunday, 12 April 2020 20:20:30 (UTC)                                              */
+/* Source: mtproto.json (md5: 1ef25a905cf20e6819483f8234f36b6b)                            */
+/* Time: Sunday, 12 April 2020 20:28:59 (UTC)                                              */
 /*                                                                                         */
 /*******************************************************************************************/
 
