@@ -67,6 +67,7 @@ export function genPasswordSRP(
     rand = new Uint32Array(64);
     randomize(rand);
   }
+
   const a = BigInt.fromArray(Array.from(rand), 0x100000000);
   const Ac = g.modPow(a, p);
   const AcBuf = bintTo64(Ac);

@@ -16,6 +16,7 @@ export {
   UpdateDeclMap,
   AuthBindTempAuthKey,
   InputCheckPasswordSRP,
+  AccountPassword,
 } from './layer105/types';
 
 export interface MethodDeclMap extends MtprotoMethodDeclMap, Layer105MethodDeclMap {

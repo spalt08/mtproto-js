@@ -1,4 +1,4 @@
-import { MethodDeclMap, build, parse } from '../tl';
+import { MethodDeclMap, build, parse, AccountPassword } from '../tl';
 import Transport, { TransportConfig, TransportState } from '../transport/abstract';
 import { Http, Socket } from '../transport';
 import DCService from './dc';
@@ -79,14 +79,16 @@ export default class Client {
     if (this.cfg.autoConnect) this.authorize(cfg.dc);
   }
 
-  getPasswordKdfAsync(conf: any, password: string, cb: (result: object) => void): void {
+  getPasswordKdfAsync(conf: AccountPassword.accountPassword, password: string, cb: (result: object) => void): void {
+    if (!conf.srp_id || !conf.srp_B || !conf.current_algo || conf.current_algo._ === 'passwordKdfAlgoUnknown') return;
+
     const srp = genPasswordSRP(
-      conf.current_algo.salt1,
-      conf.current_algo.salt2,
+      new Uint8Array(conf.current_algo.salt1),
+      new Uint8Array(conf.current_algo.salt2),
       conf.current_algo.g,
-      conf.current_algo.p,
+      new Uint8Array(conf.current_algo.p),
       conf.srp_id,
-      conf.srp_B,
+      new Uint8Array(conf.srp_B),
       password,
     );
 
