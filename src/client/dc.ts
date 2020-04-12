@@ -60,6 +60,16 @@ export default class DCService {
     if (this.callback) this.callback(this.meta);
   }
 
+  newSession(dc: number) {
+    if (!this.meta[dc]) this.meta[dc] = {};
+
+    const rand = new Uint32Array(2);
+    randomize(rand);
+
+    this.meta[dc].sessionID = i2h(rand[0]) + i2h(rand[1]);
+    this.meta[dc].seqNo = 1;
+  }
+
   getSessionID(dc: number): string {
     if (!this.meta[dc]) this.meta[dc] = {};
     if (!this.meta[dc].sessionID) {

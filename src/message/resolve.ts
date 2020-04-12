@@ -3,9 +3,6 @@ import EncryptedMessage from './encrypted';
 import PlainMessage from './plain';
 import { Reader32 } from '../serialization';
 
-// eight zero bytes
-const zeroAuthKey = '0000000000000000';
-
 export default function bytesToMessage(data: Uint32Array): ErrorMessage | EncryptedMessage | PlainMessage {
   const reader = new Reader32(data);
 
@@ -20,8 +17,13 @@ export default function bytesToMessage(data: Uint32Array): ErrorMessage | Encryp
     throw new Error(`Unexpected message: ${error.toString(16)}`);
   }
 
+  // quick ack
+  if (data.length <= 3) {
+    console.log('quick_ack', data);
+  }
+
   // plain message
-  if (reader.long() === zeroAuthKey) {
+  if (data[0] === 0) {
     return new PlainMessage(data);
   }
 
