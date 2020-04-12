@@ -71,7 +71,9 @@ export default class RPCService {
     }
 
     // Success response
-    if (!data) throw new Error('Expected type language constructor for response');
+    if (data === undefined) {
+      throw new Error('Expected type language constructor for response');
+    }
 
     // if (result && result.declaration && result.declaration.type === 'Updates') {
     //   this.client.updates.process(result);
