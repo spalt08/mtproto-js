@@ -7,7 +7,7 @@ import RPCService from './rpc';
 import UpdatesService from './updates';
 import { genPasswordSRP } from '../crypto/srp';
 import { ClientError, ClientConfig, RequestCallback, defaultClientConfig, AuthKey, Transports, CallHeaders,
-  PlainCallback, MessageHeaders } from './types';
+  PlainCallback, MessageHeaders, ClientMetaData } from './types';
 import { MTProtoTransport } from '../transport/protocol';
 import { logs } from '../utils/log';
 import { createAuthKey, bindTempAuthKey, initConnection, transferAuthorization } from './auth';
@@ -112,42 +112,42 @@ export default class Client {
 
     // disabled pfs
     if (!this.dc.pfs()) {
-      createAuthKey(this, dc, 2, 0, (err, key) => {
-        if (err || !key) this.authorize(dc, cb);
-        else if (cb) cb(key);
-      });
-
-      return;
-    }
+      const permKey = this.dc.getPermanentKey(dc);
+      if (permKey === null) {
+        createAuthKey(this, dc, 1, 0, () => this.authorize(dc, cb));
+        return;
+      }
 
     // enabled pfs
-    const expiresAfter = 3600 * 5;
-    const permKey = this.dc.getPermanentKey(dc);
-    const tempKey = this.dc.getAuthKey(dc);
+    } else {
+      const expiresAfter = 3600 * 5;
+      const permKey = this.dc.getPermanentKey(dc);
+      const tempKey = this.dc.getAuthKey(dc);
 
-    if (permKey === null) {
-      this.dc.setTemporaryKey(dc, null);
+      if (permKey === null) {
+        this.dc.setTemporaryKey(dc, null);
 
-      let calls = 0;
+        let calls = 0;
 
-      const onKeyCreated = () => {
-        calls += 1;
-        if (calls === 2) this.authorize(dc, cb);
-      };
+        const onKeyCreated = () => {
+          calls += 1;
+          if (calls === 2) this.authorize(dc, cb);
+        };
 
-      createAuthKey(this, dc, 2, 0, onKeyCreated);
-      createAuthKey(this, dc, 1, expiresAfter, onKeyCreated);
-      return;
-    }
+        createAuthKey(this, dc, 2, 0, onKeyCreated);
+        createAuthKey(this, dc, 1, expiresAfter, onKeyCreated);
+        return;
+      }
 
-    if (tempKey === null || (tempKey.expires && tempKey.expires < Date.now() / 1000)) {
-      createAuthKey(this, dc, 1, expiresAfter, () => this.authorize(dc, cb));
-      return;
-    }
+      if (tempKey === null || (tempKey.expires && tempKey.expires < Date.now() / 1000)) {
+        createAuthKey(this, dc, 1, expiresAfter, () => this.authorize(dc, cb));
+        return;
+      }
 
-    if (permKey && tempKey.binded === false) {
-      bindTempAuthKey(this, dc, permKey, tempKey, () => this.authorize(dc, cb));
-      return;
+      if (permKey && tempKey.binded === false) {
+        bindTempAuthKey(this, dc, permKey, tempKey, () => this.authorize(dc, cb));
+        return;
+      }
     }
 
     if (this.dc.getConnection(dc) === false) {
@@ -448,7 +448,7 @@ export default class Client {
 
   /** Subscription for client event */
   on(eventName: 'networkChanged', cb: (state: TransportState) => void): void;
-  on(eventName: 'metaChanged', cb: (meta: Record<number, any>) => void): void;
+  on(eventName: 'metaChanged', cb: (meta: ClientMetaData) => void): void;
   on(eventName: string, cb: ClientEventListener): void {
     if (!this.listeners[eventName]) this.listeners[eventName] = [];
     this.listeners[eventName].push(cb);
