@@ -19,6 +19,9 @@ export default class UpdateService {
   /** Subscribers */
   subscribers: Record<string, UpdateListener<any>[]>;
 
+  /** Subscriber on any update */
+  subscriberAny?: UpdateListener<any>;
+
   /**
    * Creates auth service object
    */
@@ -42,6 +45,8 @@ export default class UpdateService {
       for (let i = 0; i < listeners.length; i += 1) listeners[i](update);
     }
 
+    if (this.subscriberAny) this.subscriberAny(update);
+
     debug(this.client, update._);
   }
 
@@ -58,9 +63,15 @@ export default class UpdateService {
   /**
    * Subscribes specific callback on update
    */
-  on<K extends keyof UpdateDeclMap>(predicate: K, reciever: UpdateListener<K>) {
-    if (!this.subscribers[predicate]) this.subscribers[predicate] = [];
-    this.subscribers[predicate].push(reciever);
+  on<K extends keyof UpdateDeclMap>(predicate: K, reciever: UpdateListener<K>): void;
+  on(reciever: UpdateListener<any>): void;
+  on(arg0: string | UpdateListener<any>, arg1?: UpdateListener<any>): void {
+    if (typeof arg0 === 'string') {
+      if (!this.subscribers[arg0]) this.subscribers[arg0] = [];
+      if (arg1) this.subscribers[arg0].push(arg1);
+    } else {
+      this.subscriberAny = arg0;
+    }
   }
 
   /**
