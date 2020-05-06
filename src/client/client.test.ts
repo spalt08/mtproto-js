@@ -2,7 +2,7 @@ import Client from './client';
 import configMock from '../mock/transport_config';
 import { Socket, Http } from '../transport';
 import { randomize } from '../serialization';
-import { ResPQ } from '../tl/layer105/types';
+import { ResPQ } from '../tl/mtproto/types';
 import metaMock from '../mock/client_meta';
 import { AuthKey } from './types';
 

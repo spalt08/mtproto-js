@@ -7,8 +7,8 @@ module.exports = {
     '**/?(*.)+(spec|test).+(ts|js)',
   ],
   preset: 'ts-jest',
-  testPathIgnorePatterns: ['/dist/', '/node_modules/', '/src/tl/layer105/'],
-  coveragePathIgnorePatterns: ['/src/tl/layer105/'],
+  testPathIgnorePatterns: ['/dist/', '/node_modules/', '/src/tl/layer113/'],
+  coveragePathIgnorePatterns: ['/src/tl/layer113/'],
   moduleFileExtensions: ['ts', 'js', 'json'],
   collectCoverage: true,
   globals: {
