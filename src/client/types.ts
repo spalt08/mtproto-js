@@ -36,7 +36,7 @@ export const defaultClientConfig: ClientConfig = {
   transport: 'websocket' as Transports,
   meta: {},
 
-  APILayer: 105,
+  APILayer: 113,
   deviceModel: 'Unknown',
   systemVersion: 'Unknown',
   appVersion: '1.0.0',

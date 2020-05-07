@@ -1,7 +1,7 @@
 # mtproto-js
 *This project is still under development right now, so feel free to ask anything or contribute.*
 
-JavaScript MTProto 2.0 Implementation. Current supported API layer is 105.
+JavaScript MTProto 2.0 Implementation. Current supported API layer is 113.
 
 Reference: https://core.telegram.org/mtproto
  
@@ -10,11 +10,11 @@ Reference: https://core.telegram.org/mtproto
 ```js
 import { TypeLanguage, Http, Schema } from 'mtproto-js';
 
-const tl = new TypeLanguage(Schema.MTProto, Schema.Layer105);
+const tl = new TypeLanguage(Schema.MTProto, Schema.Layer113);
 const server = new Http('venus.web.telegram.org', tl, {
   APIID: '******',
   APIHash: '********************',
-  APILayer: 105,
+  APILayer: 113,
 });
 
 server.connect().then(() => {
@@ -34,7 +34,7 @@ server.connect().then(() => {
 
 TypeLanguage class helps create and handle type language messages. Firstly, you need to create an class instance with json TL schemas args.
 ```js
-const tlHandler = new TypeLanguage(Schema.MTProto, Schema.Layer105);
+const tlHandler = new TypeLanguage(Schema.MTProto, Schema.Layer113);
 ```
 *There is two schemas in example above: [base protocol schema](https://core.telegram.org/schema/mtproto) and [telegram api schema](https://core.telegram.org/schema).*
 
@@ -60,7 +60,7 @@ Schema package has predefined schemas and several usefull methods
 import MTProto from 'mtproto-js';
 
 MTProto.Schema.MTProto // json, predefined mtproto schema: https://core.telegram.org/schema/mtproto
-MTProto.Schema.Layer105 // json, predefined layer schema: https://core.telegram.org/schema
+MTProto.Schema.Layer112 // json, predefined layer schema: https://core.telegram.org/schema
 
 MTProto.Schema.generateSchema('any tl program'); // generates json schema and returs it
 MTProto.Schema.parse('tl expression or formula'); // returns single schema for constructor
