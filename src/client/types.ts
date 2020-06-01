@@ -74,6 +74,7 @@ export interface DCServiceInterface {
   setTemporaryKey(dcID: number, key: AuthKey): void;
   setKeyBinding(dcID: number): void;
   setSessionID(dcID: number, session: string): void;
+  setLayer(dcID: number, layer: number): void;
   getKeyBinding(dcID: number): boolean;
   getSessionID(dcID: number): string;
   getSalt(dcID: number): string;
@@ -117,6 +118,7 @@ export type DataCenterMetaData = {
   temporaryKey?: AuthKey,
   salt?: string,
   inited?: boolean,
+  layer?: number,
   authorized?: boolean,
 };
 

@@ -111,7 +111,7 @@ export function createDHRequestParams(ctx: KeyExchangeContext, random?: Uint32Ar
  */
 export function createClientDHParams(ctx: KeyExchangeContext, rand?: Uint8Array, padding?: Uint32Array): Set_client_DH_params {
   if (!rand) {
-    rand = new Uint8Array(255);
+    rand = new Uint8Array(32);
     randomize(rand);
   }
 
@@ -353,7 +353,7 @@ export function initConnection(client: ClientInterface, dc: number, cb?: (result
       log('Unexpected initConnection response');
       if (cb) cb(false);
     } else {
-      client.dc.setConnection(dc);
+      client.dc.setLayer(dc, client.cfg.APILayer);
       log('session successfuly inited');
       if (cb) cb(true);
     }

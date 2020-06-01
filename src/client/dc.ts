@@ -72,6 +72,11 @@ export default class DCService {
     this.triggerUpdateEvent();
   }
 
+  setLayer(dcID: number, layer: number) {
+    this.getDC(dcID).layer = layer;
+    this.triggerUpdateEvent();
+  }
+
   setPermanentKey(dcID: number, key: AuthKeyNotNull) {
     this.getDC(dcID).permanentKey = key;
     this.triggerUpdateEvent();
@@ -138,6 +143,10 @@ export default class DCService {
 
   getConnection(dcID: number): boolean {
     return !!this.getDC(dcID).inited;
+  }
+
+  getLayer(dcID: number): number | undefined {
+    return this.getDC(dcID).layer;
   }
 
   pfs(): boolean {

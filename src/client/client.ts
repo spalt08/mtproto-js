@@ -150,7 +150,7 @@ export default class Client {
       }
     }
 
-    if (this.dc.getConnection(dc) === false) {
+    if (this.dc.getLayer(dc) !== this.cfg.APILayer) {
       initConnection(this, dc, () => {
         this.authorize(dc, cb);
       });
