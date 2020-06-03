@@ -45,8 +45,6 @@ export default class UpdateService {
       for (let i = 0; i < listeners.length; i += 1) listeners[i](update);
     }
 
-    if (this.subscriberAny) this.subscriberAny(update);
-
     debug(this.client, update._);
   }
 
@@ -79,6 +77,8 @@ export default class UpdateService {
    * Ref: https://core.telegram.org/api/updates
    */
   process(updateMsg: any) {
+    if (this.subscriberAny) this.subscriberAny(updateMsg);
+
     switch (updateMsg._) {
       // Ref: https://core.telegram.org/constructor/updateShort
       case 'updateShort':
