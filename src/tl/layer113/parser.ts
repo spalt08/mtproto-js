@@ -12,7 +12,7 @@
 /* the tool instead.                                                                       */
 /*                                                                                         */
 /* Source: layer113.json (md5: 0bbcf8765e5d19b4f974edcde0a90b89)                           */
-/* Time: Thursday, 07 May 2020 06:31:44 (UTC)                                              */
+/* Time: Sunday, 07 June 2020 15:17:31 (UTC)                                               */
 /*                                                                                         */
 /*******************************************************************************************/
 
@@ -39,7 +39,7 @@ export default function parse(reader: Reader, fallback?: (stream: Reader) => any
 const _boolFalse = () => false;
 const _boolTrue = () => true;
 const _true = () => true;
-const _vector: any = () => ({ _: 'vector' });
+const _vector = () => vector(obj, true);
 const _error: any = () => ({ _: 'error', code: i32(), text: str() });
 const _null = () => null;
 const _inputPeerEmpty: any = () => ({ _: 'inputPeerEmpty' });

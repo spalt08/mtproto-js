@@ -12,7 +12,7 @@
 /* the tool instead.                                                                       */
 /*                                                                                         */
 /* Source: mtproto.json (md5: 1ef25a905cf20e6819483f8234f36b6b)                            */
-/* Time: Thursday, 07 May 2020 06:31:44 (UTC)                                              */
+/* Time: Sunday, 07 June 2020 15:17:31 (UTC)                                               */
 /*                                                                                         */
 /*******************************************************************************************/
 
@@ -36,7 +36,7 @@ export default function parse(reader: Reader, fallback?: (stream: Reader) => any
   return obj();
 }
 
-const _vector: any = () => ({ _: 'vector' });
+const _vector = () => vector(obj, true);
 const _resPQ: any = () => ({ _: 'resPQ', nonce: i128(), server_nonce: i128(), pq: bytes(), server_public_key_fingerprints: vector(i64) });
 const _p_q_inner_data: any = () => ({ _: 'p_q_inner_data', pq: bytes(), p: bytes(), q: bytes(), nonce: i128(), server_nonce: i128(), new_nonce: i256() });
 const _p_q_inner_data_dc: any = () => ({ _: 'p_q_inner_data_dc', pq: bytes(), p: bytes(), q: bytes(), nonce: i128(), server_nonce: i128(), new_nonce: i256(), dc: i32() });
