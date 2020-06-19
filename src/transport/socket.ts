@@ -136,20 +136,18 @@ export default class Socket extends Transport {
   handleMessage = (event: MessageEvent) => {
     if (!event.data || !this.obfuscation) return;
 
-    // notify client
-    if (this.state !== 'connected') this.notify('connected');
-
     // process message
     const data = unWrap(this.obfuscation.decode(ab2i(event.data)));
     const msg = bytesToMessage(data);
 
     // flush request timer
-    if (msg instanceof EncryptedMessage) {
-      if (this.requestTimer) {
-        clearTimeout(this.requestTimer);
-        this.requestTimer = 0;
-      }
+    if (this.requestTimer) {
+      clearTimeout(this.requestTimer);
+      this.requestTimer = 0;
     }
+
+    // notify client
+    if (this.state !== 'connected') this.notify('connected');
 
     // pass message to main client thread
     this.pass(this.cfg, msg);
