@@ -33,6 +33,7 @@ function bintTo64(src: BigInteger): Uint32Array {
   return buf;
 }
 
+
 export function genPasswordSRP(
   salt1: Uint8Array, salt2: Uint8Array, cg: number, cp: Uint8Array, srpId: string, csrpB: Uint8Array, password: string, rand?: Uint32Array,
 ): InputCheckPasswordSRP.inputCheckPasswordSRP {
@@ -64,7 +65,7 @@ export function genPasswordSRP(
   const kgx = k.multiply(gx).mod(p);
 
   if (!rand) {
-    rand = new Uint32Array(64);
+    rand = new Uint32Array(6);
     randomize(rand);
   }
 

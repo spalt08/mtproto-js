@@ -111,7 +111,7 @@ export function createDHRequestParams(ctx: KeyExchangeContext, random?: Uint32Ar
  */
 export function createClientDHParams(ctx: KeyExchangeContext, rand?: Uint8Array, padding?: Uint32Array): Set_client_DH_params {
   if (!rand) {
-    rand = new Uint8Array(32);
+    rand = new Uint8Array(20);
     randomize(rand);
   }
 
