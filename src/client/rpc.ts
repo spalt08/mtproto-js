@@ -97,6 +97,7 @@ export default class RPCService {
     if (result._ === 'auth.authorization') {
       debug(this.client.cfg, 'middleware', result._);
       this.client.dc.setAuthorization(request.headers.dc!, result.user.id);
+      this.client.authorize(2);
     }
   };
 

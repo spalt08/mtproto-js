@@ -95,6 +95,7 @@ export interface ClientInterface {
   cfg: ClientConfig;
   dc: DCServiceInterface;
   updates: UpdateServiceInterface;
+  authorize(dc: number, cb?: (key: AuthKey) => void): void;
   plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
   plainCall<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], headers: CallHeaders, cb?: PlainCallback<K>): void;
   call<K extends keyof MethodDeclMap>(method: K, data: MethodDeclMap[K]['req'], cb?: PlainCallback<K>): void;
