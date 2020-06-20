@@ -160,7 +160,7 @@ export default class Socket extends Transport {
     debug(this.cfg, 'waiting');
 
     // notify client
-    this.notify('waiting');
+    // this.notify('waiting');
   };
 
   /**
@@ -174,7 +174,7 @@ export default class Socket extends Transport {
 
       // delay request timeout handler
       if (msg instanceof EncryptedMessage && msg.isContentRelated && !this.requestTimer) {
-        this.requestTimer = setTimeout(this.handleRequestTimout as TimerHandler, 5000);
+        // this.requestTimer = setTimeout(this.handleRequestTimout as TimerHandler, 5000);
       }
 
     // else: add message to pending quene and reconnect
