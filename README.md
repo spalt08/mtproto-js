@@ -52,5 +52,10 @@ client.call(
 * Multithreading
 * Supports both WebSockets and HTTP
 
+## Dependencies
+* [[cryptography aes, pbkdf2, sha1, sha256, sha512](https://github.com/spalt08/cryptography)] 
+* [[big-integer](https://github.com/peterolson/BigInteger.js/)]
+* [[pako](https://github.com/nodeca/pako)]
+
 ## Contributions 
 Thanks @misupov for schema code generation tool https://github.com/misupov/tg-schema-generator

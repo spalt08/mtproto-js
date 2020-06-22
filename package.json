@@ -4,12 +4,12 @@
   "version": "0.2.0",
   "author": "Konstantin Darutkin",
   "scripts": {
-    "prepare": "npm run build",
+    "prepare": "yarn run build",
     "lint": "eslint --ext .ts ./src",
-    "build": "rimraf dist/* && webpack --mode=production",
-    "start": "rimraf dist/* && webpack --watch",
-    "analyze": "npm run build -- --analyze",
-    "test": "jest"
+    "build": "rm -rf dist/* && rollup -c",
+    "analyze": "yarn run build -- --analyze",
+    "test": "jest",
+    "publish": "yarn build"
   },
   "dependencies": {
     "@cryptography/aes": "^0.1.1",
@@ -21,15 +21,8 @@
     "pako": "^1.0.10"
   },
   "devDependencies": {
-    "@babel/core": "^7.6.2",
-    "@babel/plugin-proposal-class-properties": "^7.5.5",
-    "@babel/plugin-proposal-export-default-from": "^7.5.2",
-    "@babel/plugin-proposal-export-namespace-from": "^7.5.2",
-    "@babel/plugin-transform-classes": "^7.5.5",
-    "@babel/plugin-transform-runtime": "^7.6.2",
-    "@babel/preset-env": "^7.6.2",
-    "@babel/preset-flow": "^7.0.0",
-    "@babel/runtime": "^7.6.2",
+    "@rollup/plugin-node-resolve": "^7.1.1",
+    "@rollup/plugin-typescript": "^4.0.0",
     "@types/jest": "^24.0.22",
     "@types/pako": "^1.0.1",
     "@typescript-eslint/eslint-plugin": "^2.6.1",
@@ -48,18 +41,18 @@
     "jest": "^25.3.0",
     "jest-environment-node": "^25.3.0",
     "rimraf": "^3.0.1",
+    "rollup": "^2.2.0",
+    "rollup-plugin-terser": "^5.3.0",
     "terser-webpack-plugin": "^2.1.2",
     "text-encoding": "^0.7.0",
     "ts-jest": "^25.3.1",
     "ts-loader": "^6.2.1",
-    "typescript": "^3.7.2",
-    "webpack": "^4.40.2",
-    "webpack-bundle-analyzer": "^3.6.0",
-    "webpack-cli": "^3.3.9"
+    "typescript": "^3.7.2"
   },
   "license": "GPL-3.0-or-later",
-  "main": "dist/mtproto-js.cjs.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/mtproto-js.min.js",
+  "module": "dist/es/mtproto-js.js",
+  "types": "dist/typings/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/spalt08/mtproto-js.git"

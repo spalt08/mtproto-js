@@ -1,10 +1,12 @@
 /* eslint-disable newline-per-chained-call */
-import BigInt, { BigInteger } from 'big-integer';
 import sha256 from '@cryptography/sha256';
 import pbkdf2 from '@cryptography/pbkdf2';
 import sha512 from '@cryptography/sha512';
 import { ab2i, randomize, i2ab } from '../serialization';
 import { InputCheckPasswordSRP } from '../tl';
+
+type BigInteger = import('big-integer').BigInteger;
+const BigInt = require('big-integer'); // fix for rollup
 
 function uintTo64(src: Uint8Array): Uint32Array {
   const buf = new Uint32Array(64);
@@ -32,7 +34,6 @@ function bintTo64(src: BigInteger): Uint32Array {
 
   return buf;
 }
-
 
 export function genPasswordSRP(
   salt1: Uint8Array, salt2: Uint8Array, cg: number, cp: Uint8Array, srpId: string, csrpB: Uint8Array, password: string, rand?: Uint32Array,

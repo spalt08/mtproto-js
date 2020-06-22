@@ -1,4 +1,5 @@
-import BigInt, { BigInteger } from 'big-integer';
+type BigInteger = import('big-integer').BigInteger;
+const BigInt = require('big-integer'); // fix for rollup
 
 /**
  * Prime factorization p-Pollard Algorithm.

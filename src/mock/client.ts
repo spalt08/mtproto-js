@@ -9,6 +9,7 @@ const ClientMock: ClientInterface = {
   plainCall: () => {},
   call: () => {},
   send: () => {},
+  authorize: () => {},
 };
 
 export default ClientMock;

@@ -1,10 +1,11 @@
-import { inflate } from 'pako/lib/inflate';
 import { logs } from '../utils/log';
 import { Message } from '../message';
 import { ab2i, Reader32 } from '../serialization';
 import { RPCHeaders, ClientError, ClientInterface, ClientConfig, RequestRPC, PlainCallback, MessageHeaders } from './types';
 import { parse } from '../tl';
 import { Object, BadMsgNotification, NewSession, RpcResult } from '../tl/mtproto/types';
+
+const { inflate } = require('pako/lib/inflate'); // fix for rollup
 
 const debug = (cfg: ClientConfig, ...rest: any[]) => {
   if (cfg.debug) logs('rpc')(...rest);

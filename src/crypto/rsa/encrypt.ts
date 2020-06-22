@@ -1,4 +1,4 @@
-import BigInt from 'big-integer';
+const BigInt = require('big-integer'); // fix for rollup
 
 /**
  * Encrypts hex string with RSA

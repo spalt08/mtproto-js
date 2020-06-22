@@ -1,5 +1,4 @@
 /* eslint-disable prefer-destructuring */
-import BigInt from 'big-integer';
 import sha1 from '@cryptography/sha1';
 import { IGE } from '@cryptography/aes';
 import { getKeyByFingerprints } from '../crypto/rsa/keys';
@@ -10,6 +9,8 @@ import { BrentPrime } from '../crypto/pq';
 import RSAEncrypt from '../crypto/rsa/encrypt';
 import { ClientError, AuthKey, ClientInterface, CallHeaders, AuthKeyNotNull } from './types';
 import { parse, build, Req_DH_params, Set_client_DH_params, Server_DH_inner_data, AuthBindTempAuthKey } from '../tl';
+
+const BigInt = require('big-integer'); // fix for rollup
 
 const log = logs('auth');
 
