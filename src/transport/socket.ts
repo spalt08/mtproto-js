@@ -1,16 +1,23 @@
 /* eslint-disable no-restricted-globals */
-import Transport, { TransportConfig, TransportCallback, TransportState } from './abstract';
-import { logs } from '../utils/log';
-import { i2ab, ab2i } from '../serialization';
-import { PlainMessage, bytesToMessage, EncryptedMessage } from '../message';
-import { wrap, unWrap, HEADER, Obfuscation } from './protocol';
+import { bytesToMessage, EncryptedMessage, PlainMessage } from "../message";
+import { ab2i, i2ab } from "../serialization";
+import { logs } from "../utils/log";
+import Transport, {
+  TransportCallback,
+  TransportConfig,
+  TransportState,
+} from "./abstract";
+import { HEADER, Obfuscation, unWrap, wrap } from "./protocol";
+
+var self = global?.self || window || this;
 
 /** Configuration object for WebSocket transport */
 type SocketConfig = TransportConfig;
 
 /** Format debug messages if debug flag is enabled */
 const debug = (cfg: SocketConfig, ...rest: any[]) => {
-  if (cfg.debug) logs('socket')('[dc:', cfg.dc, 'thread:', cfg.thread, ']', ...rest);
+  if (cfg.debug)
+    logs("socket")("[dc:", cfg.dc, "thread:", cfg.thread, "]", ...rest);
 };
 
 export default class Socket extends Transport {
@@ -24,7 +31,7 @@ export default class Socket extends Transport {
   cfg: SocketConfig;
 
   /** Instance transport */
-  transport = 'websocket';
+  transport = "websocket";
 
   /** Transport obfuscation */
   obfuscation?: Obfuscation;
@@ -39,7 +46,7 @@ export default class Socket extends Transport {
   requestTimer?: number;
 
   /** Transport state */
-  state: TransportState = 'disconnected';
+  state: TransportState = "disconnected";
 
   /**
    * Creates new web socket handler
@@ -51,11 +58,11 @@ export default class Socket extends Transport {
     this.connect();
 
     if (self) {
-      self.addEventListener('online', () => {
+      self.addEventListener("online", () => {
         this.connect();
       });
 
-      self.addEventListener('offline', () => {
+      self.addEventListener("offline", () => {
         if (this.ws) this.ws.close();
       });
     }
@@ -77,7 +84,7 @@ export default class Socket extends Transport {
     if (force) {
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
 
-    // auto connect should be throttled
+      // auto connect should be throttled
     } else if (timestamp - this.lastConnectRetry < 1000) {
       this.reconnectTimer = setTimeout(this.connect as TimerHandler, 3000);
       return;
@@ -88,8 +95,13 @@ export default class Socket extends Transport {
     if (navigator.onLine !== false) {
       this.lastConnectRetry = timestamp;
 
-      this.ws = new WebSocket(`ws${this.cfg.ssl ? 's' : ''}://${this.cfg.host}/apiws${this.cfg.test ? '_test' : ''}`, 'binary');
-      this.ws.binaryType = 'arraybuffer';
+      this.ws = new WebSocket(
+        `ws${this.cfg.ssl ? "s" : ""}://${this.cfg.host}/apiws${
+          this.cfg.test ? "_test" : ""
+        }`,
+        "binary"
+      );
+      this.ws.binaryType = "arraybuffer";
       this.ws.onopen = this.handleOpen;
       this.ws.onclose = this.handleClose;
       this.ws.onmessage = this.handleMessage;
@@ -105,7 +117,7 @@ export default class Socket extends Transport {
     this.obfuscation = new Obfuscation();
 
     // notify client
-    this.notify('connected');
+    this.notify("connected");
 
     // init obfuscation with first packet
     const initPayload = this.obfuscation.init(HEADER);
@@ -114,17 +126,17 @@ export default class Socket extends Transport {
     // release pending messages
     this.releasePending();
 
-    debug(this.cfg, 'opened');
+    debug(this.cfg, "opened");
   };
 
   /**
    * Handles onclose event at websocket object
    */
   handleClose = (_event: CloseEvent) => {
-    debug(this.cfg, 'closed');
+    debug(this.cfg, "closed");
 
     // notify client
-    this.notify('disconnected');
+    this.notify("disconnected");
 
     // keep connection for 1st threads
     if (this.cfg.thread === 1) this.connect();
@@ -147,7 +159,7 @@ export default class Socket extends Transport {
     }
 
     // notify client
-    if (this.state !== 'connected') this.notify('connected');
+    if (this.state !== "connected") this.notify("connected");
 
     // pass message to main client thread
     this.pass(this.cfg, msg);
@@ -157,7 +169,7 @@ export default class Socket extends Transport {
    * Handles request timeout
    */
   handleRequestTimout = () => {
-    debug(this.cfg, 'waiting');
+    debug(this.cfg, "waiting");
 
     // notify client
     // this.notify('waiting');
@@ -173,11 +185,15 @@ export default class Socket extends Transport {
       this.ws.send(i2ab(frame));
 
       // delay request timeout handler
-      if (msg instanceof EncryptedMessage && msg.isContentRelated && !this.requestTimer) {
+      if (
+        msg instanceof EncryptedMessage &&
+        msg.isContentRelated &&
+        !this.requestTimer
+      ) {
         // this.requestTimer = setTimeout(this.handleRequestTimout as TimerHandler, 5000);
       }
 
-    // else: add message to pending quene and reconnect
+      // else: add message to pending quene and reconnect
     } else {
       this.pending.push(msg);
       if (!this.ws || this.ws.readyState !== 0) this.connect(true);
